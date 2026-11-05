@@ -124,6 +124,7 @@ const NO_PUBLISH_CLAIM = {
   zh: /(?:沒有|未|不|無)(?:對外|向外)?(?:公開|公布|公佈)|尚未(?:對外)?(?:公開|公布)/,
   en: /\b(?:no|not|never)\s+(?:yet\s+)?(?:been\s+)?(?:made\s+)?(?:publicly\s+|openly\s+)?(?:publish(?:ed)?|public|available|released|disclosed)\b|\b(?:isn't|aren't|wasn't|hasn't|haven't|doesn't|don't|didn't)\s+(?:been\s+)?(?:made\s+)?(?:publicly\s+)?(?:publish(?:ed)?|public|available|released)\b|\b(?:does|do|did)\s+not\s+publish\b|\bunpublished\b/i,
   ja: /(?:公開|公表|公布)(?:し|され|さ)?(?:て)?(?:い|おり|お)?(?:ない|ません|らず|ず)|非公開|未公開/,
+  ko: /(?:공개|공표)(?:하|되)지\s*않|비공개|미공개/,   // 韓文只有車站頁（verify_station_pages.mjs 抽這份）
 };
 // 正例自我檢查：這些句子（含第一版被退的原句）一定要被擋；正規式被改鬆，這裡先紅
 const NO_PUBLISH_MUST_HIT = {

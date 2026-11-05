@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 車站時刻頁（SEO 階段 B，2026-09-30）的靜態驗收：stations／en/stations／ja/stations 的台鐵、高鐵逐班時刻段。
+// 車站時刻頁（SEO 階段 B，2026-09-30）的靜態驗收：stations／en/stations／ja/stations／ko/stations 的台鐵、高鐵逐班時刻段。
 // 不開瀏覽器。頁面每週隨 `npm run fetch-schedule` 重產，沒有人逐頁看，所以這支要能「資料或程式一改壞就紅、
 // 而且紅在指名的那一條」。
 //
@@ -38,7 +38,7 @@
 //   G10 站清單獨立推導  第二批期望站＝原始資料兩週內有停靠的台鐵站 − 「臺北-環島」− 第一批台鐵成員 − 待通車站；期望網址用自己寫的 slug 函式
 //                    ＋規格常數 {左營:'zuoying-tra'}；每個期望的頁都在、磁碟上沒有多出來的站頁、slug 不重複；/stations/zuoying/ 仍是第一批那頁；
 //                    被待通車名單比中的站不可已有官方英文站名（忘了移除、或名單誤中真站）
-//   G11 具名覆蓋率     zh／en／ja 站數必須剛好是 EXPECT_ZH／EN／JA_STATIONS（--all；推導出的站數任何模式都驗）；
+//   G11 具名覆蓋率     zh／en／ja／ko 站數必須剛好是 EXPECT_ZH／EN／JA／KO_STATIONS（--all；推導出的站數任何模式都驗）；
 //                    各語逐列比對的列數印出，並斷言等於「從原始資料重算的總列數」且 > 0
 //   G12 hreflang       只有中文的頁 alternate 恰為 {zh-Hant, x-default} 且都指自己；有三語的頁四種互指；alternate 目標存在；
 //                    中文頁尾 English／日本語連結跟有沒有對應頁一致；sitemap 恰含全部車站頁與三個索引，不含不存在的網址；站頁內部連結目標存在
@@ -89,14 +89,14 @@ const siteFile = (...p) => path.join(site, ...p);
   console.log(`目標樹：${site}｜stations/index.html md5=${md5}｜原始資料與規格：${repo}`);
 }
 
-const LANGS = ['zh', 'en', 'ja'];
-const PAGE_DIR = { zh: 'stations', en: 'en/stations', ja: 'ja/stations' };
-const EXPECT_LANGS = 3;
+const LANGS = ['zh', 'en', 'ja', 'ko'];
+const PAGE_DIR = { zh: 'stations', en: 'en/stations', ja: 'ja/stations', ko: 'ko/stations' };
+const EXPECT_LANGS = 4;
 const EXPECT_FIRST_BATCH = 23;   // 第一批：23 站（含只有捷運的美麗島）
 // 具名覆蓋率常數（B2_PLAN 閘門 11）：--all 時各語言的站頁數必須剛好是這三個數字；
 // 資料出現新站（例如 2026-10 通車的平鎮臨時站）時，推導出的站數會跟這裡對不上，那時要人工確認再改常數。
-const EXPECT_ZH_STATIONS = 245, EXPECT_EN_STATIONS = 30, EXPECT_JA_STATIONS = 30;
-const EXPECT_STATIONS = { zh: EXPECT_ZH_STATIONS, en: EXPECT_EN_STATIONS, ja: EXPECT_JA_STATIONS };
+const EXPECT_ZH_STATIONS = 245, EXPECT_EN_STATIONS = 30, EXPECT_JA_STATIONS = 30, EXPECT_KO_STATIONS = 30;
+const EXPECT_STATIONS = { zh: EXPECT_ZH_STATIONS, en: EXPECT_EN_STATIONS, ja: EXPECT_JA_STATIONS, ko: EXPECT_KO_STATIONS };
 const NAMED = ['taipei', 'zuoying', 'taichung-hsr'];          // 預設模式指名：第一批
 const NAMED2 = ['zuoying-tra', 'ruifang', 'xinshi'];           // 預設模式指名：第二批（左營撞名／多路線＋英日文／臺南市新市區的正向對照）
 // 第二批的規格常數（B2_PLAN 頁面規則 2、6）
@@ -105,11 +105,11 @@ const EN_JA_SECOND = ['瑞芳', '十分', '菁桐', '礁溪', '福隆', '集集'
 const SAME_NAME_HSR = { 苗栗: ['miaoli-hsr', 'miaoli'], 彰化: ['changhua-hsr', 'changhua'], 左營: ['zuoying', 'zuoying-tra'] };   // 同名高鐵站在別處：[第一批頁 slug, 台鐵頁 slug]
 const LOOP_ALIAS = '臺北-環島';                                                       // 環島列車終點別名（站碼 1001），不是站
 const SITE_BASE = 'https://railisland.tw';
-const PREFIX = { zh: '/stations/', en: '/en/stations/', ja: '/ja/stations/' };
-const HTML_LANG = { zh: 'zh-Hant', en: 'en', ja: 'ja' };
+const PREFIX = { zh: '/stations/', en: '/en/stations/', ja: '/ja/stations/', ko: '/ko/stations/' };
+const HTML_LANG = { zh: 'zh-Hant', en: 'en', ja: 'ja', ko: 'ko' };
 const THSR_ORDER = ['南港', '台北', '板橋', '桃園', '新竹', '苗栗', '台中', '彰化', '雲林', '嘉義', '台南', '左營'];   // 沿線站序（北→南），真實世界事實
 const MON_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const WD = { zh: ['一', '二', '三', '四', '五', '六', '日'], en: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], ja: ['月', '火', '水', '木', '金', '土', '日'] };
+const WD = { zh: ['一', '二', '三', '四', '五', '六', '日'], en: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], ja: ['月', '火', '水', '木', '金', '土', '日'], ko: ['월', '화', '수', '목', '금', '토', '일'] };
 const CJK = /[぀-ヿ㐀-䶿一-鿿豈-﫿]/;
 
 // ───────────────────────── 失敗登記 ─────────────────────────
@@ -144,7 +144,7 @@ const holidayNote = (iso, lang) => {   // 註記只加在放假日；週末沒�
   if (!isHoliday(iso)) return null;
   const name = holidayNames[iso];
   if (lang === 'zh') return name || (isoWeekday(iso) < 5 ? '放假' : null);
-  return (name || isoWeekday(iso) < 5) ? (lang === 'en' ? 'holiday' : '休日') : null;
+  return (name || isoWeekday(iso) < 5) ? ({ en: 'holiday', ja: '休日', ko: '휴일' }[lang]) : null;
 };
 
 const DS = {
@@ -395,7 +395,8 @@ function parseMeta(html) {
     alts: [...head.matchAll(/<link rel="alternate" hreflang="([^"]+)" href="([^"]+)">/g)].map(m => [m[1], m[2]]),
     footEn: (foot.match(/<a href="([^"]+)" hreflang="en" lang="en">English<\/a>/) || [])[1] ?? null,
     footJa: (foot.match(/<a href="([^"]+)" hreflang="ja" lang="ja">日本語<\/a>/) || [])[1] ?? null,
-    stationLinks: [...html.matchAll(/href="(\/(?:(?:en|ja)\/)?stations\/[^"#?]*)/g)].map(m => m[1]),
+    footKo: (foot.match(/<a href="([^"]+)" hreflang="ko" lang="ko">한국어<\/a>/) || [])[1] ?? null,
+    stationLinks: [...html.matchAll(/href="(\/(?:(?:en|ja|ko)\/)?stations\/[^"#?]*)/g)].map(m => m[1]),
   };
 }
 
@@ -409,6 +410,7 @@ const DATE_RE = {   // (月, 日, 註記)
   zh: /^(\d+)\/(\d+)(?:（([^）]+)）)?$/,
   en: /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\d+)(?: \(([^)]+)\))?$/,
   ja: /^(\d+)月(\d+)日(?:（([^）]+)）)?$/,
+  ko: /^(\d+)월 (\d+)일(?:\(([^)]+)\))?$/,
 };
 function parseDateTok(lang, tok, cal, errs) {
   const m = tok.match(DATE_RE[lang]);
@@ -421,13 +423,13 @@ function parseDateTok(lang, tok, cal, errs) {
   if (want !== got) errs.push(`${iso} 的註記應為${want ? `「${want}」` : '（無）'}、頁面是${got ? `「${got}」` : '（無）'}`);
   return iso;
 }
-const SEP = { zh: '、', en: ', ', ja: '、' };
+const SEP = { zh: '、', en: ', ', ja: '、', ko: ', ' };
 function parseDateList(lang, str, cal, errs) { return str.split(SEP[lang]).map(t => parseDateTok(lang, t.trim(), cal, errs)).filter(Boolean); }
 function parseWeekdayBody(lang, body, errs) {   // → Set(dow 0..6)
   const set = new Set();
-  const sep = lang === 'zh' ? '、' : lang === 'en' ? ', ' : '・';
-  const one = lang === 'zh' ? /^週([一二三四五六日])$/ : lang === 'en' ? /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)$/ : /^([月火水木金土日])曜?$/;   // ja：「金」「金曜」都收
-  const range = lang === 'zh' ? /^週([一二三四五六日])至週([一二三四五六日])$/ : lang === 'en' ? /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)–(Mon|Tue|Wed|Thu|Fri|Sat|Sun)$/ : /^([月火水木金土日])曜?〜([月火水木金土日])曜?$/;
+  const sep = { zh: '、', en: ', ', ja: '・', ko: ' · ' }[lang];
+  const one = lang === 'ko' ? /^([월화수목금토일])요일$/ : lang === 'zh' ? /^週([一二三四五六日])$/ : lang === 'en' ? /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)$/ : /^([月火水木金土日])曜?$/;   // ja：「金」「金曜」都收
+  const range = lang === 'ko' ? /^([월화수목금토일])요일~([월화수목금토일])요일$/ : lang === 'zh' ? /^週([一二三四五六日])至週([一二三四五六日])$/ : lang === 'en' ? /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)–(Mon|Tue|Wed|Thu|Fri|Sat|Sun)$/ : /^([月火水木金土日])曜?〜([月火水木金土日])曜?$/;
   for (const part of body.split(sep)) {
     let m;
     if ((m = part.match(one))) set.add(WD[lang].indexOf(m[1]));
@@ -445,7 +447,7 @@ function decodeLabel(lang, text, cal) {
   const all = () => new Set(D);
   const between = (a, b) => new Set(D.filter(d => d >= a && d <= b));
   let m;
-  const T = { zh: '(\\d+/\\d+(?:（[^）]+）)?)', en: '((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \\d+(?: \\([^)]+\\))?)', ja: '(\\d+月\\d+日(?:（[^）]+）)?)' }[lang];
+  const T = { zh: '(\\d+/\\d+(?:（[^）]+）)?)', en: '((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \\d+(?: \\([^)]+\\))?)', ja: '(\\d+月\\d+日(?:（[^）]+）)?)', ko: '(\\d+월 \\d+일(?:\\([^)]+\\))?)' }[lang];
   const one = s => parseDateTok(lang, s, cal, errs);
   if (lang === 'zh') {
     if (text === '每日') return { set: all(), errs };
@@ -465,6 +467,15 @@ function decodeLabel(lang, text, cal) {
     if ((m = text.match(new RegExp(`^Daily ${T}[–—-]${T}$`)))) return { set: between(one(m[1]) || '', one(m[2]) || ''), errs };
     if ((m = text.match(/^Only (.+)$/))) return { set: new Set(parseDateList(lang, m[1], cal, errs)), errs };
     if ((m = text.match(/^((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[^;]*?)(?:, plus ([^;]+))?(?:; not on (.+))?$/))) return finishWeekdays(lang, m[1], m[2], m[3], cal, errs);
+  } else if (lang === 'ko') {
+    if (text === '매일') return { set: all(), errs };
+    if (text === '평일(휴일 운휴)') return { set: new Set(D.filter(d => !isHoliday(d))), errs };
+    if (text === '주말 · 휴일') return { set: new Set(D.filter(d => isHoliday(d))), errs };
+    if ((m = text.match(new RegExp(`^${T}부터 매일$`)))) return { set: between(one(m[1]) || '', cal.last), errs };
+    if ((m = text.match(new RegExp(`^${T}까지 매일$`)))) return { set: between(cal.first, one(m[1]) || ''), errs };
+    if ((m = text.match(new RegExp(`^${T}~${T} 매일$`)))) return { set: between(one(m[1]) || '', one(m[2]) || ''), errs };
+    if ((m = text.match(/^(.+)만 운행$/))) return { set: new Set(parseDateList(lang, m[1], cal, errs)), errs };
+    if ((m = text.match(/^([월화수목금토일]요일[^,;]*?)(?:, (.+?) 추가 운행)?(?:; (.+) 운휴)?$/))) return finishWeekdays(lang, m[1], m[2], m[3], cal, errs);
   } else {
     if (text === '毎日') return { set: all(), errs };
     if (text === '平日（休日は運休）') return { set: new Set(D.filter(d => !isHoliday(d))), errs };
@@ -515,6 +526,13 @@ const W_ = {
     depN: /発車する(?:台鉄|高鉄)は.*?合計(\d+)本/, arrN: /終点の列車（(\d+)本）/, subN: /(\d+)本/,
     dayLabel: /^(\d+)月(\d+)日 (.)曜(?:（(.+)）)?$/,
     south: /^南下/, north: /^北上/,
+  },
+  ko: {
+    period: '시간표 기간', perDay: '일별 출발 편수', sysWord: { TRA: '대만철도', THSR: '고속철도' },
+    range: /(\d+)월 (\d+)일\((.)\)~(\d+)월 (\d+)일\((.)\)/,
+    depN: /모두 (\d+)편/, arrN: /종점인 (\d+)편/, subN: /(\d+)편/,
+    dayLabel: /^(\d+)월 (\d+)일 (.)요일(?:\((.+)\))?$/,
+    south: /^남행/, north: /^북행/,
   },
 };
 // 頁面顯示的站名與字典值不同的少數幾個（字典 en 帶底線，頁面顯示成括號寫法；docs/i18n/tra_station_names.json _caveats 的建議）
@@ -624,7 +642,7 @@ function verifyStation(st, lang, page, members, expByMember) {
     ok(1, exp.arrivals.length === 0 ? !an : an && +an[1] === exp.arrivals.length, `${stTag} 導言的到站班數不符`, `頁面 ${an ? an[1] : '（無）'}、原始資料 ${exp.arrivals.length}`);
     // G6：段落標題含該語系站名
     ok(6, nameL && sec.h2.includes(nameL), `${stTag} 段落標題應含站名「${nameL}」`, sec.h2);
-    if (lang === 'en') ok(6, !CJK.test(sec.text), `${stTag} 英文時刻段不得含中日文字`, (sec.text.match(new RegExp(`.{0,12}${CJK.source}+.{0,12}`)) || [''])[0]);
+    if (lang === 'en' || lang === 'ko') ok(6, !CJK.test(sec.text), `${stTag} ${lang} 時刻段不得含中日文字`, (sec.text.match(new RegExp(`.{0,12}${CJK.source}+.{0,12}`)) || [''])[0]);
 
     // 區塊分類
     const arrBlocks = sec.blocks.filter(b => b.id === `${secId}-arrivals`);
@@ -801,7 +819,7 @@ function checkModelCounts() {
 // G12：每一頁的 hreflang／canonical／頁尾語言連結／內部連結，以及三個索引頁
 function expectedAlts(st) {
   const zh = urlOf('zh', st.slug);
-  return st.langs.length === LANGS.length ? { 'zh-Hant': zh, en: urlOf('en', st.slug), ja: urlOf('ja', st.slug), 'x-default': zh } : { 'zh-Hant': zh, 'x-default': zh };
+  return st.langs.length === LANGS.length ? { 'zh-Hant': zh, en: urlOf('en', st.slug), ja: urlOf('ja', st.slug), ko: urlOf('ko', st.slug), 'x-default': zh } : { 'zh-Hant': zh, 'x-default': zh };
 }
 function checkAlts(tag, m, want, onlyZh) {
   const got = new Map(); let dup = [];
@@ -823,6 +841,7 @@ function checkPagesMeta() {
       const three = st.langs.length === LANGS.length;
       ok(12, m.footEn === (three ? `${PREFIX.en}${st.slug}/` : PREFIX.en), `${tag} 頁尾 English 連結不符`, `實際 ${m.footEn ?? '（沒有）'}、應為 ${three ? `${PREFIX.en}${st.slug}/` : PREFIX.en}`);
       ok(12, m.footJa === (three ? `${PREFIX.ja}${st.slug}/` : PREFIX.ja), `${tag} 頁尾 日本語 連結不符`, `實際 ${m.footJa ?? '（沒有）'}、應為 ${three ? `${PREFIX.ja}${st.slug}/` : PREFIX.ja}`);
+      ok(12, m.footKo === (three ? `${PREFIX.ko}${st.slug}/` : PREFIX.ko), `${tag} 頁尾 한국어 連結不符`, `實際 ${m.footKo ?? '（沒有）'}、應為 ${three ? `${PREFIX.ko}${st.slug}/` : PREFIX.ko}`);
     }
     const broken = [...new Set(m.stationLinks)].filter(l => !fs.existsSync(path.join(site, l, 'index.html')));
     ok(12, broken.length === 0, `${tag} 內部連結指到不存在的站頁`, clip(broken, 12));
@@ -832,7 +851,7 @@ function checkPagesMeta() {
     if (!fs.existsSync(f)) { ok(12, false, `${lang} 索引頁不存在`, path.relative(site, f)); continue; }
     const m = parseMeta(fs.readFileSync(f, 'utf8'));
     ok(12, m.canon.length === 1 && m.canon[0] === urlOf(lang), `${lang} 索引 canonical 應為 ${urlOf(lang)}`, `實際 ${m.canon.join('、') || '（沒有）'}`);
-    checkAlts(`${lang} 索引`, m, { 'zh-Hant': urlOf('zh'), en: urlOf('en'), ja: urlOf('ja'), 'x-default': urlOf('zh') }, false);
+    checkAlts(`${lang} 索引`, m, { 'zh-Hant': urlOf('zh'), en: urlOf('en'), ja: urlOf('ja'), ko: urlOf('ko'), 'x-default': urlOf('zh') }, false);
   }
 }
 function checkSitemap() {
@@ -849,8 +868,8 @@ function checkSitemap() {
   ok(12, extra.length === 0, `sitemap 多了 ${extra.length} 個不該有的車站網址`, clip(extra.map(u => u.slice(SITE_BASE.length)), 40));
   const ghost = [...got].filter(u => { const p = urlToFile(u); return !p || !fs.existsSync(p); }).sort();
   ok(12, ghost.length === 0, `sitemap 含 ${ghost.length} 個磁碟上不存在的網址`, clip(ghost.map(u => u.slice(SITE_BASE.length)), 40));
-  const wantCount = EXPECT_ZH_STATIONS + EXPECT_EN_STATIONS + EXPECT_JA_STATIONS + LANGS.length;
-  ok(12, got.size === wantCount, `sitemap 的車站網址數必須是 ${wantCount}（${EXPECT_ZH_STATIONS}＋${EXPECT_EN_STATIONS}＋${EXPECT_JA_STATIONS}＋${LANGS.length} 個索引）`, `實際 ${got.size}`);
+  const wantCount = EXPECT_ZH_STATIONS + EXPECT_EN_STATIONS + EXPECT_JA_STATIONS + EXPECT_KO_STATIONS + LANGS.length;
+  ok(12, got.size === wantCount, `sitemap 的車站網址數必須是 ${wantCount}（${EXPECT_ZH_STATIONS}＋${EXPECT_EN_STATIONS}＋${EXPECT_JA_STATIONS}＋${EXPECT_KO_STATIONS}＋${LANGS.length} 個索引）`, `實際 ${got.size}`);
   log(`G12 sitemap：車站網址 ${got.size} 個（期望 ${wantCount}）；漏 ${missing.length}、多 ${extra.length}、磁碟上不存在 ${ghost.length}`);
 }
 
@@ -901,7 +920,7 @@ function partnerRe(p, tail, head = '') {   // 「{系統名}{站名}站」：站
   return sysAlt ? new RegExp(`${head}(?:${sysAlt})(?:${forms})${tail}`) : null;
 }
 
-const g13Branch = { zhPages: 0, enPages: 0, jaPages: 0, partner: 0, multi: 0, hsr: 0, none: 0 };   // 各分支實際被行使的次數（判準沒被行使＝沒驗）
+const g13Branch = { zhPages: 0, enPages: 0, jaPages: 0, koPages: 0, partner: 0, multi: 0, hsr: 0, none: 0 };   // 各分支實際被行使的次數（判準沒被行使＝沒驗）
 // 事實表「路線」的台鐵路線名（第一批與第二批的中文頁都跑）：一律等於 TDX 官方字面（tra_line_names.json 的 zh，如「西部幹線 (海線)」的半形括號），
 // 不是 station_transfers.json 的 routes[].name——那是 App 簡稱，TRA:WL 寫「西部幹線（山線）」但它涵蓋基隆到屏東，寫進站頁是事實錯誤。
 // 以「、」拆成集合比對，不用 includes：「海線」是「西部幹線 (海線)」的子字串，「西部幹線」是它的前綴。
@@ -999,6 +1018,13 @@ function verifySecondEnJa(st, lang, html, page, F) {
     ok(13, !CJK.test(lede + T), `${tag} 英文頁導言與轉乘段不得含中日文字（漏譯）`);
     if (F.routes.length > 1) for (const r of F.routes) ok(13, T.includes(r.en), `${tag} 多路線站的轉乘段應寫出路線「${r.en}」`, T.slice(0, 100));
     else if (F.none) ok(13, /transfer data does not list/i.test(T), `${tag} 沒有任何轉乘的頁，轉乘段要有「transfer data does not list…」那一句（沿用第一批高鐵彰化頁的英文措辭）`, T.slice(0, 100));
+  } else if (lang === 'ko') {
+    const m = lede.match(/역은 대만철도 (.+?)의 역이에요\./);
+    if (ok(13, lede.includes(`${nameL}역은 대만철도 `) && !!m, `${tag} 導言應為「${nameL}역은 대만철도 …의 역이에요.」句型`, lede.slice(0, 70))) ok(13, m[1].split(' · ').length === F.routes.length, `${tag} 導言的路線數不符 routes`, `頁面「${m[1]}」、資料 ${F.routes.length} 條`);
+    ok(13, !CJK.test(`${meta.titleTag} ${meta.metaDesc} ${meta.ogTitle} ${meta.ogDesc}`), `${tag} 韓文頁的標題／描述不得含中日文字（漏譯）`, (`${meta.titleTag} ${meta.metaDesc}`.match(new RegExp(`.{0,12}${CJK.source}+.{0,12}`)) || [''])[0]);
+    ok(13, !CJK.test(lede + T), `${tag} 韓文頁導言與轉乘段不得含中日文字（漏譯）`);
+    if (F.routes.length > 1) ok(13, T.includes('모두 속해요'), `${tag} 多路線站的轉乘段應寫出「…에 모두 속해요」`, T.slice(0, 100));
+    else if (F.none) ok(13, /환승 정보에는[\s\S]*?환승 관계가 없어요/.test(T), `${tag} 沒有任何轉乘的頁，轉乘段要有「환승 정보에는…환승 관계가 없어요」那一句`, T.slice(0, 100));
   } else {
     const m = lede.match(/駅は台鉄（TRA）の(.+?)の駅です。/);
     if (ok(13, lede.includes(`${nameL}駅は台鉄（TRA）の`) && !!m, `${tag} 導言應為「${nameL}駅は台鉄（TRA）の…の駅です。」句型`, lede.slice(0, 70))) ok(13, setEq(new Set(m[1].split('・')), new Set(F.routes.map(r => r.zh))), `${tag} 導言的路線名不符 routes（日文照抄中文路線名，以「・」連接）`, `頁面「${m[1]}」、資料「${F.routes.map(r => r.zh).join('・')}」`);
@@ -1034,8 +1060,8 @@ function checkIndexes() {
     // 卡片：中文＝原本 23 張（第一批），英日文＝30 張（不分組）
     const wantCards = new Set((lang === 'zh' ? ALL.filter(s => s.batch === 1) : wantSt).map(s => `${PREFIX[lang]}${s.slug}/`));
     const gotCards = page.cards.map(c => c.href);
-    ok(14, gotCards.length === wantCards.size && setEq(new Set(gotCards), wantCards), `${tag} 卡片應恰為 ${wantCards.size} 張（${lang === 'zh' ? '原本的第一批 23 張' : '英日文 30 站不分組'}）`, `實際 ${gotCards.length} 張；缺 ${clip([...wantCards].filter(u => !gotCards.includes(u)), 8)}；多 ${clip(gotCards.filter(u => !wantCards.has(u)), 8)}`);
-    const stale = { zh: /第一批/, en: /first (?:station pages|batch)/i, ja: /最初の駅ページ|第一弾|第1弾/ }[lang].exec(page.mainText);
+    ok(14, gotCards.length === wantCards.size && setEq(new Set(gotCards), wantCards), `${tag} 卡片應恰為 ${wantCards.size} 張（${lang === 'zh' ? '原本的第一批 23 張' : '英日韓文 30 站不分組'}）`, `實際 ${gotCards.length} 張；缺 ${clip([...wantCards].filter(u => !gotCards.includes(u)), 8)}；多 ${clip(gotCards.filter(u => !wantCards.has(u)), 8)}`);
+    const stale = { zh: /第一批/, en: /first (?:station pages|batch)/i, ja: /最初の駅ページ|第一弾|第1弾/, ko: /첫 번째 역 페이지|1차 역 페이지/ }[lang].exec(page.mainText);
     ok(14, !stale, `${tag} 不該再有「這是第一批車站頁」這類字樣`, stale ? stale[0] : '');
     if (lang !== 'zh') {
       ok(14, !/id="all-stations"/.test(html), `${tag} 英日文索引不分組（不該有 id="all-stations"）`);
@@ -1192,7 +1218,7 @@ for (const slug of picked) {
     // G7
     const hit = page.mainText.match(NO_PUBLISH_CLAIM[lang]);
     ok(7, !hit, `${lang} ${slug} 不斷言官方有沒有公開（只寫軌島的資料來源沒有）`, hit ? hit[0] : '');
-    if (lang === 'en') ok(6, !CJK.test(page.mainText), `en ${slug} 英文頁 <main> 不得含中日文字`, (page.mainText.match(new RegExp(`.{0,16}${CJK.source}+.{0,16}`)) || [''])[0]);
+    if (lang === 'en' || lang === 'ko') ok(6, !CJK.test(page.mainText), `${lang} ${slug} 頁面 <main> 不得含中日文字`, (page.mainText.match(new RegExp(`.{0,16}${CJK.source}+.{0,16}`)) || [''])[0]);
     verifyStation(st, lang, page, members, expByMember);
     if (st.batch === 1 && lang === 'zh') checkTraRouteFact(`${lang} ${slug}`, st, page);
     if (st.batch === 2) { if (lang === 'zh') verifySecondZh(st, page, html, F); else verifySecondEnJa(st, lang, html, page, F); }
@@ -1226,6 +1252,14 @@ checkReverseLinks();
     ['ja', '10月3日から毎日', want('10/3', '10/4', '10/5', '10/6', '10/7', '10/8', '10/9', '10/10')],
     ['zh', '10/2 以前每日', want('9/27', '9/28', '9/29', '9/30', '10/1', '10/2')],
     ['zh', '週末與放假日', want('9/27', '9/28', '10/3', '10/4', '10/9', '10/10')],
+    ['ko', '월요일~수요일 · 금요일, 10월 3일 추가 운행; 9월 28일(휴일) 운휴', want('9/29', '9/30', '10/2', '10/3', '10/5', '10/6', '10/7', '10/9')],
+    ['ko', '일요일', want('9/27', '10/4')],
+    ['ko', '금요일 · 일요일, 10월 3일 추가 운행', want('9/27', '10/2', '10/3', '10/4', '10/9')],
+    ['ko', '9월 28일(휴일), 10월 9일(휴일)만 운행', want('9/28', '10/9')],
+    ['ko', '10월 3일부터 매일', want('10/3', '10/4', '10/5', '10/6', '10/7', '10/8', '10/9', '10/10')],
+    ['ko', '10월 2일까지 매일', want('9/27', '9/28', '9/29', '9/30', '10/1', '10/2')],
+    ['ko', '평일(휴일 운휴)', want('9/29', '9/30', '10/1', '10/2', '10/5', '10/6', '10/7', '10/8')],
+    ['ko', '주말 · 휴일', want('9/27', '9/28', '10/3', '10/4', '10/9', '10/10')],
   ];
   for (const [lang, text, expect] of cases) {
     const d = decodeLabel(lang, text, cal);
@@ -1238,7 +1272,7 @@ checkReverseLinks();
 }
 
 // G7 控制組：抽出來的正規式真的擋得到已知正例（抽錯段落或被改鬆會當場紅）
-for (const [lang, s] of [['zh', '官方沒有公開逐班時刻表'], ['en', 'The operator does not publish a timetable.'], ['ja', '公式の時刻表は公開されていません。']]) {
+for (const [lang, s] of [['zh', '官方沒有公開逐班時刻表'], ['en', 'The operator does not publish a timetable.'], ['ja', '公式の時刻表は公開されていません。'], ['ko', '공식 시간표는 공개되지 않았어요.']]) {
   ok(7, NO_PUBLISH_CLAIM[lang].test(s), `NO_PUBLISH_CLAIM.${lang} 擋不到已知正例（正規式被改鬆或抽錯）`, s);
 }
 
@@ -1274,7 +1308,7 @@ ok(5, !!g5Example, '找不到秒數 %60 ≥ 30 的班次當正向對照（判準
 if (g5Example) log(`G5 指名對照：${g5Example.station} 車次 ${g5Example.train} 原始秒數 ${g5Example.sec}（${Math.floor(g5Example.sec / 3600)}:${pad2(Math.floor(g5Example.sec % 3600 / 60))}:${pad2(g5Example.sec % 60)}）→ 頁面 ${g5Example.page}（捨去 ${g5Example.floor}，四捨五入會是 ${g5Example.round}）`);
 
 // G13 分支覆蓋：各種轉乘情形都要真的被驗到（預設模式靠指名案例保證前三種；夥伴分支只有 --all 才保證）
-log(`G13 第二批頁：中文 ${g13Branch.zhPages}、英文 ${g13Branch.enPages}、日文 ${g13Branch.jaPages}；分支——轉乘夥伴 ${g13Branch.partner}、多路線 ${g13Branch.multi}、同名高鐵站 ${g13Branch.hsr}、沒有任何轉乘 ${g13Branch.none}`);
+log(`G13 第二批頁：中文 ${g13Branch.zhPages}、英文 ${g13Branch.enPages}、日文 ${g13Branch.jaPages}、韓文 ${g13Branch.koPages}；分支——轉乘夥伴 ${g13Branch.partner}、多路線 ${g13Branch.multi}、同名高鐵站 ${g13Branch.hsr}、沒有任何轉乘 ${g13Branch.none}`);
 ok(13, g13Branch.multi >= 1 && g13Branch.hsr >= 1 && g13Branch.none >= 1, '第二批頁的三個基本分支（多路線、同名高鐵站、沒有任何轉乘）都要真的被驗到', JSON.stringify(g13Branch));
 if (opt.all) ok(13, g13Branch.partner >= 1, '--all 時轉乘夥伴分支必須被驗到（判準沒被行使）', JSON.stringify(g13Branch));
 

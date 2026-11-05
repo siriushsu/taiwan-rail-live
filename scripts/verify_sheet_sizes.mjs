@@ -229,6 +229,73 @@ for (const engineName of ENGINES) {
     await ctx.close();
   }
 
+  // ── 不是看板家族的「更多」「觀看設定」也能拖；觀看不疊在 sheet 上、不壓速度膠囊 ──
+  {
+    const { ctx, page, errs } = await boot(browser, { width: 390, height: 844, touch: true });
+    const tag = `${engineName}/mobile`;
+    const followsFinger = (d, top0, dy) => Math.abs(d.during.top - (top0 + dy)) <= 2 && Math.abs(d.after.top - d.during.top) <= 1;
+
+    await page.click('#tabMore'); await page.waitForTimeout(300);
+    const m0 = await snap(page, 'moreSheet');
+    const md = await drag(page, 'moreSheet', 200);
+    ok(`D12 ${tag} 更多 頂緣跟手、放開停在原處`, followsFinger(md, m0.top, 200), `開 ${m0.top}、拖中 ${md.during.top}、放開 ${md.after.top}`);
+    await page.click('#moreClose'); await page.waitForTimeout(200);
+    await page.click('#tabMore'); await page.waitForTimeout(300);
+    const m1 = await snap(page, 'moreSheet');
+    ok(`D12b ${tag} 更多 關掉再開記得高度`, Math.abs(m1.top - md.after.top) <= 1, `放開 ${md.after.top}、重開 ${m1.top}`);
+    await page.click('#moreClose'); await page.waitForTimeout(200);
+
+    await page.evaluate(() => window.railViewControls.open('angle')); await page.waitForTimeout(400);
+    const v0 = await snap(page, 'viewSettingsPanel');
+    const pillTop = await page.evaluate(() => document.querySelector('.controls').getBoundingClientRect().top);
+    ok(`D12c ${tag} 觀看 下緣不壓速度膠囊`, v0.bottom <= pillTop, `卡底 ${v0.bottom}、膠囊頂 ${pillTop}`);
+    const vd = await drag(page, 'viewSettingsPanel', 200);
+    ok(`D12d ${tag} 觀看 頂緣跟手、放開停在原處`, followsFinger(vd, v0.top, 200), `開 ${v0.top}、拖中 ${vd.during.top}、放開 ${vd.after.top}`);
+    // 開在工具欄下方，手機上只露兩列：往上要能拖過工具欄到頂列下方，拖到內容底就停（11-05）。
+    const lim = await page.evaluate(() => ({ rail: document.getElementById('mapActions').getBoundingClientRect().bottom, bar: document.getElementById('topbar').getBoundingClientRect().bottom }));
+    const vu = await drag(page, 'viewSettingsPanel', -1000);
+    ok(`D12k ${tag} 觀看 往上拖過工具欄、不蓋頂列`, vu.after.top < v0.top && vu.after.top < lim.rail && vu.after.top >= lim.bar, `開 ${v0.top}、拖高 ${vu.after.top}、工具欄底 ${lim.rail}、頂列底 ${lim.bar}`);
+    ok(`D12l ${tag} 觀看 拖到內容底就停，卡底不離開膠囊`, Math.abs(vu.after.bottom - v0.bottom) <= 2, `開 ${v0.bottom}、拖高 ${vu.after.bottom}`);
+    await page.evaluate(() => window.railViewControls.close()); await page.waitForTimeout(200);
+
+    await page.evaluate(() => openFontPanel()); await page.waitForTimeout(400);
+    const f0 = await snap(page, 'fontPanel');
+    const fd = await drag(page, 'fontPanel', 60);
+    ok(`D12e ${tag} 字級 頂緣跟手、放開停在原處`, followsFinger(fd, f0.top, 60), `開 ${f0.top}、拖中 ${fd.during.top}、放開 ${fd.after.top}`);
+    await page.evaluate(() => closeFontPanel()); await page.waitForTimeout(200);
+
+    await selectTRA(page);
+    await page.evaluate(c => eval(c), open('臺北')); await page.waitForTimeout(600);
+    await page.click('#viewSettingsBtn'); await page.waitForTimeout(500);
+    const both = await page.evaluate(() => ({ view: !document.getElementById('viewSettingsPanel').hidden, board: !document.getElementById('board').hidden }));
+    ok(`D12f ${tag} 開觀看時看板讓位，不疊在一起`, both.view && !both.board, JSON.stringify(both));
+    await page.evaluate(() => window.railViewControls.close()); await page.waitForTimeout(200);
+
+    // 行程分享是看板家族：跟車小卡讓到它上面、速度膠囊讓位，跟別張 sheet 互斥。
+    await page.evaluate(async () => {
+      const cands = state.trains.filter(t => t.sys === 'tra_sched' && t.stops && t.stops.length > 20);
+      const tr = cands.find(t => effT(t) >= t.stops[0].depSec && tripRemainingStops(t).length >= 12) || cands[0];
+      followTrainNo(String(tr.train), { sys: 'tra_sched' });
+      await new Promise(r => setTimeout(r, 400));
+      openTripSharePanel();
+    });
+    await page.waitForTimeout(500);
+    const trip = await page.evaluate(() => {
+      const t = document.getElementById('tripPanel').getBoundingClientRect(), f = document.getElementById('followPanel').getBoundingClientRect();
+      return { sheet: document.body.classList.contains('sheet-open'), pill: +getComputedStyle(document.querySelector('.controls')).opacity, gap: Math.round(t.top - f.bottom), fh: Math.round(f.height) };
+    });
+    ok(`D12h ${tag} 行程分享 跟車小卡讓位、速度膠囊讓位`, trip.sheet && trip.pill < .05 && (trip.fh === 0 || trip.gap >= 0), JSON.stringify(trip));
+    const t0 = await snap(page, 'tripPanel');
+    const dy = t0.h > 200 ? 60 : -60;
+    const td = await drag(page, 'tripPanel', dy);
+    ok(`D12i ${tag} 行程分享 頂緣跟手、放開停在原處`, followsFinger(td, t0.top, dy), `開 ${t0.top}、拖中 ${td.during.top}、放開 ${td.after.top}`);
+    await page.evaluate(() => openFavPanel()); await page.waitForTimeout(400);
+    const solo = await page.evaluate(() => ({ fav: !document.getElementById('favPanel').hidden, trip: !document.getElementById('tripPanel').hidden }));
+    ok(`D12j ${tag} 開別張 sheet 時行程分享收掉`, solo.fav && !solo.trip, JSON.stringify(solo));
+    ok(`D12g ${tag} 無 JS 錯誤`, errs.length === 0, errs.slice(0, 2).join(' | '));
+    await ctx.close();
+  }
+
   // ── 橫式 844×390：右側欄沒有高度可拖 ──
   {
     const { ctx, page, errs } = await boot(browser, { width: 844, height: 390, touch: true });

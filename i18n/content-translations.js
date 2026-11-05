@@ -9,6 +9,7 @@
     "沿線": "Along the line",
     "地圖上的立體列車改成放大的 Q 版三節，遠看也看得清楚；可在「觀看」→「列車」→「列車大小」切回": "3D trains on the map are now enlarged three-car Q-style models, easy to see from afar; switch back under View → Train → Train size",
     "車庫畫面多了「換列車」鈕，全畫面和場景頁也能直接換車": "The garage has a new Change car button, also in fullscreen and on scene pages",
+    "新增韓文網頁：30 個車站的時刻表與轉乘，還有介紹、準確度、資料來源頁都有韓文版": "Korean web pages are here: timetables and transfers for 30 stations, plus about, accuracy and data source pages",
     "介面新增韓文：語言列多了「한국어」，地圖、使用說明、介紹頁與條款都能切成韓文": "Korean is here: pick 한국어 in the language row to read the map, help, about and legal pages in Korean",
     "有軌島通行證的人，App 校正懸賞錄程的島民點數多 50%，加成不算進每天 500 點上限": "With a Rail Island Pass, calibration bounty recordings in the app earn 50% more Islander Points, and the bonus does not count toward the 500-point daily limit",
     "快轉 30 倍以上不再限制地圖放大，放慢之後也不會卡在放不到最大": "At 30× speed and above the map no longer limits zooming in, and it no longer stays stuck short of full zoom after you slow back down",
@@ -375,6 +376,7 @@
     "沿線": "沿線",
     "地圖上的立體列車改成放大的 Q 版三節，遠看也看得清楚；可在「觀看」→「列車」→「列車大小」切回": "地図の3D列車を大きな3両のデフォルメ表示にしました。遠くからでも見やすく、「表示」→「列車」→「列車の大きさ」で戻せます",
     "車庫畫面多了「換列車」鈕，全畫面和場景頁也能直接換車": "車庫に「車両を変える」ボタンを追加。全画面や情景ページでも切り替えられます",
+    "新增韓文網頁：30 個車站的時刻表與轉乘，還有介紹、準確度、資料來源頁都有韓文版": "韓国語のページを追加：30駅の時刻表と乗り換え、紹介・精度・データ出典のページを韓国語で読めます",
     "介面新增韓文：語言列多了「한국어」，地圖、使用說明、介紹頁與條款都能切成韓文": "韓国語に対応：言語の列に「한국어」を追加し、地図・使い方・紹介ページ・規約を韓国語で読めます",
     "有軌島通行證的人，App 校正懸賞錄程的島民點數多 50%，加成不算進每天 500 點上限": "軌島パスをお持ちの方は、アプリの校正懸賞の記録で得られる島民ポイントが50%増えます。増えた分は1日500ポイントの上限に含まれません",
     "快轉 30 倍以上不再限制地圖放大，放慢之後也不會卡在放不到最大": "30倍速以上でも地図の拡大が制限されなくなり、速度を戻したあとに最大まで拡大できなくなる問題も直りました",
@@ -5050,6 +5052,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
   "屏東線＋南迴線": "Pingtung + South Link Lines",
   "誤點趨勢改成誤點重播：選一天，看誤點從哪裡開始、怎麼一路傳開，還能跳到這天的重點時刻": "The delay trend map is now Delay replay: pick a day, watch where delays began and how they spread, and jump to the day’s key moments",
   "誤點重播的站牌靠近畫面邊緣時會換邊擺，手機上不再蓋到時間": "Delay replay labels now switch sides near the screen edge, so they no longer cover the time on phones",
+  "觀看設定、更多、字級、公車站牌和行程分享的面板也能上下拖拉調整高度，觀看設定可以拉過工具欄；面板之間不再互相重疊": "The View settings, More, text size, bus stop and journey sharing panels can now be dragged to resize too, and View settings can go past the toolbar; panels no longer overlap each other",
 });
 Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   "{h} 小時": "{h}時間",
@@ -5118,4 +5121,5 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   "屏東線＋南迴線": "屏東線＋南廻線",
   "誤點趨勢改成誤點重播：選一天，看誤點從哪裡開始、怎麼一路傳開，還能跳到這天的重點時刻": "遅延トレンド地図が遅延リプレイになりました。日を選ぶと、遅延がどこで始まりどう広がったかを見られ、その日のポイントへ移動できます",
   "誤點重播的站牌靠近畫面邊緣時會換邊擺，手機上不再蓋到時間": "遅延リプレイのラベルは画面の端に近いと反対側に置くようにし、スマホで時刻が隠れなくなりました",
+  "觀看設定、更多、字級、公車站牌和行程分享的面板也能上下拖拉調整高度，觀看設定可以拉過工具欄；面板之間不再互相重疊": "表示設定、その他、文字サイズ、バス停、旅程共有のパネルも上下にドラッグして高さを変えられるようになりました。表示設定はツールバーより上まで広げられ、パネル同士も重ならなくなりました",
 });
