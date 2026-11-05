@@ -47,13 +47,13 @@
    "checksum": "b3cb09bbfd78ea6b39725322dfde0701"
   },
   "data/krtc_times.json": {
-   "sourceDescription": "高雄捷運/高雄輕軌各站時刻表:交通部TDX運輸資料流通服務(2026-07-16 抓取);高捷班表分平日(週一~四)/假日前一天(週五)/假日(週六)/週日,國定假日跑假日班表",
+   "sourceDescription": "高雄捷運/高雄輕軌各站時刻表:交通部TDX運輸資料流通服務(2026-09-23 抓取);高捷班表分平日(週一~四)/假日前一天(週五)/假日(週六)/週日,國定假日跑假日班表",
    "sourceField": "source_notes",
    "effectiveDate": null,
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "9a3f94ecaccc2f6c06475eb9ac3d10e7"
+   "checksum": "45f8716732d59724ade8b1721c310f83"
   },
   "data/music.json": {
    "sourceDescription": "本站自製配樂,無外部資料源。曲目由 Suno 生成後人工挑選,dur/bytes 由 scripts/build_music_data.mjs 以 ffprobe 與檔案大小量出;情境池的分區/時段/家族歸屬是產品設計,定義在同一支建置腳本的 POOLS 常數",
@@ -74,13 +74,13 @@
    "checksum": "130c38e73866812210067323d224f76a"
   },
   "data/ntalrt_times.json": {
-   "sourceDescription": "安坑輕軌各站時刻表:交通部TDX運輸資料流通服務(2026-07-16 抓取)",
+   "sourceDescription": "安坑輕軌各站時刻表:交通部TDX運輸資料流通服務(2026-09-14 抓取)",
    "sourceField": "source_notes",
    "effectiveDate": null,
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "2bb085a233919ae65fe46fe74d34ced1"
+   "checksum": "7a8533006b96f6f6868242c2e17f518b"
   },
   "data/ntdlrt.json": {
    "sourceDescription": "交通部 TDX 運輸資料流通服務(淡海輕軌:路線幾何/站序,2026-07 抓取);班距為官方公告估算(尖峰約10分/離峰約15分),TDX 無班距/站間時間檔",
@@ -92,13 +92,13 @@
    "checksum": "9dce13e83ef6ef72a5193e9b4b4575e4"
   },
   "data/ntdlrt_times.json": {
-   "sourceDescription": "淡海輕軌各站時刻表:交通部TDX運輸資料流通服務(2026-07-16 抓取);綠山線/藍海線各依實際時刻",
+   "sourceDescription": "淡海輕軌各站時刻表:交通部TDX運輸資料流通服務(2026-09-14 抓取);綠山線/藍海線各依實際時刻",
    "sourceField": "source_notes",
    "effectiveDate": null,
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "a853ce0d34f3e46422fc70037a531352"
+   "checksum": "c6f5e9cd6474f063521db6f974d758b2"
   },
   "data/offline_land_style.json": {
    "sourceDescription": "離線陸地的 MapLibre style 片段(fill/line 兩層、light/dark/sat 三主題),值抄自 index.html 的 offlineLandStyle();scripts/verify_track_geojson.mjs G9 對 index.html 逐值驗算",
@@ -191,13 +191,13 @@
    "checksum": "22aa721e920844331398a0421eae0574"
   },
   "data/tmrt_times.json": {
-   "sourceDescription": "台中捷運無公開逐班時刻表:以交通部TDX官方班距(各時段)與首末班車推算班次(2026-07-16 抓取),非公告時刻",
+   "sourceDescription": "台中捷運無公開逐班時刻表:以交通部TDX官方班距(各時段)與首末班車推算班次(2026-09-14 抓取),非公告時刻",
    "sourceField": "source_notes",
    "effectiveDate": null,
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "4288998bcf5202efb867307fe7a210eb"
+   "checksum": "85ce741a0085830a94914bcdcd96bc80"
   },
   "data/tra.json": {
    "sourceDescription": "Overpass 節點來源：https://maps.mail.ru/osm/tools/overpass/api/interpreter（node railway~station|halt, operator~台鐵/臺灣鐵路/Taiwan Railway，bbox=21.9,120.0,25.3,122.0），共取得",
@@ -344,13 +344,13 @@
    "checksum": "7421673a20c110c4e8305b88667e37b1"
   },
   "data/trtc_times.json": {
-   "sourceDescription": "台北捷運/新北捷運(環狀線)各站時刻表:交通部TDX運輸資料流通服務(2026-07-16 抓取);班次依平日/週六/週日/國定假日對應;文湖線無逐站時刻表,以官方班距與首末班推算(非公告時刻)",
+   "sourceDescription": "台北捷運/新北捷運(環狀線)各站時刻表:交通部TDX運輸資料流通服務(2026-10-15 抓取);班次依平日/週六/週日/國定假日對應;文湖線無逐站時刻表,以官方班距與首末班推算(非公告時刻)",
    "sourceField": "source_notes",
    "effectiveDate": null,
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "91aba3e70449df58776ab3a12bb347d5"
+   "checksum": "0c2614c55f5b8e01f0fd994ddd8010f2"
   },
   "data/tymc.json": {
    "sourceDescription": "交通部 TDX 運輸資料流通服務(桃園機場捷運:路線幾何/站序/班距/站間行駛時間,2026-07 抓取);以普通車全站停靠型態繪製 2026-07-11:移除新北產業園區站西側shape反向重走段(同軌去回偽折返,致列車視覺繞圈);站點d重投影。",
@@ -362,13 +362,13 @@
    "checksum": "f38a0f61c1eb6b57a00853dfd3e41e78"
   },
   "data/tymc_times.json": {
-   "sourceDescription": "桃園機場捷運各站時刻表:交通部TDX運輸資料流通服務(2026-07-16 抓取);普通車與直達車皆依實際時刻",
+   "sourceDescription": "桃園機場捷運各站時刻表:交通部TDX運輸資料流通服務(2026-10-15 抓取);普通車與直達車皆依實際時刻",
    "sourceField": "source_notes",
    "effectiveDate": null,
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "966f3af154ebe4d99b103b3a374a8a5c"
+   "checksum": "306b25674022f818a1cfad72f3dfd8af"
   }
  }
 }

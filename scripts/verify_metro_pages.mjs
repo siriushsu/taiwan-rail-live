@@ -360,20 +360,13 @@ for (const lang of Object.keys(ROOTS)) {
   ok(/build_aeo_pages\.mjs --check/.test(pkg.scripts['check-metro-pages'] || ''), 'npm run check-metro-pages 含 --check');
 }
 
-// 特殊時段附註與 data/special_ops.json 雙向一致（op 在就要有、被刪就要消失）
+// 設計展疏運附註：疏運期 10/11 已結束，四語每一頁都不該再出現。判準不看頁面日期：頁面日期是產生器算的，卡住時跟附註一起錯，這項就永遠是綠的
 {
-  const ops = readJson('data/special_ops.json').ops;
-  const op = ops.find(o => o.id === 'tymc-20261012-post-expo');
   const EXPO = { zh: /設計展/, en: /Design Expo/, ja: /デザイン展/, ko: /디자인 엑스포/ };
-  for (const lang of Object.keys(ROOTS)) {
-    const p = pageAt(lang, 'taoyuan-airport/airport-mrt');
-    const has = EXPO[lang].test(textOf(dropScripts(p.html)));
-    const want = !!op && genDateOf(p) <= '2026-10-11'; // 疏運期最後一天（special_ops quote）；頁面日期越過它，附註要消失
-    ok(has === want, `${lang} 機場捷運頁的特殊時段附註${want ? '存在（op 仍在 special_ops.json、頁面日期未過 10/11）' : '不存在（op 已刪或頁面日期已過 10/11）'}`);
-    const q = pageAt(lang, 'taipei/bannan');
-    ok(!EXPO[lang].test(textOf(dropScripts(q.html))), `${lang} 其他路線頁不出現機場的特殊時段附註`);
-  }
-  if (op) console.log(`  （special_ops 仍有 ${op.id}：附註要在，且首末班車＝一般班表計算結果）`);
+  for (const p of pages) ok(!EXPO[p.lang].test(textOf(dropScripts(p.html))), `${p.lang} ${p.key || '總覽'} 不出現已結束的設計展附註`);
+  // 頁面日期要跟著資料走：機捷展後版 10-15 同步，抓取日不能再寫死在建置腳本
+  for (const lang of Object.keys(ROOTS)) ok(genDateOf(pageAt(lang, 'taoyuan-airport/airport-mrt')) > '2026-10-11', `${lang} 機場捷運頁的頁面日期已越過 10/11`);
+  ok(!/\d{4}-\d{2}-\d{2} 抓取/.test(read('scripts/build_metro_times.mjs')), 'build_metro_times.mjs 沒有寫死抓取日');
 }
 
 // ═══ B. 資料抽驗（不 import 產生器）═══════════════════════════════════════════════════
