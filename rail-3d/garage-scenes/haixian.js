@@ -40,5 +40,5 @@ export function createScene(parts){
   for(let b=0;b<3;b++){const q=a+b*2*Math.PI/3;block(white,[.18,.05,2.7],[x2+Math.sin(q)*1.35,y-.5,hub+Math.cos(q)*1.35],[0,q,0]);}
   block(nav,[.12,.12,.1],[x2,y+.2,hub+.25]);}
 
- return s.finish({tracks:t,label:'海線・大山車站',themes:THEMES,anchors:{station:[0,-9.5,groundZ+1.5],platform:[0,(isl.y0+isl.y1)/2,isl.z]},update(time,theme){nav.emissiveIntensity=theme.lamp*1.4;}});
+ return s.finish({tracks:t,label:'大山車站',themes:THEMES,anchors:{station:[0,-9.5,groundZ+1.5],platform:[0,(isl.y0+isl.y1)/2,isl.z]},update(time,theme){nav.emissiveIntensity=theme.lamp*1.4;}});
 }
