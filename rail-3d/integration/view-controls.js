@@ -18,7 +18,7 @@ export function mountViewControls({translate:t}) {
   const grip=el('span','view-grip'),nav=el('nav','view-tabs');nav.setAttribute('aria-label',t('觀看設定分類'));
   const body=el('div','view-body');body.id='viewSettingsBody';
   const rail=el('nav','view-rail');rail.setAttribute('aria-label',t('觀看設定'));
-  const VIEW_H_KEY='trainmap-view-h-v1';let chosen=loadPanelFrac(VIEW_H_KEY),room=0,space=0,pillH=0; // pillH：速度膠囊閒置會縮小，用看過最高的那個高度算卡底，卡才不會跟著跳
+  const VIEW_H_KEY='trainmap-view-h-v1';let chosen=loadPanelFrac(VIEW_H_KEY),room=0,openH=0,space=0,pillH=0; // pillH：速度膠囊閒置會縮小，用看過最高的那個高度算卡底，卡才不會跟著跳
   const more=document.getElementById('moreBody'),pages=new Map(),buttons=new Map();let active='angle',opened=false,opener=null;
   for(const[key,name,icon,selectors]of categories){
     const page=el('div','view-page');page.id='view-'+key;page.hidden=true;
@@ -44,14 +44,15 @@ export function mountViewControls({translate:t}) {
     // 側欄模式只有右側真的有卡片或跟車欄時才讓到它左邊（與 index.html 的 --rail-occupy 同一組狀態）；沒開卡片時留在右上工具列，否則 iPad 橫向會浮在畫面中間。
     const railBusy=['sheet-open','train-open','follow-on'].some(c=>document.body.classList.contains(c));
     const mobile=document.body.classList.contains('mobile-shell'),stage=document.querySelector('.stage').getBoundingClientRect();dock.classList.toggle('view-mobile',mobile);toggle.classList.toggle('view-side-entry',mobile&&sheetIsSideRail()&&railBusy);
-    const right=Math.min(innerWidth-16,stage.right-12),left=right-52;dock.style.right=(innerWidth-right)+'px';let top=Math.max(16,stage.top+16);
-    for(const q of document.querySelectorAll('#topbar,.badge,#randBtn,#nearBtn,#followLockBtn,#fsFab,.maplibregl-ctrl-top-right,#alertBanner,#alertDetail')){const r=q.getBoundingClientRect(),s=getComputedStyle(q);if(!r.width||!r.height||s.display==='none'||s.visibility==='hidden'||Number(s.opacity)<.5)continue;if(r.right>left&&r.left<right&&r.top<stage.top+220)top=Math.max(top,r.bottom+12);}
+    const right=Math.min(innerWidth-16,stage.right-12),left=right-52;dock.style.right=(innerWidth-right)+'px';let top=Math.max(16,stage.top+16),ceil=top;
+    for(const q of document.querySelectorAll('#topbar,.badge,#randBtn,#nearBtn,#followLockBtn,#fsFab,.maplibregl-ctrl-top-right,#alertBanner,#alertDetail')){const r=q.getBoundingClientRect(),s=getComputedStyle(q);if(!r.width||!r.height||s.display==='none'||s.visibility==='hidden'||Number(s.opacity)<.5)continue;if(r.right>left&&r.left<right&&r.top<stage.top+220){top=Math.max(top,r.bottom+12);if(!q.closest('#mapActions'))ceil=Math.max(ceil,r.bottom+12);}}
     if(mobile){const actions=document.getElementById('mapActions').getBoundingClientRect();top=Math.max(top,actions.bottom+10);}
     let bottom=Math.min(innerHeight-88,stage.bottom-88);if(!mobile)for(const q of document.querySelectorAll('.maplibregl-ctrl-bottom-right')){const r=q.getBoundingClientRect();if(r.width&&r.height&&r.top>top)bottom=Math.min(bottom,r.top-12);}if(mobile){dock.style.right='10px';const c=document.querySelector('.controls')?.getBoundingClientRect();if(c?.height){pillH=Math.max(pillH,c.height);bottom=Math.min(bottom,c.bottom-pillH-8);}}
     // 直式手機可拖高度：下緣不動、頂緣跟手；卡高仍貼合內容（--view-space 是上限），換分頁時卡頂不跳。
-    const draggable=mobile&&!sheetIsSideRail();dock.classList.toggle('view-drag',draggable);room=Math.max(120,Math.floor(bottom-top));space=draggable&&chosen!=null?Math.max(120,Math.min(room,chosen*innerHeight)):room;top=Math.max(top,bottom-space);dock.style.setProperty('--view-top',Math.round(top)+'px');dock.style.setProperty('--view-space',Math.round(space)+'px');
+    // 開啟停在工具欄下方，往上可拖過工具欄到頂列下方（同看板）：手機上工具欄很長，卡只露兩列。拖到內容底就停，不然整張卡會飄離膠囊。
+    const draggable=mobile&&!sheetIsSideRail();dock.classList.toggle('view-drag',draggable);openH=Math.max(120,Math.floor(bottom-top));room=draggable?Math.max(openH,Math.floor(bottom-ceil)):openH;space=draggable&&chosen!=null?Math.max(120,Math.min(room,chosen*innerHeight)):openH;top=Math.max(draggable?ceil:top,bottom-space);dock.style.setProperty('--view-top',Math.round(top)+'px');dock.style.setProperty('--view-space',Math.round(space)+'px');
   }
-  initPanelDrag(panel,{key:VIEW_H_KEY,inHead:e=>!!e.target.closest('.view-head,.view-grip'),cur:()=>space,max:()=>room,set:px=>{chosen=px/innerHeight;layout();}});
+  initPanelDrag(panel,{key:VIEW_H_KEY,inHead:e=>!!e.target.closest('.view-head,.view-grip'),cur:()=>space,max:()=>Math.max(openH,Math.min(room,panel.offsetHeight-body.clientHeight+body.scrollHeight)),set:px=>{chosen=px/innerHeight;layout();}});
   let scheduled=false;function schedule(){if(scheduled)return;scheduled=true;requestAnimationFrame(()=>{scheduled=false;layout();});}
   new ResizeObserver(schedule).observe(document.getElementById('mapActions'));
   new ResizeObserver(schedule).observe(document.getElementById('topbar'));

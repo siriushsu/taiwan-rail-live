@@ -251,6 +251,11 @@ for (const engineName of ENGINES) {
     ok(`D12c ${tag} 觀看 下緣不壓速度膠囊`, v0.bottom <= pillTop, `卡底 ${v0.bottom}、膠囊頂 ${pillTop}`);
     const vd = await drag(page, 'viewSettingsPanel', 200);
     ok(`D12d ${tag} 觀看 頂緣跟手、放開停在原處`, followsFinger(vd, v0.top, 200), `開 ${v0.top}、拖中 ${vd.during.top}、放開 ${vd.after.top}`);
+    // 開在工具欄下方，手機上只露兩列：往上要能拖過工具欄到頂列下方，拖到內容底就停（11-05）。
+    const lim = await page.evaluate(() => ({ rail: document.getElementById('mapActions').getBoundingClientRect().bottom, bar: document.getElementById('topbar').getBoundingClientRect().bottom }));
+    const vu = await drag(page, 'viewSettingsPanel', -1000);
+    ok(`D12k ${tag} 觀看 往上拖過工具欄、不蓋頂列`, vu.after.top < v0.top && vu.after.top < lim.rail && vu.after.top >= lim.bar, `開 ${v0.top}、拖高 ${vu.after.top}、工具欄底 ${lim.rail}、頂列底 ${lim.bar}`);
+    ok(`D12l ${tag} 觀看 拖到內容底就停，卡底不離開膠囊`, Math.abs(vu.after.bottom - v0.bottom) <= 2, `開 ${v0.bottom}、拖高 ${vu.after.bottom}`);
     await page.evaluate(() => window.railViewControls.close()); await page.waitForTimeout(200);
 
     await page.evaluate(() => openFontPanel()); await page.waitForTimeout(400);
