@@ -6,7 +6,7 @@ export function mountViewControls({translate:t}) {
   const categories=[
     ['angle','視角','◩',['[data-rail3d="perspective"]','[data-rail3d="camera"]','#followHeadingRow','[data-proxy="immBtn"]','[data-proxy="ambientBtn"]','#viewScenes']],
     ['map','地圖','▧',['.ri-basemap-row','[data-rail3d="ground"]','[data-rail3d="inspection"]','#map3dRow','#sunlightRow']],
-    ['train','列車','▰',['[data-rail3d="enabled"]','[data-rail3d="formation"]','[data-rail3d="size"]','[data-rail3d="models"]','#trainHaloRow','[data-proxy="dirBtn"]','.ri-3d-help']],
+    ['train','列車','▰',['[data-rail3d="enabled"]','[data-rail3d="formation"]','[data-rail3d="size"]','[data-rail3d="models"]','#trainHaloRow','[data-proxy="dirBtn"]','#fictionalRow','.ri-3d-help']],
     ['labels','標示','⌖',['[data-act="track"]','#msTracks','[data-proxy="xingBtn"]','[data-proxy="introBtn"]']],
     ['display','畫面','◐',['[data-act="theme"]','[data-act="fontscale"]','[data-act="panelOpacity"]','[data-proxy="powerBtn"]','[data-proxy="musicBtn"]']]
   ];
