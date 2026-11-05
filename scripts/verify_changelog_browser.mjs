@@ -159,7 +159,8 @@ const widths = [360, 375, 414, 768];
 // 11/05: Korean static pages add one (569 -> 570).
 // 11/05: Panel drag and overlap fixes add one (570 -> 571).
 // 11/05: delay replay pin placement adds one (571 -> 572).
-const expectedHistoryCount = 572;
+// 11/05: Korean metro maps add one (572 -> 573).
+const expectedHistoryCount = 573;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

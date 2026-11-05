@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-// 捷運路線圖頁（SEO 階段 A，2026-09-29）的靜態驗收。不開瀏覽器，只讀 metro／en/metro／ja/metro 的產物、
+// 捷運路線圖頁（SEO 階段 A，2026-09-29）的靜態驗收。不開瀏覽器，只讀 metro／en/metro／ja/metro／ko/metro 的產物、
 // data/、i18n/、sitemap.xml 與入口頁。瀏覽器那一半在 scripts/verify_aeo_browser.mjs。
 //
 // 兩段，且第二段刻意不 import 任何 build_*（產生器算錯，這裡才照得到）：
 //   A. 逐頁結構：lang／title／description／canonical／hreflang 互指／og／JSON-LD／麵包屑／內部連結全部可解析／
 //      深連結參數／sitemap／入口頁連結／英文頁漏譯／紅線用語／必備句／特殊時段附註與 data/special_ops.json 的雙向一致
 //   B. 資料抽驗：14 條路線的站數與端點（全部）＋隨機 N 條（預設 3，--all 全部）的首末班車與班距，
-//      三語頁面逐項對 data/*_times.json 直接計算的結果。
+//      四語頁面逐項對 data/*_times.json 直接計算的結果。
 //
 // 用法：node scripts/verify_metro_pages.mjs [--seed=<字串>] [--sample=<N>] [--all] [--quiet]
 //   抽樣預設每次不同，seed 一定會印出來；失敗時用同一個 --seed 可以原樣重跑。
@@ -18,10 +18,10 @@ import { SPEC, SYS_IDS, DICT_OF, geoLine } from './lib/metro_page_spec.mjs';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SITE = 'https://railisland.tw';
 const GITHUB = 'https://github.com/siriushsu/taiwan-rail-live';
-const ROOTS = { zh: 'metro', en: 'en/metro', ja: 'ja/metro' };
-const HTML_LANG = { zh: 'zh-Hant', en: 'en', ja: 'ja' };
-const OG_LOCALE = { zh: 'zh_TW', en: 'en_US', ja: 'ja_JP' };
-const HOME = { zh: '/', en: '/en/', ja: '/ja/' };
+const ROOTS = { zh: 'metro', en: 'en/metro', ja: 'ja/metro', ko: 'ko/metro' };
+const HTML_LANG = { zh: 'zh-Hant', en: 'en', ja: 'ja', ko: 'ko' };
+const OG_LOCALE = { zh: 'zh_TW', en: 'en_US', ja: 'ja_JP', ko: 'ko_KR' };
+const HOME = { zh: '/', en: '/en/', ja: '/ja/', ko: '/ko/' };
 
 const opt = { all: false, sample: 3, seed: null, quiet: false };
 for (const a of process.argv.slice(2)) {
@@ -86,18 +86,18 @@ const pageAt = (lang, key) => byUrl.get(`/${ROOTS[lang]}/${key ? `${key}/` : ''}
 // ═══ A. 逐頁結構 ═════════════════════════════════════════════════════════════════════
 console.log('── A. 逐頁結構 ──');
 ok(pages.length > 0, '找得到捷運路線圖頁', `頁數 ${pages.length}`);
-ok(strayFiles.length === 0, '三個目錄裡只有 index.html', strayFiles.join('、'));
+ok(strayFiles.length === 0, '四個目錄裡只有 index.html', strayFiles.join('、'));
 {
   const per = Object.fromEntries(Object.keys(ROOTS).map(l => [l, pages.filter(p => p.lang === l)]));
   const kinds = l => ['overview', 'system', 'line'].map(k => per[l].filter(p => p.kind === k).length).join('/');
-  console.log(`總頁數 ${pages.length}（zh ${per.zh.length}［${kinds('zh')}］、en ${per.en.length}［${kinds('en')}］、ja ${per.ja.length}［${kinds('ja')}］；括號＝總覽/系統/路線）`);
+  console.log(`總頁數 ${pages.length}（zh ${per.zh.length}［${kinds('zh')}］、en ${per.en.length}［${kinds('en')}］、ja ${per.ja.length}［${kinds('ja')}］、ko ${per.ko.length}［${kinds('ko')}］；括號＝總覽/系統/路線）`);
   for (const l of Object.keys(ROOTS)) {
     ok(per[l].filter(p => p.kind === 'overview').length === 1, `${l} 有一頁總覽`);
     ok(per[l].filter(p => p.kind === 'system').length === SYS_IDS.length, `${l} 有 ${SYS_IDS.length} 個系統頁`);
     ok(per[l].filter(p => p.kind === 'line').length === SPEC.length, `${l} 有 ${SPEC.length} 個路線頁`);
   }
   const keysOf = l => per[l].map(p => p.key).sort().join('|');
-  ok(keysOf('zh') === keysOf('en') && keysOf('zh') === keysOf('ja'), '三語的頁面路徑集合一致');
+  ok(Object.keys(ROOTS).every(l => keysOf(l) === keysOf('zh')), '四語的頁面路徑集合一致');
   for (const s of SPEC) for (const l of Object.keys(ROOTS)) ok(pageAt(l, `${s.sys}/${s.slug}`), `${l} 有 ${s.sys}/${s.slug}`);
 }
 
@@ -108,32 +108,34 @@ const allSitemap = (() => {
   return rows;
 })();
 const sitemapAt = new Map(allSitemap.map(r => [r.loc, r]));
-const genDateOf = p => { const m = p.html.match(/(?:頁面產生日期：|Page generated on |ページ生成日：)(\d{4}-\d{2}-\d{2})/); return m ? m[1] : null; };
+const genDateOf = p => { const m = p.html.match(/(?:頁面產生日期：|Page generated on |ページ生成日：|페이지 생성일: )(\d{4}-\d{2}-\d{2})/); return m ? m[1] : null; };
 const NOTICE = {
   zh: '臨時班表與異動以營運單位公告為準',
   en: "Temporary timetables and service changes are subject to the operator's announcements",
   ja: '臨時ダイヤや運行変更は、運営会社の発表を優先してください',
+  ko: '임시 시간표와 운행 변경은 운영사 공지를 따라 주세요',
 };
-const RUNS_ON_TIMETABLE = { zh: /依時刻表在地圖上跑/, en: /run(?:ning)? on the timetable on the map/, ja: /時刻表どおりに地図上を走ります/ };
+const RUNS_ON_TIMETABLE = { zh: /依時刻表在地圖上跑/, en: /run(?:ning)? on the timetable on the map/, ja: /時刻表どおりに地図上を走ります/, ko: /시간표대로 지도 위를 달려요/ };
 // 台北捷運（含文湖線、環狀線）照站上導言：位置與車站倒數來自官方逐班即時資料（真值另在「入口頁」段驗 index.html 導言還這樣寫）
-const TRTC_LIVE = { zh: /官方逐班即時資料/, en: /official train-by-train live data/, ja: /公式の列車ごとのリアルタイムデータ/ };
-const RED_WORDS = /票價|運賃|料金|\bfares?\b|通行證|付費|訂閱|收費|錄影|録画|\brecord(?:ing)?\b/i;
+const TRTC_LIVE = { zh: /官方逐班即時資料/, en: /official train-by-train live data/, ja: /公式の列車ごとのリアルタイムデータ/, ko: /공식 열차별 실시간 데이터/ };
+const RED_WORDS = /票價|運賃|料金|\bfares?\b|通行證|付費|訂閱|收費|錄影|録画|\brecord(?:ing)?\b|요금|운임|통행증|유료|구독|녹화/i;
 const RED_PRODUCT_WORDS = /\bPlus\b|\bPass\b|Islander/;
 // 頁面只寫「軌島的資料來源沒有……」，不斷言官方有沒有公開
 const NO_PUBLISH_CLAIM = {
   zh: /(?:沒有|未|不|無)(?:對外|向外)?(?:公開|公布|公佈)|尚未(?:對外)?(?:公開|公布)/,
   en: /\b(?:no|not|never)\s+(?:yet\s+)?(?:been\s+)?(?:made\s+)?(?:publicly\s+|openly\s+)?(?:publish(?:ed)?|public|available|released|disclosed)\b|\b(?:isn't|aren't|wasn't|hasn't|haven't|doesn't|don't|didn't)\s+(?:been\s+)?(?:made\s+)?(?:publicly\s+)?(?:publish(?:ed)?|public|available|released)\b|\b(?:does|do|did)\s+not\s+publish\b|\bunpublished\b/i,
   ja: /(?:公開|公表|公布)(?:し|され|さ)?(?:て)?(?:い|おり|お)?(?:ない|ません|らず|ず)|非公開|未公開/,
-  ko: /(?:공개|공표)(?:하|되)지\s*않|비공개|미공개/,   // 韓文只有車站頁（verify_station_pages.mjs 抽這份）
+  ko: /(?:공개|공표)(?:하|되)지\s*않|비공개|미공개/,   // 車站頁也用這份（verify_station_pages.mjs 抽走）
 };
 // 正例自我檢查：這些句子（含第一版被退的原句）一定要被擋；正規式被改鬆，這裡先紅
 const NO_PUBLISH_MUST_HIT = {
   zh: ['這條路線沒有公開的逐班時刻表。', '官方沒有公開逐班時刻表', '官方尚未對外公開逐班時刻表', '營運單位不公開', '無公開的時刻表', '官方沒有公布'],
   en: ['This line has no published train-by-train timetable.', 'The operator does not publish a timetable.', 'The timetable is not published.', 'There is no public train-by-train timetable for this line.', "The timetable isn't published by the operator.", 'The timetable has not been made public.'],
   ja: ['この路線には列車ごとの時刻表が公開されていないため、', 'この路線には列車ごとの時刻表が公開されておらず、', '公式の時刻表は公開されていません。', '運営会社は時刻表を公表しておりません。'],
+  ko: ['이 노선의 열차별 시간표는 공개되지 않았어요.', '운영사는 시간표를 공개하지 않아요.', '시간표는 비공개예요.'],
 };
 for (const [lang, list] of Object.entries(NO_PUBLISH_MUST_HIT)) for (const t of list) ok(NO_PUBLISH_CLAIM[lang].test(t), `「不斷言公開」正規式擋得到 ${lang} 正例「${t}」`);
-const OPERATOR_WORDS = /新北捷運|New Taipei Metro|新北メトロ|營運商|運營商/;
+const OPERATOR_WORDS = /新北捷運|New Taipei Metro|新北メトロ|신베이 MRT|營運商|運營商/;
 
 for (const p of pages) {
   const tag = `${p.lang} ${p.key || '(總覽)'}`;
@@ -153,24 +155,24 @@ for (const p of pages) {
   descSeen.set(desc, tag);
   ok(title.length <= 100, `${tag} title 不超過 100 字`, `${title.length}`);
   ok(desc.length <= 330, `${tag} description 不超過 330 字`, `${desc.length}`);
-  // 標題句型（路線頁三種語言各一種；系統／總覽頁另有句型）
+  // 標題句型（路線頁四種語言各一種；系統／總覽頁另有句型）
   if (p.kind === 'line') {
-    const re = { zh: /^.+路線圖、車站與(首末班車|營運時間)(｜.+)?｜軌島$/, en: /^.+ Map, Stations & (First\/Last Trains|Operating Hours)( \| .+)? \| Rail Island$/, ja: /^.+ 路線図・駅一覧・(始発終電|運行時間)(｜.+)?｜軌島$/ }[p.lang];
+    const re = { zh: /^.+路線圖、車站與(首末班車|營運時間)(｜.+)?｜軌島$/, en: /^.+ Map, Stations & (First\/Last Trains|Operating Hours)( \| .+)? \| Rail Island$/, ja: /^.+ 路線図・駅一覧・(始発終電|運行時間)(｜.+)?｜軌島$/, ko: /^.+ 노선도, 역, (첫차 · 막차|운행 시간)( \| .+)? \| Rail Island$/ }[p.lang];
     ok(re.test(title), `${tag} 路線頁 title 句型`, title);
   } else {
-    ok(p.lang === 'en' ? / \| Rail Island$/.test(title) : /｜軌島$/.test(title), `${tag} title 以站名結尾`, title);
+    ok(p.lang === 'en' || p.lang === 'ko' ? / \| Rail Island$/.test(title) : /｜軌島$/.test(title), `${tag} title 以站名結尾`, title);
   }
   // canonical／hreflang
   const canon = [...head.matchAll(/<link rel="canonical" href="([^"]*)"/g)].map(m => m[1]);
   ok(canon.length === 1 && canon[0] === SITE + p.urlPath, `${tag} canonical 指向自己`, canon.join('、'));
   const alts = Object.fromEntries([...head.matchAll(/<link rel="alternate" hreflang="([^"]*)" href="([^"]*)"/g)].map(m => [m[1], m[2]]));
   const altKeys = Object.keys(alts).sort().join(',');
-  ok(altKeys === 'en,ja,x-default,zh-Hant', `${tag} hreflang 恰為 zh-Hant／en／ja／x-default`, altKeys);
+  ok(altKeys === 'en,ja,ko,x-default,zh-Hant', `${tag} hreflang 恰為 zh-Hant／en／ja／ko／x-default`, altKeys);
   ok(alts['x-default'] === alts['zh-Hant'], `${tag} x-default 指向中文版`);
-  const ownAlt = { zh: alts['zh-Hant'], en: alts.en, ja: alts.ja }[p.lang];
+  const ownAlt = { zh: alts['zh-Hant'], en: alts.en, ja: alts.ja, ko: alts.ko }[p.lang];
   ok(ownAlt === SITE + p.urlPath, `${tag} 自己語言的 hreflang＝canonical`);
   p.alts = alts;
-  for (const [l, href] of [['zh', alts['zh-Hant']], ['en', alts.en], ['ja', alts.ja]]) {
+  for (const [l, href] of [['zh', alts['zh-Hant']], ['en', alts.en], ['ja', alts.ja], ['ko', alts.ko]]) {
     const want = `${SITE}/${ROOTS[l]}/${p.key ? `${p.key}/` : ''}`;
     ok(href === want, `${tag} hreflang ${l} 指向同一頁的 ${l} 版`, href);
     ok(byUrl.has(href ? href.replace(SITE, '') : ''), `${tag} hreflang ${l} 的目標檔存在`, href);
@@ -271,17 +273,18 @@ for (const p of pages) {
     ok(/<svg class="geo-map"[^>]*viewBox="0 0 360 [\d.]+"/.test(html), `${tag} SVG viewBox 寬 360`);
     ok(/<text class="lbl"/.test(html), `${tag} SVG 有站名標籤`);
   }
-  // 英文頁不得殘留中文（zh-Hant 標註的副名、品牌、語言切換除外）
-  if (p.lang === 'en') {
+  // 英文、韓文頁不得殘留中文（zh-Hant 標註的副名、品牌、語言切換除外）
+  if (p.lang === 'en' || p.lang === 'ko') {
     const cleaned = dropScripts(body).replace(/<a class="brand"[\s\S]*?<\/a>/, ' ').replace(/<(\w+)\b[^>]*\slang="[^"]*"[^>]*>[\s\S]*?<\/\1>/g, ' ');
     const left = cleaned.replace(/<[^>]+>/g, ' ');
-    ok(!CJK.test(left), `${tag} 英文頁沒有漏譯的中日文`, (left.match(/.{0,12}[\u3040-\u30ff\u3400-\u9fff]+.{0,12}/) || [])[0]);
-    ok(!CJK.test(title + desc), `${tag} 英文 title／description 沒有中日文`);
-    ok(!FULLWIDTH_PUNCT.test(left) && !FULLWIDTH_PUNCT.test(title + desc), `${tag} 英文頁沒有全形／中日文標點`, (left.match(/.{0,20}[\u3000-\u303f\uff01-\uff5e].{0,20}/) || [])[0]);
+    ok(!CJK.test(left), `${tag} 沒有漏譯的中日文`, (left.match(/.{0,12}[\u3040-\u30ff\u3400-\u9fff]+.{0,12}/) || [])[0]);
+    ok(!CJK.test(title + desc), `${tag} title／description 沒有中日文`);
+    ok(!FULLWIDTH_PUNCT.test(left) && !FULLWIDTH_PUNCT.test(title + desc), `${tag} 沒有全形／中日文標點`, (left.match(/.{0,20}[\u3000-\u303f\uff01-\uff5e].{0,20}/) || [])[0]);
     // 「起點站」在英文頁只用一種說法（09-30：首末班說明原本寫 starting terminus、班距說明寫 starting station，同頁並存；環狀輕軌沒有 terminus，所以統一成 station）
     ok(!/starting terminus/i.test(bodyText), `${tag} 英文頁不用「starting terminus」（統一寫 starting station）`);
   }
   if (p.lang === 'ja') ok(/[\u3040-\u309f\u30a0-\u30ff]/.test(textOf(secs.answer || secs.lines || '')), `${tag} 日文頁正文含假名`);
+  if (p.lang === 'ko') ok(/[\uac00-\ud7a3]/.test(textOf(secs.answer || secs.lines || '')), `${tag} 韓文頁正文含諺文`);
   if (p.lang !== 'en') ok(!ASCII_PUNCT_AFTER_CJK.test(bodyText), `${tag} 中日文頁沒有接在中日文字後的半形標點`, (bodyText.match(/.{0,20}(?:[\u3040-\u30ff\u3400-\u9fff\uff00-\uffef][,:;] |[\u3040-\u30ff\u3400-\u9fff]\.\s).{0,20}/) || [])[0]);
   // 環狀線不寫營運單位（資料歸在台北捷運、放在 trtc.json 內，但頁面不提是誰營運）
   if (p.key === 'taipei/circular') {
@@ -290,7 +293,7 @@ for (const p of pages) {
   }
 }
 
-// 反查：每一頁都能從總覽爬到（三語各自），系統頁列出旗下每條路線
+// 反查：每一頁都能從總覽爬到（四語各自），系統頁列出旗下每條路線
 for (const lang of Object.keys(ROOTS)) {
   const start = pageAt(lang, '');
   const seen = new Set([start.urlPath]);
@@ -315,21 +318,24 @@ for (const lang of Object.keys(ROOTS)) {
 
 // sitemap
 {
-  const metroLocs = allSitemap.filter(r => /^https:\/\/railisland\.tw\/(?:en\/|ja\/)?metro\//.test(r.loc));
+  const metroLocs = allSitemap.filter(r => /^https:\/\/railisland\.tw\/(?:en\/|ja\/|ko\/)?metro\//.test(r.loc));
   ok(metroLocs.length === pages.length, `sitemap 的捷運路線圖網址數＝頁數`, `${metroLocs.length}/${pages.length}`);
   ok(new Set(allSitemap.map(r => r.loc)).size === allSitemap.length, 'sitemap 沒有重複網址');
   const missing = allSitemap.filter(r => { const rel = r.loc.replace(SITE + '/', ''); return !exists(rel === '' || rel.endsWith('/') ? `${rel}index.html` : rel); });
   ok(missing.length === 0, 'sitemap 每個網址都有對應檔案', missing.map(r => r.loc).join('、'));
 }
 
-// 入口頁：/about/、/stations/、/en/、/ja/、首頁兩處
+// 入口頁：/about/、/stations/、/en/、/ja/、/ko/、首頁兩處
 {
-  const need = [['about/index.html', '/metro/'], ['stations/index.html', '/metro/'], ['en/index.html', '/en/metro/'], ['ja/index.html', '/ja/metro/']];
+  const need = [['about/index.html', '/metro/'], ['stations/index.html', '/metro/'], ['en/index.html', '/en/metro/'], ['ja/index.html', '/ja/metro/'], ['ko/index.html', '/ko/metro/'], ['ko/about/index.html', '/ko/metro/'], ['ko/stations/index.html', '/ko/metro/']];
   for (const [rel, href] of need) {
     const h = read(rel);
     ok(h.includes(`href="${href}"`), `${rel} 連到 ${href}`);
     ok(sitemapAt.get(SITE + `/${rel.replace(/index\.html$/, '')}`)?.lastmod >= '2026-09-29', `${rel} 的 sitemap lastmod 已更新`);
   }
+  // 韓文頁一度沒有路線圖、改連英文版並標「(영어)」；/ko/ 底下不留這條舊路（語言切換連到英文版是對的，帶 lang="en" 的不算）
+  const koLeft = walk(path.join(root, 'ko')).filter(f => f.endsWith('.html')).filter(f => { const h = fs.readFileSync(f, 'utf8'); return /href="\/en\/metro\/[^"]*"(?! hreflang="en" lang="en")/.test(h) || h.includes('(영어)'); });
+  ok(koLeft.length === 0, '韓文頁不再連到英文路線圖、不再標「(영어)」', koLeft.map(f => path.relative(root, f)).slice(0, 5).join('、'));
   const idx = read('index.html');
   const idxLinks = idx.match(/<a href="metro\/" data-metro-link>捷運路線圖<\/a>/g) || [];
   ok(idxLinks.length === 2, '首頁 .ms-aeo-links／頁尾兩處都有「捷運路線圖」入口', `${idxLinks.length} 處`);
@@ -339,13 +345,17 @@ for (const lang of Object.keys(ROOTS)) {
   // 用到站倒數當名冊；那一版上線、導言跟著改時這裡就紅——同一輪要改 scripts/build_metro_pages.mjs 的 runNote／overviewRunNote／
   // systemRunHtml（高雄不再是「依時刻表跑」）與上面 isTaipei 那組分類，再更新這裡的期望值。
   ok(idx.includes("lead: '紅橘兩線與環狀輕軌依當日實際時刻表在港都穿梭，營運時段依官方到站看板即時校正 — 拖曳、縮放看看。'"), 'index.html 高捷導言仍寫「依當日實際時刻表…到站看板即時校正」（改了就要同步改路線圖頁高雄的「地圖上怎麼跑」）');
+  ok(/I18N_LANG === 'ko' \? 'ko\/metro\/'/.test(idx), '首頁韓文介面的「捷運路線圖」入口指到 ko/metro/');
   ok(/\['metro', '捷運路線圖'\]/.test(read('app/scripts/prepare-web.mjs')), 'App build 的說明連結也有「捷運路線圖」（正式站絕對網址）');
   const tr = read('i18n/translations.js');
   ok(/'捷運路線圖': 'Metro maps'/.test(tr) && /'捷運路線圖': 'メトロ路線図'/.test(tr), 'i18n 有「捷運路線圖」的 en／ja 詞條');
   const pkg = readJson('package.json');
+  // 要守的是資料都更新完才產頁：產生器之後只能接只驗證、只寫報告的步驟（fetch-schedule 尾端的 verify_*／scan_*，報告寫在 output/，頁面不讀）。
   for (const name of ['sync-metro', 'fetch-schedule']) {
-    const tail = String(pkg.scripts[name] || '').split('&&').pop().trim();
-    ok(tail === 'node scripts/build_aeo_pages.mjs', `npm run ${name} 尾端接產生器`, tail);
+    const steps = String(pkg.scripts[name] || '').split('&&').map(x => x.trim());
+    const at = steps.lastIndexOf('node scripts/build_aeo_pages.mjs');
+    const after = at < 0 ? steps : steps.slice(at + 1);
+    ok(at >= 0 && after.every(x => /^node scripts\/(?:verify|scan)_/.test(x)), `npm run ${name} 資料步驟都在產生器之前`, after.join('；'));
   }
   ok(/build_aeo_pages\.mjs --check/.test(pkg.scripts['check-metro-pages'] || ''), 'npm run check-metro-pages 含 --check');
 }
@@ -354,13 +364,14 @@ for (const lang of Object.keys(ROOTS)) {
 {
   const ops = readJson('data/special_ops.json').ops;
   const op = ops.find(o => o.id === 'tymc-20261012-post-expo');
+  const EXPO = { zh: /設計展/, en: /Design Expo/, ja: /デザイン展/, ko: /디자인 엑스포/ };
   for (const lang of Object.keys(ROOTS)) {
     const p = pageAt(lang, 'taoyuan-airport/airport-mrt');
-    const has = { zh: /設計展/, en: /Design Expo/, ja: /デザイン展/ }[lang].test(textOf(dropScripts(p.html)));
+    const has = EXPO[lang].test(textOf(dropScripts(p.html)));
     const want = !!op && genDateOf(p) <= '2026-10-11'; // 疏運期最後一天（special_ops quote）；頁面日期越過它，附註要消失
     ok(has === want, `${lang} 機場捷運頁的特殊時段附註${want ? '存在（op 仍在 special_ops.json、頁面日期未過 10/11）' : '不存在（op 已刪或頁面日期已過 10/11）'}`);
     const q = pageAt(lang, 'taipei/bannan');
-    ok(!{ zh: /設計展/, en: /Design Expo/, ja: /デザイン展/ }[lang].test(textOf(dropScripts(q.html))), `${lang} 其他路線頁不出現機場的特殊時段附註`);
+    ok(!EXPO[lang].test(textOf(dropScripts(q.html))), `${lang} 其他路線頁不出現機場的特殊時段附註`);
   }
   if (op) console.log(`  （special_ops 仍有 ${op.id}：附註要在，且首末班車＝一般班表計算結果）`);
 }
@@ -391,11 +402,11 @@ function dayLabel(lang, days, holiday) {
   const runs = [];
   let cur = null;
   for (const d of order) { if (days.includes(d)) { if (cur) cur.push(d); else { cur = [d]; runs.push(cur); } } else cur = null; }
-  const nm = { zh: d => `週${'日一二三四五六'[d]}`, en: d => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d], ja: d => `${'日月火水木金土'[d]}曜` }[lang];
-  const sep = { zh: '、', en: ', ', ja: '・' }[lang];
-  const range = { zh: (a, b) => `${a}至${b}`, en: (a, b) => `${a}–${b}`, ja: (a, b) => `${a.replace('曜', '')}〜${b}` }[lang];
+  const nm = { zh: d => `週${'日一二三四五六'[d]}`, en: d => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d], ja: d => `${'日月火水木金土'[d]}曜`, ko: d => `${'일월화수목금토'[d]}요일` }[lang];
+  const sep = { zh: '、', en: ', ', ja: '・', ko: ' · ' }[lang];
+  const range = { zh: (a, b) => `${a}至${b}`, en: (a, b) => `${a}–${b}`, ja: (a, b) => `${a.replace('曜', '')}〜${b}`, ko: (a, b) => `${a}~${b}` }[lang];
   const parts = runs.map(r => (r.length >= 3 ? range(nm(r[0]), nm(r[r.length - 1])) : r.map(nm).join(sep)));
-  if (holiday) parts.push({ zh: '國定假日', en: 'public holidays', ja: '祝日' }[lang]);
+  if (holiday) parts.push({ zh: '國定假日', en: 'public holidays', ja: '祝日', ko: '휴일' }[lang]);
   return parts.join(sep);
 }
 const answerItems = p => [...((p.secs.answer || '').matchAll(/<li>([\s\S]*?)<\/li>/g))].map(m => ({ html: m[1], text: textOf(m[1]), strong: textOf((m[1].match(/<strong>([\s\S]*?)<\/strong>/) || [, ''])[1]) }));
@@ -403,15 +414,18 @@ const TIME_RE = {
   zh: /首班 (\d\d:\d\d)(（次日）)?、末班 (\d\d:\d\d)(（次日）)?/,
   en: /first (\d\d:\d\d)( \(next day\))?, last (\d\d:\d\d)( \(next day\))?/,
   ja: /始発 (\d\d:\d\d)(（翌日）)?、終電 (\d\d:\d\d)(（翌日）)?/,
+  ko: /첫차 (\d\d:\d\d)(\(다음 날\))?, 막차 (\d\d:\d\d)(\(다음 날\))?/,
 };
-// prefix＝兩個方向的班距不同時，頁面會在數字前寫「<起點站>發車」「from <起點站>,」「<起點站>発：」
+// prefix＝兩個方向的班距不同時，頁面會在數字前寫「<起點站>發車」「from <起點站>,」「<起點站>発：」「<起點站> 출발:」
 const reEsc = x => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const HEADWAY_RE = {
   zh: (m1, m2, o) => new RegExp(`${o ? `(?:${o.map(reEsc).join('|')})發車 ` : ''}07:00–09:00 約每 ${m1} 分鐘一班、12:00–14:00 約每 ${m2} 分鐘一班`),
   en: (m1, m2, o) => new RegExp(`${o ? `from (?:${o.map(reEsc).join('|')}), ` : ''}about every ${m1} min from 07:00 to 09:00, about every ${m2} min from 12:00 to 14:00`),
   ja: (m1, m2, o) => new RegExp(`${o ? `(?:${o.map(reEsc).join('|')})発：` : ''}07:00〜09:00は約${m1}分おき、12:00〜14:00は約${m2}分おき`),
+  ko: (m1, m2, o) => new RegExp(`${o ? `(?:${o.map(reEsc).join('|')}) 출발: ` : ''}07:00–09:00 약 ${m1}분 간격, 12:00–14:00 약 ${m2}분 간격`),
 };
 
+const NEXT_DAY = { zh: '（次日）', en: ' (next day)', ja: '（翌日）', ko: '(다음 날)' };
 const wednesdaySet = tl => tl.days[3];
 const daysOfSet = (tl, name) => [0, 1, 2, 3, 4, 5, 6].filter(d => tl.days[d] === name);
 
@@ -531,14 +545,14 @@ for (const s of sample) {
         const p = pageAt(lang, `${s.sys}/${s.slug}`);
         const txt = textOf(p.secs.answer || '');
         const span = `${hmOf(first)}–${hmOf(last)}`;
-        const next = last >= 86400 ? { zh: '（次日）', en: ' (next day)', ja: '（翌日）' }[lang] : '';
+        const next = last >= 86400 ? NEXT_DAY[lang] : '';
         ok(txt.includes(`${span}${next}`), `${lang} ${id} 營運時段 ${span}${next}（data 逐班最早／最晚發車）`, txt.slice(0, 140));
         ok(!TIME_RE[lang].test(txt), `${lang} ${id} 估算路線不列首班／末班`);
-        const hw = { zh: `尖峰約每 ${peak} 分鐘、離峰約每 ${off} 分鐘一班`, en: `peak about every ${peak} min, off-peak about every ${off} min`, ja: `ピーク時は約${peak}分おき、オフピーク時は約${off}分おき` }[lang];
+        const hw = { zh: `尖峰約每 ${peak} 分鐘、離峰約每 ${off} 分鐘一班`, en: `peak about every ${peak} min, off-peak about every ${off} min`, ja: `ピーク時は約${peak}分おき、オフピーク時は約${off}分おき`, ko: `출퇴근 시간 약 ${peak}분 간격, 일반 시간 약 ${off}분 간격` }[lang];
         ok(txt.includes(hw) || new RegExp(`${peak}[^\\d]{1,20}${off}`).test(txt), `${lang} ${id} 資料標示的班距 尖峰 ${peak}／離峰 ${off}`, txt.slice(0, 200));
-        ok(/軌島的資料來源沒有這條路線的逐班時刻表|no train-by-train timetable for this line|この路線の列車ごとの時刻表がない/.test(txt), `${lang} ${id} 註明資料來源沒有逐班時刻表`);
+        ok(/軌島的資料來源沒有這條路線的逐班時刻表|no train-by-train timetable for this line|この路線の列車ごとの時刻表がない|이 노선의 열차별 시간표가 없/.test(txt), `${lang} ${id} 註明資料來源沒有逐班時刻表`);
         const flagged = !!exp.g.headway_estimated;
-        ok(/資料標示為估算|estimate in the data|データ上の推定値/.test(txt) === flagged, `${lang} ${id} 班距${flagged ? '標「資料標示為估算」（資料 headway_estimated）' : '不標估算（資料的班距不是估算值）'}`);
+        ok(/資料標示為估算|estimate in the data|データ上の推定値|데이터상 추정치/.test(txt) === flagged, `${lang} ${id} 班距${flagged ? '標「資料標示為估算」（資料 headway_estimated）' : '不標估算（資料的班距不是估算值）'}`);
       }
       log(`    ${id}：營運時段 ${hmOf(first)}–${hmOf(last)}${last >= 86400 ? '(+1)' : ''}，班距 尖峰 ${peak}／離峰 ${off}（估算，不列首末班）`);
       continue;
@@ -550,7 +564,7 @@ for (const s of sample) {
       const firstNext = svc.first >= 86400, lastNext = svc.last >= 86400;
       for (const lang of Object.keys(ROOTS)) {
         const p = pageAt(lang, `${s.sys}/${s.slug}`);
-        const li = answerItems(p).find(it => namesInOrder(lang, it.strong, fromName, toName) && (svc.kind == null || it.html.includes({ '1': { zh: '普通車', en: 'Commuter', ja: '普通列車' }, '2': { zh: '直達車', en: 'Express', ja: '直達列車' } }[svc.kind][lang])) && TIME_RE[lang].test(it.text));
+        const li = answerItems(p).find(it => namesInOrder(lang, it.strong, fromName, toName) && (svc.kind == null || it.html.includes({ '1': { zh: '普通車', en: 'Commuter', ja: '普通列車', ko: '보통열차' }, '2': { zh: '直達車', en: 'Express', ja: '直達列車', ko: '급행열차' } }[svc.kind][lang])) && TIME_RE[lang].test(it.text));
         if (!ok(!!li, `${lang} ${id} 頁面有「${fromName} → ${toName}」${svc.kind ? `（${svc.kind === '1' ? '普通車' : '直達車'}）` : ''}的首末班列`, answerItems(p).map(x => x.text).join(' / ').slice(0, 260))) continue;
         const m = TIME_RE[lang].exec(li.text);
         const got = { first: m[1], firstNext: !!m[2], last: m[3], lastNext: !!m[4] };
@@ -565,7 +579,7 @@ for (const s of sample) {
     const hw = dirs.map(d => ({ ...d, ...expectedHeadway(exp, d.origin, d.next) }));
     for (const lang of Object.keys(ROOTS)) {
       const p = pageAt(lang, `${s.sys}/${s.slug}`);
-      const item = answerItems(p).filter(it => /班距|Headway|運転間隔/.test(it.text));
+      const item = answerItems(p).filter(it => /班距|Headway|運転間隔|배차간격/.test(it.text));
       const txt = item.map(it => it.text).join(' ');
       const differ = hw.length === 2 && (hw[0].morning !== hw[1].morning || hw[0].midday !== hw[1].midday);
       for (const d of hw) {
@@ -606,7 +620,6 @@ for (const s of SPEC) for (const id of s.attached) {
 // 最早與最晚時間（環線＝從站序 0 發車）；跟主線同一日型的依附支線也算——淡水信義線主線末班 00:00、新北投支線 00:12，
 // 只算主線會少掉支線的末班（09-29 第二輪驗收的突變 M3 擋不到）。估算線（沒有逐班時刻表）＝逐班最早／最晚發車，同 B2。
 console.log('B4. 摘要營運時段（14 條，全部；含同日型的依附支線）');
-const NEXT_DAY = { zh: '（次日）', en: ' (next day)', ja: '（翌日）' };
 for (const s of SPEC) {
   const base = expectedServices(s.file, s.main[0]);
   const est = !!(TIMES[s.file].estimated || TIMES[s.file].lines[s.main[0]].estimated);
@@ -634,9 +647,9 @@ for (const s of SPEC) {
 // C. 來源差異附註：環狀線週六、週日、國定假日「新北產業園區 → 大坪林」末班要附註兩個來源的差異。
 // 頁面照資料（TDX）寫 00:34（+1）；營運單位官網另一份 PDF 時刻表寫 00:00（外部事實，2026-09-18／09-23 查過，記在下面常數）。
 // 期望值從 data/trtc_times.json 直接算，不看產生器；附註只陳述兩個來源各寫什麼、不判斷哪個對，也只出現在環狀線頁。
-console.log('C. 來源差異附註（環狀線假日末班，三語）');
+console.log('C. 來源差異附註（環狀線假日末班，四語）');
 const OFFICIAL_PDF_LAST = '00:00';
-const DIFF_LABEL = { zh: '來源差異：', en: 'Source difference:', ja: '資料の相違：' };
+const DIFF_LABEL = { zh: '來源差異：', en: 'Source difference:', ja: '資料の相違：', ko: '출처 차이:' };
 {
   const tl = TIMES.trtc.lines.Y, g = geoLine('trtc', 'Y'), n = g.stations.length;
   const setName = tl.holiday, days = daysOfSet(tl, setName);
@@ -666,8 +679,8 @@ const DIFF_LABEL = { zh: '來源差異：', en: 'Source difference:', ja: '資�
     ok(!OPERATOR_WORDS.test(text) && !NO_PUBLISH_CLAIM[lang].test(text), `${lang} 環狀線附註不寫營運單位名、不斷言公開與否`);
     covered.push(lang);
   }
-  ok(covered.length === 3, `來源差異附註三語都驗到（${covered.join('／')}）`, `${covered.length}/3`);
-  console.log(`  環狀線假日 ${g.stations[n - 1].name} → ${g.stations[0].name} 末班：資料 ${dataLast}(+1)、官網 PDF ${OFFICIAL_PDF_LAST}；已驗頁：${covered.map(l => `${ROOTS[l]}/taipei/circular/`).join('、')}；其餘 ${pages.length - 3} 頁確認沒有附註`);
+  ok(covered.length === Object.keys(ROOTS).length, `來源差異附註四語都驗到（${covered.join('／')}）`, `${covered.length}/${Object.keys(ROOTS).length}`);
+  console.log(`  環狀線假日 ${g.stations[n - 1].name} → ${g.stations[0].name} 末班：資料 ${dataLast}(+1)、官網 PDF ${OFFICIAL_PDF_LAST}；已驗頁：${covered.map(l => `${ROOTS[l]}/taipei/circular/`).join('、')}；其餘 ${pages.length - covered.length} 頁確認沒有附註`);
 }
 
 console.log('────');
@@ -675,4 +688,4 @@ if (failures.length) {
   console.error(`捷運路線圖頁驗收失敗：${failures.length} 項不過（共檢查 ${checks} 項，${pages.length} 頁，seed=${seed}）`);
   process.exit(1);
 }
-console.log(`捷運路線圖頁驗收通過：${pages.length} 頁（zh／en／ja 各 ${pages.length / 3}）、${checks} 項檢查，資料抽驗 ${opt.all ? '全部 14 條' : `${sample.length} 條 [${sample.map(s => s.slug).join('、')}]`}，seed=${seed}`);
+console.log(`捷運路線圖頁驗收通過：${pages.length} 頁（zh／en／ja／ko 各 ${pages.length / Object.keys(ROOTS).length}）、${checks} 項檢查，資料抽驗 ${opt.all ? '全部 14 條' : `${sample.length} 條 [${sample.map(s => s.slug).join('、')}]`}，seed=${seed}`);

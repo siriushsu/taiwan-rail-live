@@ -5862,6 +5862,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="kometro1105"><span class="d">11/05</span><span>新增韓文捷運路線圖：台北、桃園、新北、台中、高雄各線的車站、轉乘與首末班車都有韓文版</span></li>
         <li data-cl-of="delaypins1105"><span class="d">11/05</span><span>誤點重播的站牌靠近畫面邊緣時會換邊擺，手機上不再蓋到時間</span></li>
         <li data-cl-of="sheetdragall1105"><span class="d">11/05</span><span>觀看設定、更多、字級、公車站牌和行程分享的面板也能上下拖拉調整高度，觀看設定可以拉過工具欄；面板之間不再互相重疊</span></li>
         <li data-cl-of="kostatic1105"><span class="d">11/05</span><span>新增韓文網頁：30 個車站的時刻表與轉乘，還有介紹、準確度、資料來源頁都有韓文版</span></li>
@@ -5869,7 +5870,6 @@
         <li data-cl-of="qtrains1104"><span class="d">11/04</span><span>地圖上的立體列車改成放大的 Q 版三節，遠看也看得清楚；可在「觀看」→「列車」→「列車大小」切回</span></li>
         <li data-cl-of="garageswap1104"><span class="d">11/04</span><span>車庫畫面多了「換列車」鈕，全畫面和場景頁也能直接換車</span></li>
         <li data-cl-of="korean1104"><span class="d">11/04</span><span>介面新增韓文：語言列多了「한국어」，地圖、使用說明、介紹頁與條款都能切成韓文</span></li>
-        <li data-cl-of="plusride1104"><span class="d">11/04</span><span>有軌島通行證的人，App 校正懸賞錄程的島民點數多 50%，加成不算進每天 500 點上限</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5903,6 +5903,7 @@
         <li data-cl="weatherapp1023"><span class="d">10/23</span><span>修正 App 颱風資訊整份重複顯示，改為各系統公告；補上新北環狀線、三鶯線 10/23 約 15 分鐘班距，淡海與安坑仍待確認</span></li>
         <li data-cl="weather1022"><span class="d">10/22</span><span>新增颱風期間全台鐵道營運提醒與官方來源，明確標示停駛、調整班距及待確認資訊；地圖有車不代表實際開行；開啟颱風公告時跟車卡暫時隱藏</span></li>
         <li class="grp">路網與車站</li>
+        <li data-cl="kometro1105"><span class="d">11/05</span><span>新增韓文捷運路線圖：台北、桃園、新北、台中、高雄各線的車站、轉乘與首末班車都有韓文版</span></li>
         <li data-cl="kostatic1105"><span class="d">11/05</span><span>新增韓文網頁：30 個車站的時刻表與轉乘，還有介紹、準確度、資料來源頁都有韓文版</span></li>
         <li data-cl="qtrains1104"><span class="d">11/04</span><span>地圖上的立體列車改成放大的 Q 版三節，遠看也看得清楚；可在「觀看」→「列車」→「列車大小」切回</span></li>
         <li data-cl="garageswap1104"><span class="d">11/04</span><span>車庫畫面多了「換列車」鈕，全畫面和場景頁也能直接換車</span></li>
@@ -7376,7 +7377,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1105b：韓文靜態頁 /ko/——車站時刻 30 頁＋索引、介紹／準確度／資料來源、著陸頁，hreflang 與 sitemap 帶到；網站首次開啟仍是繁中。
 // v1105c：更多、字級、公車站牌、行程分享、觀看也能拖高度（各存比例鍵），開觀看收掉其他面板、不壓速度膠囊，觀看可往上拖過工具欄到頂列下方。
 // v1105c 同批：誤點重播站牌放不下就換邊，不再夾回畫面內蓋到自己的站與時間
-const BUILD = 'v1105c';
+// v1105d：韓文捷運路線圖頁 /ko/metro/（總覽、5 系統、14 線），韓文介面與韓文靜態頁的路線圖入口改連韓文版，不再走英文頁。
+const BUILD = 'v1105d';
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
@@ -7693,10 +7695,9 @@ function i18nSyncLanguageControl() {
 }
 function i18nSyncDocumentMeta() {
   document.title = t('軌島｜台鐵、高鐵、捷運即時列車地圖與時刻表');
-  // 捷運路線圖頁有中英日三版：頁尾與「更多」的入口跟著介面語言指到同語言那版。App build 會把這兩排換成
+  // 捷運路線圖頁有中英日韓四版：頁尾與「更多」的入口跟著介面語言指到同語言那版。App build 會把這兩排換成
   // 正式站絕對網址（app/scripts/prepare-web.mjs 的 aeoLinksHtml），那邊不帶 data-metro-link，這裡碰不到。
-  // 韓文還沒有自己的路線圖頁，指到英文版（韓文讀者看英文比看中文方便）。
-  const metroHref = I18N_LANG === 'en' || I18N_LANG === 'ko' ? 'en/metro/' : I18N_LANG === 'ja' ? 'ja/metro/' : 'metro/';
+  const metroHref = I18N_LANG === 'en' ? 'en/metro/' : I18N_LANG === 'ja' ? 'ja/metro/' : I18N_LANG === 'ko' ? 'ko/metro/' : 'metro/';
   for (const a of document.querySelectorAll('a[data-metro-link]')) a.setAttribute('href', metroHref);
   const description = document.querySelector('meta[name="description"]');
   if (description) description.content = t('台鐵、高鐵、捷運與輕軌列車依官方時刻表與即時資料在地圖上跑動，可查車站班次、捷運路線與台鐵誤點。軌島 railisland.tw，一張會動的台灣鐵道地圖。');

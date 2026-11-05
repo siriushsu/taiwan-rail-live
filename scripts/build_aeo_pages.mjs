@@ -683,14 +683,14 @@ ${header()}
 ${footer(`<a href="/ko${pathname}" hreflang="ko" lang="ko">한국어</a>`).replace('</body>', '<script src="/i18n/ko-public-pages.js"></script>\n<script src="/i18n/legal-pages.js"></script>\n</body>')}`;
 }
 
-// ── 捷運路線圖頁（階段 A，2026-09-29）：scripts/build_metro_pages.mjs，三語共 60 頁，全部由 data/ 產生 ──
+// ── 捷運路線圖頁（階段 A，2026-09-29）：scripts/build_metro_pages.mjs，四語共 80 頁，全部由 data/ 產生 ──
 const metro = buildMetroPages(root, { stationPages: stations, zhShell: { header, footer }, koText: K, escapeHtml });
 for (const [relative, html] of metro.files) write(relative, html);
 const sh = metro.shell;
 const metroLinkSection = ({ h, text, href, label, hreflang }) => `<section class="content-section"><h2>${escapeHtml(h)}</h2><div class="answer-box"><p>${escapeHtml(text)}</p></div><p><a class="button secondary" href="${href}"${hreflang ? ` hreflang="${hreflang}"` : ''}>${escapeHtml(label)}</a></p></section>`;
 const zhMetroSection = () => metroLinkSection({ h: metro.linkSectionText.zh.h, text: metro.linkSectionText.zh.text, href: metro.overviewHref('zh'), label: metro.linkSectionText.zh.link });
-// 韓文沒有路線圖頁：入口文字查字典，連到英文版（overviewHref('ko')），按鈕標明語言
-metro.linkSectionText.ko = { h: K(metro.linkSectionText.zh.h), text: K(metro.linkSectionText.zh.text), link: `${K(metro.linkSectionText.zh.link)}(영어)` };
+// 韓文入口文字查字典
+metro.linkSectionText.ko = { h: K(metro.linkSectionText.zh.h), text: K(metro.linkSectionText.zh.text), link: K(metro.linkSectionText.zh.link) };
 
 // ── 關於／準確度／資料來源：中文頁與 /ko/ 韓文頁 ──
 // 韓文頁把中文內文的文字節點換成字典譯文（i18n/legal-pages.js 在瀏覽器裡做的同一件事），只換外殼與站內連結；
@@ -698,7 +698,7 @@ metro.linkSectionText.ko = { h: K(metro.linkSectionText.zh.h), text: K(metro.lin
 const koGuideDate = '2026-11-05';
 const KO_GUIDE_LINKS = {
   '/': { href: '/?lang=ko' }, '/about/': { href: '/ko/about/' }, '/accuracy/': { href: '/ko/accuracy/' }, '/data-sources/': { href: '/ko/data-sources/' },
-  '/stations/': { href: '/ko/stations/' }, '/metro/': { href: metro.overviewHref('ko'), hreflang: 'en' }, '/status.html': { href: '/status.html', hreflang: 'zh-Hant' },
+  '/stations/': { href: '/ko/stations/' }, '/metro/': { href: metro.overviewHref('ko') }, '/status.html': { href: '/status.html', hreflang: 'zh-Hant' },
 };
 const KO_GUIDE_ALT = { 'TDX 運輸資料流通服務標章 / Transport Data eXchange': 'TDX / Transport Data eXchange' };
 function koGuideContent(html) {
@@ -715,8 +715,7 @@ function koGuideContent(html) {
     .replace(/>([^<>]+)</g, (all, text) => {
       const source = text.trim();
       if (!/\p{Script=Han}/u.test(source)) return all;
-      const ko = source === metro.linkSectionText.zh.link ? metro.linkSectionText.ko.link : K(source);
-      return `>${text.replace(source, () => escapeHtml(ko))}<`;
+      return `>${text.replace(source, () => escapeHtml(K(source)))}<`;
     });
   return out;
 }
@@ -1298,7 +1297,7 @@ function howParagraphs(lang, model) {
       `捷運的路線、首末班車與班距請看<a href="${metro.overviewHref('zh')}">捷運路線圖</a>。`,
       `For metro lines, first and last trains and headways, see the <a href="${metro.overviewHref('en')}">metro maps</a>.`,
       `メトロの路線、始発・終電、運転間隔は、<a href="${metro.overviewHref('ja')}">メトロ路線図</a>をご覧ください。`,
-      `MRT 노선, 첫차 · 막차, 배차간격은 <a href="${metro.overviewHref('ko')}" hreflang="en">MRT 노선도(영어)</a>에서 볼 수 있어요.`)}</p>` : '';
+      `MRT 노선, 첫차 · 막차, 배차간격은 <a href="${metro.overviewHref('ko')}">MRT 노선도</a>에서 볼 수 있어요.`)}</p>` : '';
   return `<p>${escapeHtml(first.join(pick4(lang, '', ' ', '', ' ')))}</p><p>${escapeHtml(second)}</p>${metroLink}`;
 }
 
@@ -1477,7 +1476,7 @@ ${sh.headerHtml(lang, alts)}
       <div class="hero-actions"><a class="button" href="${live}">${escapeHtml(t.live)}</a>${lang === 'zh' ? `<a class="button secondary" href="${pathname}">${escapeHtml(t.second)}</a>` : ''}</div>
     </section>
     <section class="content-section"><h2>${escapeHtml(t.h2)}</h2><p class="section-intro">${escapeHtml(t.intro)}</p><div class="card-grid station-grid">${cards}</div></section>${lang === 'zh' ? `\n    ${traStationGroupsHtml()}` : ''}
-  ${metroLinkSection({ h: linkText.h, text: linkText.text, href: metro.overviewHref(lang), label: linkText.link, hreflang: lang === 'ko' ? 'en' : undefined })}
+  ${metroLinkSection({ h: linkText.h, text: linkText.text, href: metro.overviewHref(lang), label: linkText.link })}
   <section class="content-section"><div class="notice"><strong>${escapeHtml(t.noticeLead)}</strong>${gap}${[t.zhIndexNote ? t.zhIndexNote(featured.length) : '', escapeHtml(t.noticeText)].filter(Boolean).join(gap)}</div></section>
   </main>
 ${sh.footerHtml(lang, alts)}`;
@@ -1627,10 +1626,10 @@ const landings = {
   },
 };
 
-// /en/、/ja/、/ko/ 第二段插入「捷運路線圖」入口（文字由 build_metro_pages.mjs 提供，和 zh 頁同一份來源；韓文沒有捷運頁，連英文版）
+// /en/、/ja/、/ko/ 第二段插入「捷運路線圖」入口（文字由 build_metro_pages.mjs 提供，和 zh 頁同一份來源）
 for (const code of ['en', 'ja', 'ko']) {
   const t = metro.linkSectionText[code];
-  landings[code].sections.splice(1, 0, { h: t.h, type: 'link', text: t.text, href: metro.overviewHref(code), label: t.link, hreflang: code === 'ko' ? 'en' : undefined });
+  landings[code].sections.splice(1, 0, { h: t.h, type: 'link', text: t.text, href: metro.overviewHref(code), label: t.link });
 }
 // 車站時刻頁的入口（英日韓文首頁到 /en/stations/、/ja/stations/、/ko/stations/ 的內部連結；sitemap 之外的另一條路）
 const stationLinkText = {
@@ -1751,7 +1750,7 @@ write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="htt
 
 // ── 寫檔或比對 ────────────────────────────────────────────────────────────────────────
 // 捷運頁與車站頁的目錄只由本腳本產生，所以磁碟上有、但這次沒產出的檔案＝孤兒（路線或車站被拿掉、改 slug），寫檔模式會刪、--check 會報。
-const metroDirs = ['metro', 'en/metro', 'ja/metro', 'stations', 'en/stations', 'ja/stations', 'ko/stations'];
+const metroDirs = ['metro', 'en/metro', 'ja/metro', 'ko/metro', 'stations', 'en/stations', 'ja/stations', 'ko/stations'];
 function filesUnder(relativeDir) {
   const dir = path.join(root, relativeDir);
   if (!fs.existsSync(dir)) return [];
@@ -1761,7 +1760,7 @@ function filesUnder(relativeDir) {
   });
 }
 const orphans = metroDirs.flatMap(filesUnder).filter(relative => !outputs.has(relative)).sort();
-const metroSummary = `${metro.paths.length} metro pages (${Object.entries(metro.counts).map(([kind, n]) => `${kind} ${n}`).join(' / ')}), missing en/ja station names: ${metro.missingNames.length}`;
+const metroSummary = `${metro.paths.length} metro pages (${Object.entries(metro.counts).map(([kind, n]) => `${kind} ${n}`).join(' / ')}), missing en/ja/ko station names: ${metro.missingNames.length}`;
 
 if (checkMode) {
   const problems = [];

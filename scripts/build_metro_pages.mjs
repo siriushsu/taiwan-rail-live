@@ -1,4 +1,4 @@
-// 捷運路線圖頁（階段 A，2026-09-29）：從 data/ 產生「總覽／系統／路線」三層靜態頁，三語（zh／en／ja）。
+// 捷運路線圖頁（階段 A，2026-09-29）：從 data/ 產生「總覽／系統／路線」三層靜態頁，四語（zh／en／ja／ko）。
 // 由 scripts/build_aeo_pages.mjs 呼叫（--check 也在那邊做），本檔不直接寫檔，只回傳 { files, paths, date, ... }。
 //
 // 內容紅線（每一句都要能追到 data/ 或既有文案）：
@@ -20,20 +20,24 @@ const METRO_TEMPLATE_DATE = '2026-09-29';
 export const THEME_BOOT = `<script>(function(){try{var a=localStorage.getItem('trainmap-appearance')||localStorage.getItem('trainmap-theme')||'auto';if(a!=='light'&&a!=='dark')a='auto';var d=a==='auto'?matchMedia('(prefers-color-scheme: dark)').matches:a==='dark';document.documentElement.setAttribute('data-theme',d?'dark':'light');var m=document.querySelector('meta[name=theme-color]');if(m)m.content=d?'#10141c':'#F2EDE2';}catch(e){}})();</script>`;
 // 頁首 logo 用主站同一張 icon（index.html 的 .tb-logo）。
 export const BRAND_MARK = '<img class="brand-mark" src="/favicon-192.png" alt="" width="40" height="40" decoding="async">';
-const LANGS = ['zh', 'en', 'ja'];
+const LANGS = ['zh', 'en', 'ja', 'ko'];
 const LANG_INFO = {
   zh: { html: 'zh-Hant', og: 'zh_TW', prefix: '' },
   en: { html: 'en', og: 'en_US', prefix: '/en' },
   ja: { html: 'ja', og: 'ja_JP', prefix: '/ja' },
-  ko: { html: 'ko', og: 'ko_KR', prefix: '/ko' },   // 只有車站頁、說明頁與 /ko/ 著陸頁用這個外殼；捷運路線圖沒有韓文頁（LANGS 不含 ko）
+  ko: { html: 'ko', og: 'ko_KR', prefix: '/ko' },
 };
 const GITHUB = 'https://github.com/siriushsu/taiwan-rail-live';
 
-const N = (zh, en, ja) => ({ zh, en, ja });
+const N = (zh, en, ja, ko) => ({ zh, en, ja, ko });
 const SITE = 'https://railisland.tw';
 let esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
 const jsonLd = value => JSON.stringify(value).replace(/</g, '\\u003c');
-const pick = (lang, zh, en, ja, ko) => (lang === 'zh' ? zh : lang === 'en' ? en : lang === 'ko' ? ko : ja);
+// 韓文頁少了第五個參數，esc 會把 undefined 變成空字串、整句安靜消失，所以在這裡 throw。
+const pick = (lang, zh, en, ja, ko) => {
+  if (lang === 'ko' && ko === undefined) throw new Error(`韓文頁缺譯文：${JSON.stringify(en)}`);
+  return lang === 'zh' ? zh : lang === 'en' ? en : lang === 'ko' ? ko : ja;
+};
 
 // ── 系統與路線設定 ───────────────────────────────────────────────────────────────
 // 資料檔：data/<file>.json（路線幾何＋站序）與 data/<file>_times.json（逐班時刻）。
@@ -48,52 +52,52 @@ const ROUTEKEY_OF = { KR: 'KRTC:R', KO: 'KRTC:O', C: 'KLRT:C', TG: 'TMRT:G', K: 
 // 頁面單位＝一個「營運路線」，支線併進主線頁：
 //   mode 'prefix'：幾條資料線共用前段站序（中和新蘆線的迴龍／蘆洲、淡海輕軌的綠山／藍海），頁面拆成「共用路段＋各分支」。
 //   attached：另一條獨立的短資料線接在主線某站上（淡水信義線的新北投支線、松山新店線的小碧潭支線）。
-// en/ja 路線名取自 i18n/stations.json 的 routes 與 translations.js 既有詞條；紅線／橘線／綠線的顏色別名也只用字典裡已有的。
+// en/ja/ko 路線名取自 i18n/stations.json 的 routes 與 translations.js、ko-translations.js 既有詞條；紅線／橘線／綠線的顏色別名也只用字典裡已有的。
 const SYSTEMS = [
-  { id: 'taipei', name: N('台北捷運', 'Taipei MRT', '台北MRT'),
-    title: N('台北捷運路線圖：路線、車站與首末班車｜軌島', 'Taipei MRT Map: Lines, Stations & First/Last Trains | Rail Island', '台北MRT 路線図｜路線・駅・始発終電｜軌島'),
+  { id: 'taipei', name: N('台北捷運', 'Taipei MRT', '台北MRT', '타이베이 MRT'),
+    title: N('台北捷運路線圖：路線、車站與首末班車｜軌島', 'Taipei MRT Map: Lines, Stations & First/Last Trains | Rail Island', '台北MRT 路線図｜路線・駅・始発終電｜軌島', '타이베이 MRT 노선도: 노선, 역, 첫차 · 막차 | Rail Island'),
     panels: [['BR', 'R', 'R_XBT', 'G', 'G_XBT', 'O_XINZHUANG', 'O_LUZHOU', 'BL', 'Y']] },
-  { id: 'taoyuan-airport', name: N('桃園機場捷運', 'Taoyuan Airport MRT', '桃園空港MRT'),
-    title: N('桃園機場捷運路線圖：車站與首末班車｜軌島', 'Taoyuan Airport MRT Map: Stations & First/Last Trains | Rail Island', '桃園空港MRT 路線図｜駅・始発終電｜軌島'),
+  { id: 'taoyuan-airport', name: N('桃園機場捷運', 'Taoyuan Airport MRT', '桃園空港MRT', '타오위안 공항 MRT'),
+    title: N('桃園機場捷運路線圖：車站與首末班車｜軌島', 'Taoyuan Airport MRT Map: Stations & First/Last Trains | Rail Island', '桃園空港MRT 路線図｜駅・始発終電｜軌島', '타오위안 공항 MRT 노선도: 역, 첫차 · 막차 | Rail Island'),
     panels: [['A']] },
-  { id: 'new-taipei', name: N('新北捷運', 'New Taipei Metro', '新北メトロ'),
-    title: N('新北捷運路線圖：淡海輕軌、安坑輕軌、三鶯線｜軌島', 'New Taipei Metro Map: Danhai LRT, Ankeng LRT & Sanying Line | Rail Island', '新北メトロ 路線図｜淡海ライトレール・安坑ライトレール・三鶯線｜軌島'),
+  { id: 'new-taipei', name: N('新北捷運', 'New Taipei Metro', '新北メトロ', '신베이 MRT'),
+    title: N('新北捷運路線圖：淡海輕軌、安坑輕軌、三鶯線｜軌島', 'New Taipei Metro Map: Danhai LRT, Ankeng LRT & Sanying Line | Rail Island', '新北メトロ 路線図｜淡海ライトレール・安坑ライトレール・三鶯線｜軌島', '신베이 MRT 노선도: 단하이 경전철, 안컹 경전철, 싼잉선 | Rail Island'),
     panels: [['V', 'VB'], ['K'], ['LB']] },
-  { id: 'taichung', name: N('台中捷運', 'Taichung MRT', '台中MRT'),
-    title: N('台中捷運路線圖：綠線車站與營運時間｜軌島', 'Taichung MRT Map: Green Line Stations & Operating Hours | Rail Island', '台中MRT 路線図｜緑線の駅と運行時間｜軌島'),
+  { id: 'taichung', name: N('台中捷運', 'Taichung MRT', '台中MRT', '타이중 MRT'),
+    title: N('台中捷運路線圖：綠線車站與營運時間｜軌島', 'Taichung MRT Map: Green Line Stations & Operating Hours | Rail Island', '台中MRT 路線図｜緑線の駅と運行時間｜軌島', '타이중 MRT 노선도: 그린라인 역과 운행 시간 | Rail Island'),
     panels: [['TG']] },
-  { id: 'kaohsiung', name: N('高雄捷運', 'Kaohsiung MRT', '高雄MRT'),
-    title: N('高雄捷運路線圖：紅線、橘線與環狀輕軌｜軌島', 'Kaohsiung MRT Map: Red Line, Orange Line & Circular Light Rail | Rail Island', '高雄MRT 路線図｜赤線・オレンジ線・ライトレール環状線｜軌島'),
+  { id: 'kaohsiung', name: N('高雄捷運', 'Kaohsiung MRT', '高雄MRT', '가오슝 MRT'),
+    title: N('高雄捷運路線圖：紅線、橘線與環狀輕軌｜軌島', 'Kaohsiung MRT Map: Red Line, Orange Line & Circular Light Rail | Rail Island', '高雄MRT 路線図｜赤線・オレンジ線・ライトレール環状線｜軌島', '가오슝 MRT 노선도: 레드라인, 오렌지라인, 순환 경전철 | Rail Island'),
     panels: [['KR', 'KO', 'C']] },
 ];
 
 const LINE_PAGES = [
-  { sys: 'taipei', slug: 'wenhu', lines: ['BR'], name: N('文湖線', 'Wenhu Line', '文湖線') },
-  { sys: 'taipei', slug: 'tamsui-xinyi', lines: ['R'], attached: ['R_XBT'], name: N('淡水信義線', 'Tamsui-Xinyi Line', '淡水信義線') },
-  { sys: 'taipei', slug: 'songshan-xindian', lines: ['G'], attached: ['G_XBT'], name: N('松山新店線', 'Songshan-Xindian Line', '松山新店線') },
-  { sys: 'taipei', slug: 'zhonghe-xinlu', lines: ['O_XINZHUANG', 'O_LUZHOU'], mode: 'prefix', name: N('中和新蘆線', 'Zhonghe-Xinlu Line', '中和新蘆線') },
-  { sys: 'taipei', slug: 'bannan', lines: ['BL'], name: N('板南線', 'Bannan Line', '板南線') },
-  { sys: 'taipei', slug: 'circular', lines: ['Y'], name: N('環狀線', 'Circular Line', '環状線') },
-  { sys: 'taoyuan-airport', slug: 'airport-mrt', lines: ['A'], name: N('機場捷運', 'Airport MRT Line', '桃園空港MRT') },
-  { sys: 'new-taipei', slug: 'danhai', lines: ['V', 'VB'], mode: 'prefix', name: N('淡海輕軌', 'Danhai LRT', '淡海ライトレール') },
-  { sys: 'new-taipei', slug: 'ankeng', lines: ['K'], name: N('安坑輕軌', 'Ankeng LRT', '安坑ライトレール') },
-  { sys: 'new-taipei', slug: 'sanying', lines: ['LB'], name: N('三鶯線', 'Sanying Line', '三鶯線') },
-  { sys: 'taichung', slug: 'green', lines: ['TG'], name: N('綠線', 'Green Line', '緑線'), alias: N('烏日文心北屯線', 'Wuriwenxin Beitun Line', '烏日文心北屯線') },
-  { sys: 'kaohsiung', slug: 'red', lines: ['KR'], name: N('紅線', 'Red Line', '赤線') },
-  { sys: 'kaohsiung', slug: 'orange', lines: ['KO'], name: N('橘線', 'Orange Line', 'オレンジ線') },
-  { sys: 'kaohsiung', slug: 'circular-lrt', lines: ['C'], name: N('環狀輕軌', 'Circular Light Rail', 'ライトレール環状線') },
+  { sys: 'taipei', slug: 'wenhu', lines: ['BR'], name: N('文湖線', 'Wenhu Line', '文湖線', '원후선') },
+  { sys: 'taipei', slug: 'tamsui-xinyi', lines: ['R'], attached: ['R_XBT'], name: N('淡水信義線', 'Tamsui-Xinyi Line', '淡水信義線', '단수이신이선') },
+  { sys: 'taipei', slug: 'songshan-xindian', lines: ['G'], attached: ['G_XBT'], name: N('松山新店線', 'Songshan-Xindian Line', '松山新店線', '쑹산신뎬선') },
+  { sys: 'taipei', slug: 'zhonghe-xinlu', lines: ['O_XINZHUANG', 'O_LUZHOU'], mode: 'prefix', name: N('中和新蘆線', 'Zhonghe-Xinlu Line', '中和新蘆線', '중허신루선') },
+  { sys: 'taipei', slug: 'bannan', lines: ['BL'], name: N('板南線', 'Bannan Line', '板南線', '반난선') },
+  { sys: 'taipei', slug: 'circular', lines: ['Y'], name: N('環狀線', 'Circular Line', '環状線', '순환선') },
+  { sys: 'taoyuan-airport', slug: 'airport-mrt', lines: ['A'], name: N('機場捷運', 'Airport MRT Line', '桃園空港MRT', '타오위안 공항 MRT') },
+  { sys: 'new-taipei', slug: 'danhai', lines: ['V', 'VB'], mode: 'prefix', name: N('淡海輕軌', 'Danhai LRT', '淡海ライトレール', '단하이 경전철') },
+  { sys: 'new-taipei', slug: 'ankeng', lines: ['K'], name: N('安坑輕軌', 'Ankeng LRT', '安坑ライトレール', '안컹 경전철') },
+  { sys: 'new-taipei', slug: 'sanying', lines: ['LB'], name: N('三鶯線', 'Sanying Line', '三鶯線', '싼잉선') },
+  { sys: 'taichung', slug: 'green', lines: ['TG'], name: N('綠線', 'Green Line', '緑線', '그린라인'), alias: N('烏日文心北屯線', 'Wuriwenxin Beitun Line', '烏日文心北屯線', '우르원신베이툰선') },
+  { sys: 'kaohsiung', slug: 'red', lines: ['KR'], name: N('紅線', 'Red Line', '赤線', '레드라인') },
+  { sys: 'kaohsiung', slug: 'orange', lines: ['KO'], name: N('橘線', 'Orange Line', 'オレンジ線', '오렌지라인') },
+  { sys: 'kaohsiung', slug: 'circular-lrt', lines: ['C'], name: N('環狀輕軌', 'Circular Light Rail', 'ライトレール環状線', '순환 경전철') },
 ];
 
 // 獨立短資料線（attached）與單獨資料線在圖例上的名稱（顏色不同才需要各自一格）
 const BRANCH_NAME = {
-  R_XBT: N('新北投支線', 'Xinbeitou Branch Line', '新北投支線'),
-  G_XBT: N('小碧潭支線', 'Xiaobitan Branch Line', '小碧潭支線'),
-  V: N('綠山線', 'Green Mountain Line', '緑山線'),
-  VB: N('藍海線', 'Blue Seaside Line', '藍海線'),
+  R_XBT: N('新北投支線', 'Xinbeitou Branch Line', '新北投支線', '신베이터우 지선'),
+  G_XBT: N('小碧潭支線', 'Xiaobitan Branch Line', '小碧潭支線', '샤오비탄 지선'),
+  V: N('綠山線', 'Green Mountain Line', '緑山線', '뤼산선'),
+  VB: N('藍海線', 'Blue Seaside Line', '藍海線', '란하이선'),
 };
 
 // 機捷車種（tymc_times.json 的 kinds：'1'＝普通車、'2'＝直達車）。詞條同 i18n/translations.js 的「普通車／直達車」。
-const KIND_LABEL = { '1': N('普通車', 'Commuter', '普通列車'), '2': N('直達車', 'Express', '直達列車') };
+const KIND_LABEL = { '1': N('普通車', 'Commuter', '普通列車', '보통열차'), '2': N('直達車', 'Express', '直達列車', '급행열차') };
 
 // 臨時營運調整的頁面附註：data/special_ops.json 仍有該條、且頁面日期（M.date，由資料日期決定、不讀時鐘）不晚於 until 才輸出。
 // 展後那條 op 要留到 TDX 換版（可能到 2027），附註講的疏運期卻在 10/11 結束；10/12 後重抓機捷資料、M.date 越過 until，附註就消失。
@@ -104,7 +108,8 @@ const SPECIAL_NOTES = [
     text: (lang, a, z) => pick(lang,
       `9/24（四）至 10/11（日）為 2026 台灣設計展疏運期間，${a}到${z}之間加開每站停靠的區間加班車（週一至四 16:00–20:00；週五至日含國定假日 11:00–22:00；10/11 為 11:00–20:00），該時段取消南延直達車。10/12 起改用展後班表。下列首末班車與班距是一般班表的計算結果，臨時班表以營運單位公告為準。`,
       `Sep 24 (Thu) to Oct 11 (Sun) is the special service period for the 2026 Taiwan Design Expo. Extra trains that stop at every station run between ${a} and ${z} (Mon–Thu 16:00–20:00; Fri–Sun and public holidays 11:00–22:00; Oct 11 11:00–20:00), and the express trains that run on to the southern extension are cancelled in those hours. From Oct 12 the post-expo timetable applies. The first and last trains and headways below are calculated from the regular timetable; temporary timetables are subject to the operator's announcements.`,
-      `9/24（木）〜10/11（日）は2026台湾デザイン展の輸送対策期間です。${a}〜${z}の間で各駅に停車する区間臨時列車が増発され（月〜木 16:00〜20:00、金〜日・祝日 11:00〜22:00、10/11は11:00〜20:00）、この時間帯は南側の延伸区間まで走る直達列車が運休になります。10/12からは展示会終了後のダイヤになります。以下の始発・終電と運転間隔は通常ダイヤから計算したもので、臨時ダイヤは運営会社の発表を優先してください。`) },
+      `9/24（木）〜10/11（日）は2026台湾デザイン展の輸送対策期間です。${a}〜${z}の間で各駅に停車する区間臨時列車が増発され（月〜木 16:00〜20:00、金〜日・祝日 11:00〜22:00、10/11は11:00〜20:00）、この時間帯は南側の延伸区間まで走る直達列車が運休になります。10/12からは展示会終了後のダイヤになります。以下の始発・終電と運転間隔は通常ダイヤから計算したもので、臨時ダイヤは運営会社の発表を優先してください。`,
+      `9월 24일(목)~10월 11일(일)은 2026 대만 디자인 엑스포 수송 기간이에요. ${a}~${z} 구간에 모든 역에 정차하는 임시 열차를 추가로 운행하고(월~목 16:00–20:00, 금~일 · 휴일 11:00–22:00, 10월 11일은 11:00–20:00), 이 시간대에는 남쪽 연장 구간까지 가는 급행열차를 운행하지 않아요. 10월 12일부터는 엑스포 종료 후 시간표를 적용해요. 아래 첫차 · 막차와 배차간격은 일반 시간표로 계산했고, 임시 시간표는 운영사 공지를 따라 주세요.`) },
 ];
 
 // ── 共用小工具 ───────────────────────────────────────────────────────────────────
@@ -118,7 +123,7 @@ const timeHtml = sec => { const t = hmOf(sec); return t.next ? `${t.text}<sup cl
 const timeText = (sec, lang) => {
   const t = hmOf(sec);
   if (!t.next) return t.text;
-  return lang === 'zh' ? `${t.text}（次日）` : lang === 'en' ? `${t.text} (next day)` : `${t.text}（翌日）`;
+  return lang === 'zh' ? `${t.text}（次日）` : lang === 'en' ? `${t.text} (next day)` : lang === 'ko' ? `${t.text}(다음 날)` : `${t.text}（翌日）`;
 };
 const median = arr => { const s = [...arr].sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : null; };
 
@@ -126,11 +131,13 @@ const DAY_NAMES = {
   zh: d => `週${'日一二三四五六'[d]}`,
   en: d => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d],
   ja: d => `${'日月火水木金土'[d]}曜`,
+  ko: d => `${'일월화수목금토'[d]}요일`,
 };
 const DAY_FMT = {
   zh: { range: (a, b) => `${a}至${b}`, sep: '、', holiday: '國定假日' },
   en: { range: (a, b) => `${a}–${b}`, sep: ', ', holiday: 'public holidays' },
   ja: { range: (a, b) => `${a.replace('曜', '')}〜${b}`, sep: '・', holiday: '祝日' },
+  ko: { range: (a, b) => `${a}~${b}`, sep: ' · ', holiday: '휴일' },
 };
 // days＝該班表涵蓋的星期（JS getDay，0＝週日），holiday＝是否也是國定假日用的班表
 function dayLabel(lang, days, holiday) {
@@ -152,10 +159,11 @@ const fetchDate = text => {
   return found.length ? found[found.length - 1] : null;
 };
 
-// 標籤用的短站名：去掉尾綴「站／Station／駅」（「台北車站」「岡山車站」這類「車站」結尾不動）
+// 標籤用的短站名：去掉尾綴「站／Station／駅」（「台北車站」「岡山車站」這類「車站」結尾不動；韓文字典的站名本來就沒有尾綴，「타이베이역」屬於「車站」結尾）
 function shortLabel(lang, text) {
   if (lang === 'zh') return /車站$/.test(text) || text.length <= 2 ? text : text.replace(/站$/, '');
   if (lang === 'en') return text.replace(/\s+Station$/, '');
+  if (lang === 'ko') return text;
   return text.replace(/駅$/, '');
 }
 
@@ -712,7 +720,7 @@ function geoMapSvg(model, built, lang, panelLineIds, mapId, titleText, descText)
 }
 
 // ── 頁面文字與共用片段 ───────────────────────────────────────────────────────────────
-// 每一句話都由 data/ 推得或改寫自站上既有文案；三語並排寫在同一個 pick() 裡，改一句時三語一起看。
+// 每一句話都由 data/ 推得或改寫自站上既有文案；四語並排寫在同一個 pick() 裡，改一句時四語一起看。
 let M = null; // loadMetroModel 的結果（buildMetroPages 開頭設定；本模組一次建置只用一份）
 let B = null; // buildPages 的結果
 let ZH_SHELL = null; // build_aeo_pages.mjs 傳入的繁中頁首／頁尾（沿用站上既有版型）
@@ -721,8 +729,7 @@ let K = null;         // build_aeo_pages.mjs 傳入的韓文字典查詢（查�
 const SYS = Object.fromEntries(SYSTEMS.map(s => [s.id, s]));
 const GENERIC_NAMES = new Set(['green', 'red', 'orange']); // 台中綠線、高雄紅／橘線：跨系統引用時要冠上系統名
 const homeHref = lang => (lang === 'zh' ? '/' : `${LANG_INFO[lang].prefix}/`);
-// 韓文介面的路線圖連結走英文頁（index.html 的 metroHref 同一規則），/ko/ 底下沒有路線圖
-const ovHref = lang => `${LANG_INFO[lang === 'ko' ? 'en' : lang].prefix}/metro/`;
+const ovHref = lang => `${LANG_INFO[lang].prefix}/metro/`;
 const sysHref = (lang, sysId) => `${LANG_INFO[lang].prefix}/metro/${sysId}/`;
 const lineHref = (lang, page) => `${LANG_INFO[lang].prefix}/metro/${page.sysId}/${page.slug}/`;
 const absUrl = pathname => `${SITE}${pathname}`;
@@ -736,11 +743,11 @@ const lineName = (lang, page, fromSysId = null) => {
   const n = page.name[lang];
   if (fromSysId === page.sysId || !GENERIC_NAMES.has(page.slug)) return n;
   const s = SYS[page.sysId].name[lang];
-  return lang === 'en' ? `${s} ${n}` : `${s}${n}`;
+  return lang === 'en' || lang === 'ko' ? `${s} ${n}` : `${s}${n}`;
 };
 const list = (lang, items) => (lang === 'en' && items.length > 1
   ? `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`
-  : items.join(pick(lang, '、', ', ', '・')));
+  : items.join(pick(lang, '、', ', ', '・', ' · ')));
 const arrow = ' → ';
 
 // 「桃園機場捷運」系統名與「機場捷運」路線名重複時，標題主體只用較長的那個
@@ -748,7 +755,7 @@ function headName(lang, page) {
   const s = SYS[page.sysId].name[lang], n = page.name[lang];
   const norm = t => t.toLowerCase().replace(/\s+line$/, '');
   if (norm(s).includes(norm(n)) || norm(n).includes(norm(s))) return norm(s).length >= norm(n).length ? s : n;
-  return lang === 'en' ? `${s} ${n}` : lang === 'ja' ? `${s} ${n}` : `${s}${n}`;
+  return lang === 'zh' ? `${s}${n}` : `${s} ${n}`;
 }
 
 // ── 營運時段／班距 ───────────────────────────────────────────────────────────────────
@@ -777,8 +784,8 @@ const spanText = (lang, page) => {
   if (!sp) return '';
   const r = rangeText(sp.first, sp.last, lang);
   return page.estimated
-    ? pick(lang, `營運時段 ${r}`, `Operating hours ${r}`, `運行時間帯 ${r}`)
-    : pick(lang, `${set0Label(lang, page, page.cfg.lines[0])}發車 ${r}`, `${set0Label(lang, page, page.cfg.lines[0])} departures ${r}`, `${set0Label(lang, page, page.cfg.lines[0])}の運行 ${r}`);
+    ? pick(lang, `營運時段 ${r}`, `Operating hours ${r}`, `運行時間帯 ${r}`, `운행 시간 ${r}`)
+    : pick(lang, `${set0Label(lang, page, page.cfg.lines[0])}發車 ${r}`, `${set0Label(lang, page, page.cfg.lines[0])} departures ${r}`, `${set0Label(lang, page, page.cfg.lines[0])}の運行 ${r}`, `${set0Label(lang, page, page.cfg.lines[0])} 출발 ${r}`);
 };
 
 // 班距：實際時刻表的兩個時窗中位數（各方向起點站），或資料標示為估算的尖峰／離峰值
@@ -790,30 +797,32 @@ function headwayText(lang, page, lineId) {
     if (!h.peakMin && !h.offMin) return '';
     // 「資料標示為估算」只給資料自己把班距標成估算的線（三鶯線 headway_estimated）；文湖線、台中綠線的班距是 TDX 的班距資料，
     // 推估的只是逐班時刻（見 data/*_times.json 的 source_notes）
-    const [lz, le, lj] = h.flagged ? ['班距（資料標示為估算）', 'Headway (estimate in the data)', '運転間隔（データ上の推定値）'] : ['班距', 'Headway', '運転間隔'];
+    const [lz, le, lj, lk] = h.flagged ? ['班距（資料標示為估算）', 'Headway (estimate in the data)', '運転間隔（データ上の推定値）', '배차간격(데이터상 추정치)'] : ['班距', 'Headway', '運転間隔', '배차간격'];
     return pick(lang,
       `${lz}：${h.peakMin ? `尖峰約每 ${h.peakMin} 分鐘` : ''}${h.peakMin && h.offMin ? '、' : ''}${h.offMin ? `離峰約每 ${h.offMin} 分鐘` : ''}一班`,
       `${le}: ${h.peakMin ? `about every ${h.peakMin} min at peak` : ''}${h.peakMin && h.offMin ? ', ' : ''}${h.offMin ? `every ${h.offMin} min off-peak` : ''}`,
-      `${lj}：${h.peakMin ? `ピーク時は約${h.peakMin}分おき` : ''}${h.peakMin && h.offMin ? '、' : ''}${h.offMin ? `オフピーク時は約${h.offMin}分おき` : ''}`);
+      `${lj}：${h.peakMin ? `ピーク時は約${h.peakMin}分おき` : ''}${h.peakMin && h.offMin ? '、' : ''}${h.offMin ? `オフピーク時は約${h.offMin}分おき` : ''}`,
+      `${lk}: ${h.peakMin ? `출퇴근 시간 약 ${h.peakMin}분 간격` : ''}${h.peakMin && h.offMin ? ', ' : ''}${h.offMin ? `일반 시간 약 ${h.offMin}분 간격` : ''}`);
   }
   const dirs = h.dirs.filter(d => d.morningMin || d.middayMin);
   if (!dirs.length) return '';
-  const both = lm.times.kinds ? pick(lang, '，含普通車與直達車', ', all trains combined', '、各種別の合計') : '';
+  const both = lm.times.kinds ? pick(lang, '，含普通車與直達車', ', all trains combined', '、各種別の合計', ', 보통열차 · 급행열차 합계') : '';
   const dayL = set0Label(lang, page, lineId);
   const win = (d, l) => {
     const m = d.morningMin, k = d.middayMin;
     if (l === 'zh') return [m ? `07:00–09:00 約每 ${m} 分鐘一班` : '', k ? `12:00–14:00 約每 ${k} 分鐘一班` : ''].filter(Boolean).join('、');
     if (l === 'en') return [m ? `about every ${m} min from 07:00 to 09:00` : '', k ? `about every ${k} min from 12:00 to 14:00` : ''].filter(Boolean).join(', ');
+    if (l === 'ko') return [m ? `07:00–09:00 약 ${m}분 간격` : '', k ? `12:00–14:00 약 ${k}분 간격` : ''].filter(Boolean).join(', ');
     return [m ? `07:00〜09:00は約${m}分おき` : '', k ? `12:00〜14:00は約${k}分おき` : ''].filter(Boolean).join('、');
   };
   const same = dirs.length === h.dirs.length && dirs.every(d => d.morningMin === dirs[0].morningMin && d.middayMin === dirs[0].middayMin);
-  const head = pick(lang, `班距（依時刻表計算，${dayL}${both}）：`, `Headway (calculated from the timetable, ${dayL}${both}): `, `運転間隔（時刻表から計算、${dayL}${both}）：`);
+  const head = pick(lang, `班距（依時刻表計算，${dayL}${both}）：`, `Headway (calculated from the timetable, ${dayL}${both}): `, `運転間隔（時刻表から計算、${dayL}${both}）：`, `배차간격(시간표로 계산, ${dayL}${both}): `);
   if (same) return head + win(dirs[0], lang);
   const per = dirs.map(d => {
     const o = pn(lang, stRow(lineId, d.origin));
-    return pick(lang, `${o}發車 ${win(d, 'zh')}`, `from ${o}, ${win(d, 'en')}`, `${o}発：${win(d, 'ja')}`);
+    return pick(lang, `${o}發車 ${win(d, 'zh')}`, `from ${o}, ${win(d, 'en')}`, `${o}発：${win(d, 'ja')}`, `${o} 출발: ${win(d, 'ko')}`);
   });
-  return head + per.join(pick(lang, '；', '; ', '／'));
+  return head + per.join(pick(lang, '；', '; ', '／', '; '));
 }
 
 // ── 路線結構描述 ─────────────────────────────────────────────────────────────────────
@@ -823,37 +832,38 @@ function termLast(page, b) { return b.rows.length ? b.rows[b.rows.length - 1] : 
 function structureText(lang, page) {
   const n = page.stationCount, loop = page.cfg.lines.some(id => M.lineModels[id].data.loop);
   const A = pn(lang, page.trunk[0]);
-  if (loop) return pick(lang, `共 ${n} 站的環狀路線`, `a loop line with ${n} stations`, `全${n}駅の環状路線`);
+  if (loop) return pick(lang, `共 ${n} 站的環狀路線`, `a loop line with ${n} stations`, `全${n}駅の環状路線`, `총 ${n}개 역의 순환 노선이에요`);
   if (page.cfg.mode === 'prefix') {
     const J = pn(lang, page.branches[0].junction);
     const ends = page.branches.map(b => pn(lang, termLast(page, b)));
     return pick(lang,
       `共 ${n} 站，從${A}出發，在${J}分成${list(lang, ends)}兩個方向`,
       `${n} stations from ${A}, splitting at ${J} toward ${list(lang, ends)}`,
-      `全${n}駅で、${A}から${J}を経て${list(lang, ends)}の2方面に分かれます`);
+      `全${n}駅で、${A}から${J}を経て${list(lang, ends)}の2方面に分かれます`,
+      `총 ${n}개 역으로, ${A}에서 출발해 ${J}에서 ${list(lang, ends)} 두 방면으로 나뉘어요`);
   }
   const Z = pn(lang, page.trunk[page.trunk.length - 1]);
-  let text = pick(lang, `共 ${n} 站，由${A}到${Z}`, `${n} stations from ${A} to ${Z}`, `${A}から${Z}まで全${n}駅`);
+  let text = pick(lang, `共 ${n} 站，由${A}到${Z}`, `${n} stations from ${A} to ${Z}`, `${A}から${Z}まで全${n}駅`, `${A}에서 ${Z}까지 총 ${n}개 역이에요`);
   if (page.branches.length) {
     const extra = page.branches.map(b => {
-      const nm = branchLabel(lang, b.lineId) || pick(lang, '支線', 'branch', '支線');
-      return pick(lang, `${nm}（${pn(lang, b.junction)}—${pn(lang, termLast(page, b))}）`, `${nm} (${pn(lang, b.junction)} – ${pn(lang, termLast(page, b))})`, `${nm}（${pn(lang, b.junction)}〜${pn(lang, termLast(page, b))}）`);
+      const nm = branchLabel(lang, b.lineId) || pick(lang, '支線', 'branch', '支線', '지선');
+      return pick(lang, `${nm}（${pn(lang, b.junction)}—${pn(lang, termLast(page, b))}）`, `${nm} (${pn(lang, b.junction)} – ${pn(lang, termLast(page, b))})`, `${nm}（${pn(lang, b.junction)}〜${pn(lang, termLast(page, b))}）`, `${nm}(${pn(lang, b.junction)}–${pn(lang, termLast(page, b))})`);
     });
-    text += pick(lang, `，另有${list(lang, extra)}`, `, plus the ${list(lang, extra)}`, `。ほかに${list(lang, extra)}があります`);
+    text += pick(lang, `，另有${list(lang, extra)}`, `, plus the ${list(lang, extra)}`, `。ほかに${list(lang, extra)}があります`, `. ${list(lang, extra)}도 있어요`);
   }
   return text;
 }
 
 function termText(lang, page) {
   const loop = page.cfg.lines.some(id => M.lineModels[id].data.loop);
-  if (loop) return pick(lang, '環狀', 'loop', '環状');
+  if (loop) return pick(lang, '環狀', 'loop', '環状', '순환');
   const A = pn(lang, page.trunk[0]);
   if (page.cfg.mode === 'prefix') {
     const ends = page.branches.map(b => pn(lang, termLast(page, b)));
-    return lang === 'en' ? `${A} – ${ends.join(' / ')}` : `${A}—${ends.join('／')}`;
+    return lang === 'en' || lang === 'ko' ? `${A} – ${ends.join(' / ')}` : `${A}—${ends.join('／')}`;
   }
   const Z = pn(lang, page.trunk[page.trunk.length - 1]);
-  return lang === 'en' ? `${A} – ${Z}` : `${A}—${Z}`;
+  return lang === 'en' || lang === 'ko' ? `${A} – ${Z}` : `${A}—${Z}`;
 }
 
 function xferStationCount(page) {
@@ -868,7 +878,7 @@ function svcRoute(lang, page, lineId, svc) {
   const o = pn(lang, stRow(lineId, svc.origin));
   if (svc.dest != null) return `${o}${arrow}${pn(lang, stRow(lineId, svc.dest))}`;
   const next = pn(lang, stRow(lineId, svc.dir === 'fwd' ? 1 : lm.stations.length - 1));
-  return pick(lang, `${o}出發，往${next}方向`, `From ${o} toward ${next}`, `${o}発、${next}方面`);
+  return pick(lang, `${o}出發，往${next}方向`, `From ${o} toward ${next}`, `${o}発、${next}方面`, `${o} 출발, ${next} 방면`);
 }
 function svcTitle(lang, page, lineId, svc) {
   const parts = [];
@@ -881,7 +891,7 @@ function svcTitle(lang, page, lineId, svc) {
 // ── 特殊時段附註（只在 data/special_ops.json 還有該條時輸出） ─────────────────────────
 function specialNotesFor(lang, page) {
   const ids = new Set((M.specialOps.ops || []).map(o => o.id));
-  const label = (lineId, idx) => { const r = stRow(lineId, idx); return r.code ? (lang === 'en' ? `${pn(lang, r)} (${r.code})` : `${pn(lang, r)}（${r.code}）`) : pn(lang, r); };
+  const label = (lineId, idx) => { const r = stRow(lineId, idx); return r.code ? (lang === 'en' ? `${pn(lang, r)} (${r.code})` : lang === 'ko' ? `${pn(lang, r)}(${r.code})` : `${pn(lang, r)}（${r.code}）`) : pn(lang, r); };
   return SPECIAL_NOTES
     .filter(n => ids.has(n.opId) && M.date <= n.until && n.lineIds.some(id => page.dataLineIds.includes(id)))
     .map(n => ({ opId: n.opId, text: n.text(lang, label(n.lineIds[0], n.fromIdx), label(n.lineIds[0], n.toIdx)) }));
@@ -898,7 +908,8 @@ const SOURCE_DIFFS = [
     text: (lang, route, days, dataLast, pdfLast) => pick(lang,
       `末班，${route}（${days}）：本頁採用的 TDX 時刻表資料是 ${dataLast}，營運單位官網的 PDF 時刻表寫 ${pdfLast}。兩份來源不一致，實際末班請以營運單位公告為準。`,
       `Last train, ${route} (${days}): the TDX timetable data used on this page gives ${dataLast}, while the PDF timetable on the operator's website gives ${pdfLast}. The two sources differ, so check the operator's announcements for the actual last train.`,
-      `終電、${route}（${days}）：このページで使っているTDXの時刻表データでは${dataLast}、運営会社の公式サイトにあるPDF時刻表では${pdfLast}となっています。2つの資料が一致していないため、実際の終電は運営会社の発表で確認してください。`) },
+      `終電、${route}（${days}）：このページで使っているTDXの時刻表データでは${dataLast}、運営会社の公式サイトにあるPDF時刻表では${pdfLast}となっています。2つの資料が一致していないため、実際の終電は運営会社の発表で確認してください。`,
+      `막차, ${route}(${days}): 이 페이지에서 쓰는 TDX 시간표 데이터는 ${dataLast}, 운영사 공식 사이트의 PDF 시간표는 ${pdfLast}예요. 두 출처가 서로 달라요. 실제 막차는 운영사 공지를 확인해 주세요.`) },
 ];
 function sourceDiffsFor(lang, page) {
   return SOURCE_DIFFS.flatMap(d => {
@@ -917,17 +928,19 @@ function fetchInfo(page) {
   const file = M.lineModels[page.cfg.lines[0]].file;
   return { file, timesDate: fetchDate(M.files[file].times.source_notes) };
 }
+const pageDateText = lang => pick(lang, `頁面產生日期：${M.date}。`, `Page generated on ${M.date}.`, `ページ生成日：${M.date}。`, `페이지 생성일: ${M.date}.`);
 function sourceParagraphs(lang, page) {
   const { timesDate } = fetchInfo(page);
   const est = page.estimated;
   const p1 = pick(lang,
     `路線、站序與站間資料來自交通部 TDX 運輸資料流通服務與 OpenStreetMap 貢獻者（詳見<a href="/data-sources/">資料來源</a>）。${est ? '軌島的資料來源沒有這條路線的逐班時刻表，營運時段取自資料，班次依官方班距推估，不是營運單位公告的時刻。' : '首末班車與班距依本站收錄的逐站時刻表計算。'}${timesDate ? `時刻表資料抓取日：${timesDate}。` : ''}`,
     `Routes, stop order and running times come from Taiwan's Ministry of Transportation TDX open data and OpenStreetMap contributors (see <a href="/data-sources/" hreflang="zh-Hant">Data sources</a>, Traditional Chinese). ${est ? 'Rail Island\'s data sources have no train-by-train timetable for this line: the operating hours come from the data and the services are estimated from official headways, not the operator\'s published times.' : 'First and last trains and headways are calculated from the station-by-station timetable used on this site.'}${timesDate ? ` Timetable data fetched on ${timesDate}.` : ''}`,
-    `路線、停車駅の順序、駅間データは交通部TDXの運輸データとOpenStreetMap貢献者のデータにもとづきます（<a href="/data-sources/" hreflang="zh-Hant">データの出典</a>・繁体字中国語）。${est ? '軌島のデータソースにはこの路線の列車ごとの時刻表がなく、運行時間帯はデータから、運行本数は公式の運転間隔からの推定で、運営会社が公表した時刻ではありません。' : '始発・終電と運転間隔は、このサイトで使っている駅別時刻表から計算しています。'}${timesDate ? `時刻表データの取得日：${timesDate}。` : ''}`);
-  const p2 = pick(lang, `頁面產生日期：${M.date}。`, `Page generated on ${M.date}.`, `ページ生成日：${M.date}。`);
+    `路線、停車駅の順序、駅間データは交通部TDXの運輸データとOpenStreetMap貢献者のデータにもとづきます（<a href="/data-sources/" hreflang="zh-Hant">データの出典</a>・繁体字中国語）。${est ? '軌島のデータソースにはこの路線の列車ごとの時刻表がなく、運行時間帯はデータから、運行本数は公式の運転間隔からの推定で、運営会社が公表した時刻ではありません。' : '始発・終電と運転間隔は、このサイトで使っている駅別時刻表から計算しています。'}${timesDate ? `時刻表データの取得日：${timesDate}。` : ''}`,
+    `노선, 역 순서, 역간 데이터는 대만 교통부 TDX 운수 데이터와 OpenStreetMap 기여자 데이터를 바탕으로 해요(<a href="/ko/data-sources/">데이터 출처</a> 참고). ${est ? 'Rail Island의 데이터 출처에는 이 노선의 열차별 시간표가 없어요. 운행 시간은 데이터에서 가져왔고, 운행 횟수는 공식 배차간격으로 추정한 것이며 운영사가 발표한 시각이 아니에요.' : '첫차 · 막차와 배차간격은 이 사이트에서 쓰는 역별 시간표로 계산해요.'}${timesDate ? ` 시간표 데이터 수집일: ${timesDate}.` : ''}`);
+  const p2 = pageDateText(lang);
   return { p1, p2 };
 }
-const noticeText = lang => pick(lang, '臨時班表與異動以營運單位公告為準。', 'Temporary timetables and service changes are subject to the operator\'s announcements.', '臨時ダイヤや運行変更は、運営会社の発表を優先してください。');
+const noticeText = lang => pick(lang, '臨時班表與異動以營運單位公告為準。', 'Temporary timetables and service changes are subject to the operator\'s announcements.', '臨時ダイヤや運行変更は、運営会社の発表を優先してください。', '임시 시간표와 운행 변경은 운영사 공지를 따라 주세요.');
 
 // 地圖上怎麼跑：照站上現行說法（index.html 捷運頁導言與 9/11 更新紀錄 metrolead0911，OFFICIAL_ROSTER_ENABLED 預設開）。
 //   台北捷運（含文湖線、環狀線）：位置與車站倒數來自官方逐班即時資料，時刻表只是沒有即時資料時的備案；
@@ -940,24 +953,28 @@ function runNote(lang, page) {
     return pick(lang,
       `${n}的列車位置與車站倒數來自官方逐班即時資料；沒有即時資料時，才改依時刻表推演${page.estimated ? `，而${n}的時刻表是依官方班距推估的` : ''}。`,
       `${n} train positions and station countdowns come from official train-by-train live data; only when there is no live data does Rail Island fall back to the timetable${page.estimated ? ', which for this line is estimated from official headways' : ''}.`,
-      `${n}の列車位置と駅のカウントダウンは、公式の列車ごとのリアルタイムデータにもとづきます。リアルタイムデータがないときだけ時刻表にもとづいて表示します${page.estimated ? `。${n}の時刻表は公式の運転間隔からの推定です` : ''}。`);
+      `${n}の列車位置と駅のカウントダウンは、公式の列車ごとのリアルタイムデータにもとづきます。リアルタイムデータがないときだけ時刻表にもとづいて表示します${page.estimated ? `。${n}の時刻表は公式の運転間隔からの推定です` : ''}。`,
+      `${n}의 열차 위치와 역 도착 카운트다운은 공식 열차별 실시간 데이터를 바탕으로 해요. 실시간 데이터가 없을 때만 시간표로 추정해요${page.estimated ? `. ${n}의 시간표는 공식 배차간격으로 추정한 거예요` : ''}.`);
   }
   if (page && page.estimated) {
     return pick(lang,
       '軌島的資料來源沒有這條路線的即時列車資料，列車依時刻表在地圖上跑；這份時刻表是依官方班距推估的。',
       'Rail Island\'s data sources have no live train data for this line, so trains run on the timetable on the map, and that timetable is estimated from official headways.',
-      '軌島のデータソースにはこの路線のリアルタイムの列車データがないため、列車は時刻表どおりに地図上を走ります。その時刻表は公式の運転間隔からの推定です。');
+      '軌島のデータソースにはこの路線のリアルタイムの列車データがないため、列車は時刻表どおりに地図上を走ります。その時刻表は公式の運転間隔からの推定です。',
+      'Rail Island의 데이터 출처에는 이 노선의 실시간 열차 데이터가 없어서 열차는 시간표대로 지도 위를 달려요. 이 시간표는 공식 배차간격으로 추정한 거예요.');
   }
   if (page && page.dataLineIds.includes('C')) {
     return pick(lang,
       '高雄環狀輕軌有官方逐車 GPS 可用時，軌島用它校正各車位置；定位中斷時退回到站看板，列車仍依時刻表在地圖上跑。',
       'When the official per-train GPS of the Kaohsiung Circular Light Rail is available, Rail Island uses it to correct each train\'s position; when positioning drops out it falls back to the arrival boards, and trains keep running on the timetable on the map.',
-      '高雄のライトレール環状線では、公式の列車ごとの GPS が使えるときはその情報で各列車の位置を補正します。位置情報が途切れたときは駅の到着案内に戻りますが、列車は引き続き時刻表どおりに地図上を走ります。');
+      '高雄のライトレール環状線では、公式の列車ごとの GPS が使えるときはその情報で各列車の位置を補正します。位置情報が途切れたときは駅の到着案内に戻りますが、列車は引き続き時刻表どおりに地図上を走ります。',
+      '가오슝 순환 경전철은 공식 열차별 GPS를 쓸 수 있을 때 그 정보로 각 열차의 위치를 보정해요. 위치 정보가 끊기면 도착 안내판으로 돌아가고, 열차는 계속 시간표대로 지도 위를 달려요.');
   }
   return pick(lang,
     '沒有逐車 GPS 的部分，列車依時刻表在地圖上跑；有官方到站倒數或列車動態時，軌島會用它校正畫面。',
     'Where there is no per-train GPS, trains run on the timetable on the map; where the operator provides arrival countdowns or train positions, Rail Island uses them to correct the picture.',
-    '列車ごとの GPS がない部分は、列車が時刻表どおりに地図上を走ります。公式の到着カウントダウンや列車位置が使える場合は、それで画面を補正します。');
+    '列車ごとの GPS がない部分は、列車が時刻表どおりに地図上を走ります。公式の到着カウントダウンや列車位置が使える場合は、それで画面を補正します。',
+    '열차별 GPS가 없는 구간의 열차는 시간표대로 지도 위를 달려요. 공식 도착 카운트다운이나 열차 위치를 쓸 수 있으면 그 정보로 화면을 보정해요.');
 }
 
 // 總覽：台北捷運（官方逐班即時）與其他系統（依時刻表跑、有官方即時資料時校正）分開寫
@@ -965,7 +982,8 @@ function overviewRunNote(lang) {
   return pick(lang,
     '台北捷運各線的列車位置與車站倒數來自官方逐班即時資料；其他系統的列車依時刻表在地圖上跑，有官方到站倒數、列車動態或逐車 GPS 時，軌島會用它校正畫面。',
     'On Taipei MRT lines, train positions and station countdowns come from official train-by-train live data. On the other systems, trains run on the timetable on the map, and Rail Island corrects them with official arrival countdowns, train positions or per-train GPS where available.',
-    '台北MRTの各線は、列車位置と駅のカウントダウンが公式の列車ごとのリアルタイムデータにもとづきます。ほかのシステムでは列車が時刻表どおりに地図上を走ります。公式の到着カウントダウン、列車位置、列車ごとの GPS が使える場合は、それで画面を補正します。');
+    '台北MRTの各線は、列車位置と駅のカウントダウンが公式の列車ごとのリアルタイムデータにもとづきます。ほかのシステムでは列車が時刻表どおりに地図上を走ります。公式の到着カウントダウン、列車位置、列車ごとの GPS が使える場合は、それで画面を補正します。',
+    '타이베이 MRT 각 노선의 열차 위치와 역 도착 카운트다운은 공식 열차별 실시간 데이터를 바탕으로 해요. 다른 시스템의 열차는 시간표대로 지도 위를 달려요. 공식 도착 카운트다운, 열차 위치, 열차별 GPS를 쓸 수 있으면 그 정보로 화면을 보정해요.');
 }
 
 // ── 版型：head／header／footer／麵包屑 ────────────────────────────────────────────────
@@ -1022,7 +1040,7 @@ function headerHtml(lang, alts) {
 }
 
 // 中文頁尾的 English／日本語連結：該頁沒有對應語言的頁面時（只有中文的車站頁），改連 fallback 給的頁（例如車站索引）；兩者都沒有就 throw。
-// 한국어 連結同樣先看 alts 再看 fallback；捷運路線圖沒有韓文頁，兩者都沒有就不放。
+// 한국어 連結同樣先看 alts 再看 fallback，兩者都沒有就不放。
 function footerHtml(lang, alts, fallback = {}) {
   if (lang === 'zh') {
     const en = alts.en || fallback.en, ja = alts.ja || fallback.ja;
@@ -1035,7 +1053,7 @@ function footerHtml(lang, alts, fallback = {}) {
     [K('關於'), '/ko/about/', null],
     [K('準確度與限制'), '/ko/accuracy/', null],
     [K('資料來源'), '/ko/data-sources/', null],
-    [`${K('捷運路線圖')}(영어)`, ovHref(lang), 'en'],
+    [K('捷運路線圖'), ovHref(lang), null],
     [K('GitHub 原始碼'), GITHUB, null],
   ] : [
     [pick(lang, '', 'Metro maps', 'メトロ路線図'), ovHref(lang), null],
@@ -1067,7 +1085,7 @@ function schemaFor(lang, { type, title, description, pathname, crumbs, extra = {
     '@graph': [
       {
         '@type': type, '@id': `${url}#webpage`, name: title, description, url, inLanguage: LANG_INFO[lang].html, dateModified: M.date,
-        isPartOf: { '@type': 'WebSite', name: '軌島 Rail Island', url: `${SITE}/` },
+        isPartOf: { '@type': 'WebSite', name: lang === 'ko' ? 'Rail Island' : '軌島 Rail Island', url: `${SITE}/` },
         breadcrumb: { '@id': `${url}#breadcrumb` },
         ...extra,
       },
@@ -1081,8 +1099,8 @@ function schemaFor(lang, { type, title, description, pathname, crumbs, extra = {
 
 // 麵包屑：首頁 → 捷運路線圖 → （系統）→ 本頁
 function crumbList(lang, kind, sys = null, page = null) {
-  const items = [{ label: pick(lang, '首頁', 'Home', 'ホーム'), href: homeHref(lang) }];
-  items.push({ label: pick(lang, '捷運路線圖', 'Metro maps', 'メトロ路線図'), href: ovHref(lang) });
+  const items = [{ label: pick(lang, '首頁', 'Home', 'ホーム', K('首頁')), href: homeHref(lang) }];
+  items.push({ label: pick(lang, '捷運路線圖', 'Metro maps', 'メトロ路線図', K('捷運路線圖')), href: ovHref(lang) });
   if (sys) items.push({ label: sys.name[lang], href: sysHref(lang, sys.id) });
   if (page) items.push({ label: page.name[lang], href: lineHref(lang, page) });
   return items;
@@ -1104,21 +1122,21 @@ ${headerHtml(lang, alts)}
 ${footerHtml(lang, alts)}`;
 }
 
-const liveButton = (lang, href, secondary = false) => `<a class="button${secondary ? ' secondary' : ''}" href="${esc(href)}">${esc(pick(lang, '在地圖上看即時列車', 'See the trains on the live map', 'ライブ地図で列車を見る'))}</a>`;
+const liveButton = (lang, href, secondary = false) => `<a class="button${secondary ? ' secondary' : ''}" href="${esc(href)}">${esc(pick(lang, '在地圖上看即時列車', 'See the trains on the live map', 'ライブ地図で列車を見る', '지도에서 실시간 열차 보기'))}</a>`;
 const section = (id, h2, body) => `<section class="content-section" id="${id}"><h2>${esc(h2)}</h2>${body}</section>`;
 
 // ── 路線頁 ───────────────────────────────────────────────────────────────────────────
 const dataLineLabel = (lang, page, lineId) => {
   const n = M.lineModels[lineId].stations.length;
-  const span = lang === 'en' ? `${pn(lang, stRow(lineId, 0))} – ${pn(lang, stRow(lineId, n - 1))}` : `${pn(lang, stRow(lineId, 0))}—${pn(lang, stRow(lineId, n - 1))}`;
+  const span = lang === 'en' || lang === 'ko' ? `${pn(lang, stRow(lineId, 0))} – ${pn(lang, stRow(lineId, n - 1))}` : `${pn(lang, stRow(lineId, 0))}—${pn(lang, stRow(lineId, n - 1))}`;
   const nm = BRANCH_NAME[lineId] ? BRANCH_NAME[lineId][lang] : '';
-  return nm ? (lang === 'en' ? `${nm} (${span})` : `${nm}（${span}）`) : span;
+  return nm ? (lang === 'en' ? `${nm} (${span})` : lang === 'ko' ? `${nm}(${span})` : `${nm}（${span}）`) : span;
 };
 
 // 轉乘清單的分隔：站碼膠囊（.stop-code）是 inline-block，瀏覽器可以在它後面斷行，分隔符號就被擠到下一行行首（「、機場捷運」）。
 // 把膠囊和緊跟的分隔符號包進不斷行的 .nb；英文逗號後的空白留在外面，換行落在兩項之間。items：{ head: html, code?: 站碼 }
 function joinXfer(lang, items) {
-  const mark = esc(pick(lang, '、', ',', '・')), gap = lang === 'en' ? ' ' : '';
+  const mark = esc(pick(lang, '、', ',', '・', ',')), gap = lang === 'en' || lang === 'ko' ? ' ' : '';
   return items.map((it, i) => {
     const last = i === items.length - 1, s = last ? '' : mark;
     return (it.code ? `${it.head} <span class="nb"><span class="stop-code">${esc(it.code)}</span>${s}</span>` : `${it.head}${s}`) + (last ? '' : gap);
@@ -1128,10 +1146,10 @@ function joinXfer(lang, items) {
 function xferHtml(lang, page, row) {
   const items = transfersOf(M, B, page, row).map(t => {
     if (t.kind === 'metro') return { head: `<a href="${lineHref(lang, t.page)}">${esc(lineName(lang, t.page, page.sysId))}</a>`, code: t.code };
-    if (t.kind === 'tra') return { head: esc(pick(lang, '台鐵', 'Taiwan Railway (TRA)', '台鉄（TRA）')) };
-    return { head: esc(pick(lang, '高鐵', 'Taiwan High Speed Rail', '台湾高速鉄道')) };
+    if (t.kind === 'tra') return { head: esc(pick(lang, '台鐵', 'Taiwan Railway (TRA)', '台鉄（TRA）', K('台鐵'))) };
+    return { head: esc(pick(lang, '高鐵', 'Taiwan High Speed Rail', '台湾高速鉄道', K('高鐵'))) };
   });
-  return items.length ? `<div class="stop-xfer">${esc(pick(lang, '轉乘：', 'Transfer: ', '乗り換え：'))}${joinXfer(lang, items)}</div>` : '';
+  return items.length ? `<div class="stop-xfer">${esc(pick(lang, '轉乘：', 'Transfer: ', '乗り換え：', '환승: '))}${joinXfer(lang, items)}</div>` : '';
 }
 
 function stopRow(lang, page, row, i, n, opts) {
@@ -1142,7 +1160,7 @@ function stopRow(lang, page, row, i, n, opts) {
   const name = dn(lang, row);
   const alt = lang !== 'zh' && row.zh !== name && row.zh !== shortLabel('zh', name) ? `<span class="stop-alt" lang="zh-Hant">${esc(row.zh)}</span>` : '';
   const slug = row.key ? M.stationPageOf.get(row.key) : null;
-  const guide = slug ? `<a class="stop-guide" href="/stations/${slug}/"${lang === 'zh' ? '' : ' hreflang="zh-Hant"'}>${esc(pick(lang, '車站資料', 'Station guide (Traditional Chinese)', '駅ガイド（繁体字中国語）'))}</a>` : '';
+  const guide = slug ? `<a class="stop-guide" href="${lang === 'ko' ? '/ko' : ''}/stations/${slug}/"${lang === 'zh' || lang === 'ko' ? '' : ' hreflang="zh-Hant"'}>${esc(pick(lang, '車站資料', 'Station guide (Traditional Chinese)', '駅ガイド（繁体字中国語）', K('車站資料')))}</a>` : '';
   const ring = isEnd ? '<circle class="core" cx="10" cy="10" r="3.2"/>' : '';
   return `<li class="${cls}"><div class="rail" style="color:${opts.color}" aria-hidden="true"><svg class="rail-seg" viewBox="0 0 40 10" preserveAspectRatio="none"><rect class="cas" x="13" y="0" width="14" height="10"/><rect x="16" y="0" width="8" height="10" fill="currentColor"/></svg><svg class="rail-node" viewBox="0 0 20 20"><circle class="ring" cx="10" cy="10" r="${xf ? 7.6 : 6.2}"/>${ring}</svg></div><div class="stop-body"><div class="stop-name">${esc(name)}${row.code ? `<span class="stop-code">${esc(row.code)}</span>` : ''}${alt}</div>${xf}${guide}</div></li>`;
 }
@@ -1160,41 +1178,42 @@ function stopsSection(lang, page) {
   const intro = pick(lang,
     `站序依資料由${A}排列；站名旁是車站代號，「轉乘」列出可換乘的路線、台鐵與高鐵。轉乘關係依站名相同且距離小於 ${M.transfers.criteria.maxDistanceM} 公尺判讀，不代表站內導引或所需時間。`,
     `Stops are listed from ${A}; the code next to each name is the station code, and "Transfer" lists the lines, Taiwan Railway (TRA) and High Speed Rail you can change to. A transfer means the same station name within ${M.transfers.criteria.maxDistanceM} m; it says nothing about walking time inside the station.`,
-    `停車駅は${A}側から順に並べています。駅名の横は駅コード、「乗り換え」は乗り換えられる路線・台鉄・台湾高速鉄道です。乗り換えは、同じ駅名で距離が${M.transfers.criteria.maxDistanceM}m未満のものを示し、駅構内の歩行時間は表しません。`);
+    `停車駅は${A}側から順に並べています。駅名の横は駅コード、「乗り換え」は乗り換えられる路線・台鉄・台湾高速鉄道です。乗り換えは、同じ駅名で距離が${M.transfers.criteria.maxDistanceM}m未満のものを示し、駅構内の歩行時間は表しません。`,
+    `역은 ${A}부터 순서대로 실었어요. 역 이름 옆은 역 코드이고, ‘환승’에는 갈아탈 수 있는 노선 · 대만철도 · 고속철도를 적었어요. 환승은 역 이름이 같고 거리가 ${M.transfers.criteria.maxDistanceM}m 미만인 경우를 뜻하며, 역 안 길 안내나 소요 시간을 나타내지는 않아요.`);
   let groups = '';
   if (page.cfg.mode === 'prefix') {
     const J = pn(lang, page.branches[0].junction);
     groups += stopGroup(lang, page, page.trunk, { color, endFirst: true, endLast: false },
-      pick(lang, `共用路段：${A}${arrow}${J}`, `Shared section: ${A}${arrow}${J}`, `共通区間：${A}${arrow}${J}`));
+      pick(lang, `共用路段：${A}${arrow}${J}`, `Shared section: ${A}${arrow}${J}`, `共通区間：${A}${arrow}${J}`, `공통 구간: ${A}${arrow}${J}`));
     for (const b of page.branches) {
       const T = pn(lang, termLast(page, b));
       const bn = branchLabel(lang, b.lineId);
       groups += stopGroup(lang, page, b.rows, { color: M.lineModels[b.lineId].data.color, endFirst: false, endLast: true },
-        pick(lang, `往${T}${bn ? `（${bn}）` : ''}`, `Toward ${T}${bn ? ` (${bn})` : ''}`, `${T}方面${bn ? `（${bn}）` : ''}`),
-        pick(lang, `從${J}分岔`, `Branches from ${J}`, `${J}で分岐`));
+        pick(lang, `往${T}${bn ? `（${bn}）` : ''}`, `Toward ${T}${bn ? ` (${bn})` : ''}`, `${T}方面${bn ? `（${bn}）` : ''}`, `${T} 방면${bn ? `(${bn})` : ''}`),
+        pick(lang, `從${J}分岔`, `Branches from ${J}`, `${J}で分岐`, `${J}에서 분기`));
     }
   } else if (page.branches.length) {
     const Z = pn(lang, page.trunk[page.trunk.length - 1]);
-    groups += stopGroup(lang, page, page.trunk, { color, endFirst: true, endLast: true }, pick(lang, `主線：${A}${arrow}${Z}`, `Main line: ${A}${arrow}${Z}`, `本線：${A}${arrow}${Z}`));
+    groups += stopGroup(lang, page, page.trunk, { color, endFirst: true, endLast: true }, pick(lang, `主線：${A}${arrow}${Z}`, `Main line: ${A}${arrow}${Z}`, `本線：${A}${arrow}${Z}`, `본선: ${A}${arrow}${Z}`));
     for (const b of page.branches) {
       const T = pn(lang, termLast(page, b));
       const bn = branchLabel(lang, b.lineId);
       groups += stopGroup(lang, page, b.rows, { color: M.lineModels[b.lineId].data.color, endFirst: false, endLast: true },
-        `${bn ? `${bn}${pick(lang, '：', ': ', '：')}` : ''}${pn(lang, b.junction)}${arrow}${T}`,
-        pick(lang, `從${pn(lang, b.junction)}分岔`, `Branches from ${pn(lang, b.junction)}`, `${pn(lang, b.junction)}で分岐`));
+        `${bn ? `${bn}${pick(lang, '：', ': ', '：', ': ')}` : ''}${pn(lang, b.junction)}${arrow}${T}`,
+        pick(lang, `從${pn(lang, b.junction)}分岔`, `Branches from ${pn(lang, b.junction)}`, `${pn(lang, b.junction)}で分岐`, `${pn(lang, b.junction)}에서 분기`));
     }
   } else {
     groups += stopGroup(lang, page, page.trunk, { color, endFirst: !loop, endLast: !loop });
-    if (loop) groups += `<p class="loop-close">${esc(pick(lang, `↻ 回到${A}，環狀營運`, `↻ Back to ${A} — the line runs as a loop`, `↻ ${A}に戻る環状運転`))}</p>`;
+    if (loop) groups += `<p class="loop-close">${esc(pick(lang, `↻ 回到${A}，環狀營運`, `↻ Back to ${A} — the line runs as a loop`, `↻ ${A}に戻る環状運転`, `↻ 다시 ${A}까지, 순환 운행`))}</p>`;
   }
-  return section('stops', pick(lang, `${page.name.zh}路線圖與車站`, `${page.name.en} route map and stations`, `${page.name.ja}の路線図と駅`), `<p class="section-intro">${esc(intro)}</p>${groups}`);
+  return section('stops', pick(lang, `${page.name.zh}路線圖與車站`, `${page.name.en} route map and stations`, `${page.name.ja}の路線図と駅`, `${page.name.ko} 노선도와 역`), `<p class="section-intro">${esc(intro)}</p>${groups}`);
 }
 
 // 不開到終點站的班次（analyzeLine 的 others：只留把首班提早或末班延後的目的地）。班數少就逐班列出發車時間，多就寫區間與班數。
 function shortRunText(lang, o) {
   const ts = o.times.map(t => timeText(t, lang));
-  if (o.count <= 4) return pick(lang, `${ts.join('、')} 發車`, `departing ${ts.join(', ')}`, `${ts.join('、')}発`);
-  return pick(lang, `${ts[0]}–${ts[ts.length - 1]} 之間共 ${o.count} 班`, `${o.count} trains between ${ts[0]} and ${ts[ts.length - 1]}`, `${ts[0]}〜${ts[ts.length - 1]}の間に${o.count}本`);
+  if (o.count <= 4) return pick(lang, `${ts.join('、')} 發車`, `departing ${ts.join(', ')}`, `${ts.join('、')}発`, `${ts.join(', ')} 출발`);
+  return pick(lang, `${ts[0]}–${ts[ts.length - 1]} 之間共 ${o.count} 班`, `${o.count} trains between ${ts[0]} and ${ts[ts.length - 1]}`, `${ts[0]}〜${ts[ts.length - 1]}の間に${o.count}本`, `${ts[0]}–${ts[ts.length - 1]} 사이 총 ${o.count}편`);
 }
 
 function shortRunNotes(lang, page, lineId, svc) {
@@ -1204,9 +1223,9 @@ function shortRunNotes(lang, page, lineId, svc) {
     const per = a.sets.map(set => ({ set, o: (svc.others[set.name] || []).find(o => o.dest === d) })).filter(x => x.o);
     const same = per.length === a.sets.length && per.every(x => x.o.times.join(',') === per[0].o.times.join(','));
     const name = pn(lang, stRow(lineId, d));
-    const body = same ? shortRunText(lang, per[0].o) : per.map(x => `${dayLabel(lang, x.set.days, x.set.holiday)} ${shortRunText(lang, x.o)}`).join(pick(lang, '；', '; ', '／'));
-    const tail = same && a.sets.length > 1 ? pick(lang, '（各班表日相同）', ' (same on every timetable day)', '（どの曜日も同じ）') : '';
-    return pick(lang, `另有只開到${name}、不開到終點站的班次：${body}${tail}`, `Some trains stop short at ${name}: ${body}${tail}`, `${name}止まりの列車もあります：${body}${tail}`);
+    const body = same ? shortRunText(lang, per[0].o) : per.map(x => `${dayLabel(lang, x.set.days, x.set.holiday)} ${shortRunText(lang, x.o)}`).join(pick(lang, '；', '; ', '／', '; '));
+    const tail = same && a.sets.length > 1 ? pick(lang, '（各班表日相同）', ' (same on every timetable day)', '（どの曜日も同じ）', '(모든 요일 동일)') : '';
+    return pick(lang, `另有只開到${name}、不開到終點站的班次：${body}${tail}`, `Some trains stop short at ${name}: ${body}${tail}`, `${name}止まりの列車もあります：${body}${tail}`, `${name}까지만 운행하고 종점까지 가지 않는 열차도 있어요: ${body}${tail}`);
   });
 }
 
@@ -1216,7 +1235,7 @@ function serviceCard(lang, page, lineId, svc) {
     const cell = svc.bySet[set.name];
     return `<tr><th scope="row">${esc(dayLabel(lang, set.days, set.holiday))}</th><td class="t">${cell ? timeHtml(cell.first) : '—'}</td><td class="t">${cell ? timeHtml(cell.last) : '—'}</td></tr>`;
   }).join('');
-  const head = pick(lang, ['班表日', '首班', '末班'], ['Days', 'First', 'Last'], ['曜日', '始発', '終電']).map(t => `<th scope="col">${esc(t)}</th>`).join('');
+  const head = pick(lang, ['班表日', '首班', '末班'], ['Days', 'First', 'Last'], ['曜日', '始発', '終電'], ['요일', '첫차', '막차']).map(t => `<th scope="col">${esc(t)}</th>`).join('');
   const foot = shortRunNotes(lang, page, lineId, svc).map(t => `<p class="svc-foot">${esc(t)}</p>`).join('');
   return `<article class="time-card"><h3>${esc(svcTitle(lang, page, lineId, svc))}</h3><table><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>${foot}</article>`;
 }
@@ -1231,7 +1250,8 @@ function answerSection(lang, page) {
       if (w) items.push(pick(lang,
         `<strong>營運時段（${esc(dl)}）</strong>：${esc(rangeText(w.first, w.last, lang))}`,
         `<strong>Operating hours (${esc(dl)})</strong>: ${esc(rangeText(w.first, w.last, lang))}`,
-        `<strong>運行時間帯（${esc(dl)}）</strong>：${esc(rangeText(w.first, w.last, lang))}`));
+        `<strong>運行時間帯（${esc(dl)}）</strong>：${esc(rangeText(w.first, w.last, lang))}`,
+        `<strong>운행 시간(${esc(dl)})</strong>: ${esc(rangeText(w.first, w.last, lang))}`));
     } else {
       for (const svc of a.services) {
         const c = svc.bySet[s0.name];
@@ -1239,36 +1259,41 @@ function answerSection(lang, page) {
         items.push(pick(lang,
           `<strong>${esc(svcTitle(lang, page, id, svc))}</strong>（${esc(dl)}）：首班 ${esc(timeText(c.first, lang))}、末班 ${esc(timeText(c.last, lang))}`,
           `<strong>${esc(svcTitle(lang, page, id, svc))}</strong> (${esc(dl)}): first ${esc(timeText(c.first, lang))}, last ${esc(timeText(c.last, lang))}`,
-          `<strong>${esc(svcTitle(lang, page, id, svc))}</strong>（${esc(dl)}）：始発 ${esc(timeText(c.first, lang))}、終電 ${esc(timeText(c.last, lang))}`));
+          `<strong>${esc(svcTitle(lang, page, id, svc))}</strong>（${esc(dl)}）：始発 ${esc(timeText(c.first, lang))}、終電 ${esc(timeText(c.last, lang))}`,
+          `<strong>${esc(svcTitle(lang, page, id, svc))}</strong>(${esc(dl)}): 첫차 ${esc(timeText(c.first, lang))}, 막차 ${esc(timeText(c.last, lang))}`));
         for (const o of svc.others[s0.name] || []) {
           const t = esc(svcTitle(lang, page, id, { ...svc, dest: o.dest }));
           items.push(pick(lang,
             `<strong>${t}</strong>（${esc(dl)}，不開到終點站的班次）：${esc(shortRunText(lang, o))}`,
             `<strong>${t}</strong> (${esc(dl)}, trains that stop short): ${esc(shortRunText(lang, o))}`,
-            `<strong>${t}</strong>（${esc(dl)}、途中までの列車）：${esc(shortRunText(lang, o))}`));
+            `<strong>${t}</strong>（${esc(dl)}、途中までの列車）：${esc(shortRunText(lang, o))}`,
+            `<strong>${t}</strong>(${esc(dl)}, 종점까지 가지 않는 열차): ${esc(shortRunText(lang, o))}`));
         }
       }
     }
   }
   for (const id of page.cfg.lines) {
     const hw = headwayText(lang, page, id);
-    if (hw) items.push(esc(page.cfg.lines.length > 1 ? `${dataLineLabel(lang, page, id)}${pick(lang, '：', ': ', '：')}${hw}` : hw));
+    if (hw) items.push(esc(page.cfg.lines.length > 1 ? `${dataLineLabel(lang, page, id)}${pick(lang, '：', ': ', '：', ': ')}${hw}` : hw));
   }
   const loopLine = page.cfg.lines.some(id => M.lineModels[id].data.loop);
   const note = page.estimated
     ? pick(lang, '軌島的資料來源沒有這條路線的逐班時刻表，因此不列首末班車，營運時段與班距請以營運單位公告為準。',
       'Rail Island\'s data sources have no train-by-train timetable for this line, so first and last trains are not listed; check the operator for the actual hours and headways.',
-      '軌島のデータソースにはこの路線の列車ごとの時刻表がないため、始発・終電は掲載していません。実際の運行時間と運転間隔は運営会社の発表で確認してください。')
+      '軌島のデータソースにはこの路線の列車ごとの時刻表がないため、始発・終電は掲載していません。実際の運行時間と運転間隔は運営会社の発表で確認してください。',
+      'Rail Island의 데이터 출처에는 이 노선의 열차별 시간표가 없어서 첫차 · 막차는 싣지 않았어요. 실제 운행 시간과 배차간격은 운영사 공지를 확인해 주세요.')
     : loopLine
     ? pick(lang, '環狀線沒有終點站：「首班」「末班」是從上面列出的車站往各方向發車的最早與最晚時間；各班表日與各站時刻在下方。',
       'The line is a loop with no terminus: "first" and "last" are the earliest and latest departures from the station shown above, in each direction. Other day types and every station are further down.',
-      '環状線には終点がないため、「始発」「終電」は上に示した駅から各方向へ出る最初と最後の列車の発車時刻です。ほかの曜日と各駅の時刻は下にあります。')
+      '環状線には終点がないため、「始発」「終電」は上に示した駅から各方向へ出る最初と最後の列車の発車時刻です。ほかの曜日と各駅の時刻は下にあります。',
+      '순환선에는 종점이 없어요. ‘첫차’ ‘막차’는 위에 적은 역에서 각 방향으로 출발하는 가장 이른 열차와 가장 늦은 열차의 시각이에요. 다른 요일과 역별 시각은 아래에 있어요.')
     : pick(lang, '「首班」「末班」是開到終點站的列車在起點站的最早與最晚發車時間；比這更早或更晚、只開到中途的班次另外標示；各班表日與各站時刻在下方。',
       '"First" and "last" are the earliest and latest departures from the starting station of trains that run all the way to the other end; trains that stop short and leave earlier or later than these are listed separately. Other day types and every station are further down.',
-      '「始発」「終電」は、反対側の終点まで走る列車の起点駅での最初と最後の発車時刻です。それより早く、または遅く出る途中止まりの列車は別に示します。ほかの曜日と各駅の時刻は下にあります。');
+      '「始発」「終電」は、反対側の終点まで走る列車の起点駅での最初と最後の発車時刻です。それより早く、または遅く出る途中止まりの列車は別に示します。ほかの曜日と各駅の時刻は下にあります。',
+      '‘첫차’ ‘막차’는 반대쪽 종점까지 가는 열차가 출발역에서 가장 이르게, 가장 늦게 출발하는 시각이에요. 그보다 이르거나 늦게 출발해 중간까지만 가는 열차는 따로 표시했어요. 다른 요일과 역별 시각은 아래에 있어요.');
   const h2 = page.estimated
-    ? pick(lang, `${page.name.zh}的營運時間`, `${page.name.en} operating hours`, `${page.name.ja}の運行時間`)
-    : pick(lang, `${page.name.zh}首班車和末班車幾點？`, `What time are the first and last trains on the ${page.name.en}?`, `${page.name.ja}の始発・終電は何時？`);
+    ? pick(lang, `${page.name.zh}的營運時間`, `${page.name.en} operating hours`, `${page.name.ja}の運行時間`, `${page.name.ko} 운행 시간`)
+    : pick(lang, `${page.name.zh}首班車和末班車幾點？`, `What time are the first and last trains on the ${page.name.en}?`, `${page.name.ja}の始発・終電は何時？`, `${page.name.ko} 첫차와 막차는 몇 시인가요?`);
   return section('answer', h2, `<div class="answer-box"><ul class="answer-list">${items.map(i => `<li>${i}</li>`).join('')}</ul><p class="table-note">${esc(note)}</p></div>`);
 }
 
@@ -1279,7 +1304,7 @@ function timesSection(lang, page) {
     const a = page.analysis[id];
     if (!a.estimated) for (const svc of a.services) cards.push(serviceCard(lang, page, id, svc));
     const hw = headwayText(lang, page, id);
-    if (hw) facts.push(page.dataLineIds.length > 1 ? `${dataLineLabel(lang, page, id)}${pick(lang, '：', ': ', '：')}${hw}` : hw);
+    if (hw) facts.push(page.dataLineIds.length > 1 ? `${dataLineLabel(lang, page, id)}${pick(lang, '：', ': ', '：', ': ')}${hw}` : hw);
   }
   let body = '';
   if (page.estimated) {
@@ -1291,19 +1316,19 @@ function timesSection(lang, page) {
         if (w) rows.push(`<tr><th scope="row">${esc(dayLabel(lang, set.days, set.holiday))}</th><td class="t">${timeHtml(w.first)}</td><td class="t">${timeHtml(w.last)}</td></tr>`);
       }
     }
-    const head = pick(lang, ['班表日', '營運開始', '營運結束'], ['Days', 'Starts', 'Ends'], ['曜日', '運行開始', '運行終了']).map(t => `<th scope="col">${esc(t)}</th>`).join('');
-    body += `<div class="time-grid"><article class="time-card"><h3>${esc(pick(lang, '營運時段', 'Operating hours', '運行時間帯'))}</h3><table><thead><tr>${head}</tr></thead><tbody>${rows.join('')}</tbody></table></article></div>`;
+    const head = pick(lang, ['班表日', '營運開始', '營運結束'], ['Days', 'Starts', 'Ends'], ['曜日', '運行開始', '運行終了'], ['요일', '운행 시작', '운행 종료']).map(t => `<th scope="col">${esc(t)}</th>`).join('');
+    body += `<div class="time-grid"><article class="time-card"><h3>${esc(pick(lang, '營運時段', 'Operating hours', '運行時間帯', '운행 시간'))}</h3><table><thead><tr>${head}</tr></thead><tbody>${rows.join('')}</tbody></table></article></div>`;
   } else {
     body += `<div class="time-grid">${cards.join('')}</div>`;
   }
   if (facts.length) body += `<ul class="facts-list">${facts.map(f => `<li>${esc(f)}</li>`).join('')}</ul>`;
   const foot = page.estimated
-    ? pick(lang, '「+1」表示次日凌晨。', '"+1" means after midnight (next day).', '「+1」は翌日の深夜を表します。')
-    : pick(lang, '「+1」表示次日凌晨。班距是起點站相鄰兩班發車間隔的中位數，依本站收錄的逐站時刻表計算。', '"+1" means after midnight (next day). Headway is the median gap between consecutive departures at the starting station, calculated from the station-by-station timetable used on this site.', '「+1」は翌日の深夜を表します。運転間隔は起点駅で隣り合う2本の発車間隔の中央値で、このサイトで使っている駅別時刻表から計算しています。');
+    ? pick(lang, '「+1」表示次日凌晨。', '"+1" means after midnight (next day).', '「+1」は翌日の深夜を表します。', '‘+1’은 다음 날 새벽 시각이에요.')
+    : pick(lang, '「+1」表示次日凌晨。班距是起點站相鄰兩班發車間隔的中位數，依本站收錄的逐站時刻表計算。', '"+1" means after midnight (next day). Headway is the median gap between consecutive departures at the starting station, calculated from the station-by-station timetable used on this site.', '「+1」は翌日の深夜を表します。運転間隔は起点駅で隣り合う2本の発車間隔の中央値で、このサイトで使っている駅別時刻表から計算しています。', '‘+1’은 다음 날 새벽 시각이에요. 배차간격은 출발역에서 이웃한 두 열차의 출발 간격 중앙값으로, 이 사이트에서 쓰는 역별 시간표로 계산했어요.');
   body += `<p class="table-note">${esc(foot)}</p>`;
-  for (const note of specialNotesFor(lang, page)) body += `<div class="notice"><strong>${esc(pick(lang, '特殊時段：', 'Special period: ', '特別ダイヤ：'))}</strong>${esc(note.text)}</div>`;
-  for (const diff of sourceDiffsFor(lang, page)) body += `<div class="notice" data-source-diff="${diff.id}"><strong>${esc(pick(lang, '來源差異：', 'Source difference: ', '資料の相違：'))}</strong>${esc(diff.text)}</div>`;
-  return section('times', page.estimated ? pick(lang, '營運時段與班距', 'Operating hours and headways', '運行時間帯と運転間隔') : pick(lang, '首末班車與班距明細', 'First and last trains and headways in detail', '始発・終電と運転間隔の詳細'), body);
+  for (const note of specialNotesFor(lang, page)) body += `<div class="notice"><strong>${esc(pick(lang, '特殊時段：', 'Special period: ', '特別ダイヤ：', '특별 기간: '))}</strong>${esc(note.text)}</div>`;
+  for (const diff of sourceDiffsFor(lang, page)) body += `<div class="notice" data-source-diff="${diff.id}"><strong>${esc(pick(lang, '來源差異：', 'Source difference: ', '資料の相違：', '출처 차이: '))}</strong>${esc(diff.text)}</div>`;
+  return section('times', page.estimated ? pick(lang, '營運時段與班距', 'Operating hours and headways', '運行時間帯と運転間隔', '운행 시간과 배차간격') : pick(lang, '首末班車與班距明細', 'First and last trains and headways in detail', '始発・終電と運転間隔の詳細', '첫차 · 막차와 배차간격 자세히'), body);
 }
 
 function stationTimesSection(lang, page) {
@@ -1312,10 +1337,12 @@ function stationTimesSection(lang, page) {
   let body = `<p class="section-intro">${esc(loopLine ? pick(lang,
     '環狀線各站往兩個方向的最早與最晚發車時間；某站沒有列車往該方向發車時以「—」表示。',
     'The earliest and latest departure from each station in each direction around the loop. "—" means no train departs from that station in that direction.',
-    '環状線の各駅から、それぞれの方向へ出る最初と最後の発車時刻です。その駅からその方向へ出る列車がない場合は「—」です。') : pick(lang,
+    '環状線の各駅から、それぞれの方向へ出る最初と最後の発車時刻です。その駅からその方向へ出る列車がない場合は「—」です。',
+    '순환선 각 역에서 두 방향으로 출발하는 가장 이른 시각과 가장 늦은 시각이에요. 그 역에서 그 방향으로 출발하는 열차가 없으면 ‘—’로 표시했어요.') : pick(lang,
     '各站往某個方向的最早與最晚發車時間，含中途折返、不開到終點站的班次；某站沒有列車往該方向發車（例如終點站）以「—」表示。',
     'The earliest and latest departure from each station in one direction, including short-turn trains and trains that do not run to the end of the line. "—" means no train departs from that station in that direction (for example the terminus).',
-    '各駅からその方向へ出る最初と最後の発車時刻で、途中折り返しの列車や終点まで行かない列車も含みます。その駅からその方向へ出る列車がない場合（終点など）は「—」です。'))}</p>`;
+    '各駅からその方向へ出る最初と最後の発車時刻で、途中折り返しの列車や終点まで行かない列車も含みます。その駅からその方向へ出る列車がない場合（終点など）は「—」です。',
+    '각 역에서 한 방향으로 출발하는 가장 이른 시각과 가장 늦은 시각으로, 중간에서 되돌아가거나 종점까지 가지 않는 열차도 포함해요. 그 역에서 그 방향으로 출발하는 열차가 없으면(종점 등) ‘—’로 표시했어요.'))}</p>`;
   for (const id of page.dataLineIds) {
     const a = page.analysis[id], lm = M.lineModels[id], n = lm.stations.length;
     if (page.dataLineIds.length > 1) body += `<h3>${esc(dataLineLabel(lang, page, id))}</h3>`;
@@ -1324,19 +1351,19 @@ function stationTimesSection(lang, page) {
       if (dir === 'bwd') idxs.reverse();
       const toIdx = a.loop ? (dir === 'fwd' ? 1 : n - 1) : (dir === 'fwd' ? n - 1 : 0);
       const dest = pn(lang, stRow(id, toIdx));
-      body += `<h3>${esc(pick(lang, `往${dest}方向`, `Toward ${dest}`, `${dest}方面`))}</h3>`;
+      body += `<h3>${esc(pick(lang, `往${dest}方向`, `Toward ${dest}`, `${dest}方面`, `${dest} 방면`))}</h3>`;
       for (const set of a.sets) {
         const per = a.perStation[set.name];
         const rows = idxs.map(i => {
           const c = per[i][dir];
           return `<tr><th scope="row">${esc(dn(lang, stRow(id, i)))}</th><td class="t">${c ? timeHtml(c.first) : '—'}</td><td class="t">${c ? timeHtml(c.last) : '—'}</td></tr>`;
         }).join('');
-        const head = pick(lang, ['車站', '首班', '末班'], ['Station', 'First', 'Last'], ['駅', '始発', '終電']).map(t => `<th scope="col">${esc(t)}</th>`).join('');
+        const head = pick(lang, ['車站', '首班', '末班'], ['Station', 'First', 'Last'], ['駅', '始発', '終電'], [K('車站'), '첫차', '막차']).map(t => `<th scope="col">${esc(t)}</th>`).join('');
         body += `<details><summary>${esc(dayLabel(lang, set.days, set.holiday))}</summary><div class="table-wrap"><table><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div></details>`;
       }
     }
   }
-  return `<section class="content-section stop-times" id="station-times"><h2>${esc(pick(lang, `${page.name.zh}各站首末班車`, `${page.name.en} first and last trains by station`, `${page.name.ja}の駅ごとの始発・終電`))}</h2>${body}</section>`;
+  return `<section class="content-section stop-times" id="station-times"><h2>${esc(pick(lang, `${page.name.zh}各站首末班車`, `${page.name.en} first and last trains by station`, `${page.name.ja}の駅ごとの始発・終電`, `${page.name.ko} 역별 첫차 · 막차`))}</h2>${body}</section>`;
 }
 
 function siblingSection(lang, page) {
@@ -1345,56 +1372,60 @@ function siblingSection(lang, page) {
   const others = SYSTEMS.filter(s => s.id !== page.sysId);
   const pill = (href, label, color) => `<li><a href="${href}">${color ? `<span class="sw" style="background:${color}" aria-hidden="true"></span>` : ''}${esc(label)}</a></li>`;
   let body = '';
-  if (same.length) body += `<h3>${esc(pick(lang, `${sys.name.zh}的其他路線`, `Other ${sys.name.en} lines`, `${sys.name.ja}のほかの路線`))}</h3><ul class="sibling-links">${same.map(p => pill(lineHref(lang, p), p.name[lang], p.color)).join('')}</ul>`;
-  body += `<h3>${esc(pick(lang, '其他捷運系統', 'Other metro systems', 'ほかのメトロ'))}</h3><ul class="sibling-links">${pill(sysHref(lang, sys.id), pick(lang, `${sys.name.zh}路線圖`, `${sys.name.en} map`, `${sys.name.ja} 路線図`), null)}${others.map(s => pill(sysHref(lang, s.id), s.name[lang], null)).join('')}<li><a href="${ovHref(lang)}">${esc(pick(lang, '捷運路線圖總覽', 'All metro maps', 'メトロ路線図の一覧'))}</a></li></ul>`;
-  return section('related', pick(lang, '其他路線與系統', 'Other lines and systems', 'ほかの路線とシステム'), body);
+  if (same.length) body += `<h3>${esc(pick(lang, `${sys.name.zh}的其他路線`, `Other ${sys.name.en} lines`, `${sys.name.ja}のほかの路線`, `${sys.name.ko}의 다른 노선`))}</h3><ul class="sibling-links">${same.map(p => pill(lineHref(lang, p), p.name[lang], p.color)).join('')}</ul>`;
+  body += `<h3>${esc(pick(lang, '其他捷運系統', 'Other metro systems', 'ほかのメトロ', '다른 MRT 시스템'))}</h3><ul class="sibling-links">${pill(sysHref(lang, sys.id), pick(lang, `${sys.name.zh}路線圖`, `${sys.name.en} map`, `${sys.name.ja} 路線図`, `${sys.name.ko} 노선도`), null)}${others.map(s => pill(sysHref(lang, s.id), s.name[lang], null)).join('')}<li><a href="${ovHref(lang)}">${esc(pick(lang, '捷運路線圖總覽', 'All metro maps', 'メトロ路線図の一覧', '전체 MRT 노선도'))}</a></li></ul>`;
+  return section('related', pick(lang, '其他路線與系統', 'Other lines and systems', 'ほかの路線とシステム', '다른 노선과 시스템'), body);
 }
 
 function liveSection(lang, href, page, sys) {
   const body = `<div class="answer-box"><p>${esc(runNote(lang, page))}</p></div><p>${liveButton(lang, href)}</p>`;
-  return section('live', pick(lang, '在地圖上看即時列車', 'See the trains on the live map', 'ライブ地図で列車を見る'), body);
+  return section('live', pick(lang, '在地圖上看即時列車', 'See the trains on the live map', 'ライブ地図で列車を見る', '지도에서 실시간 열차 보기'), body);
 }
 
 function sourceSection(lang, page) {
   const { p1, p2 } = sourceParagraphs(lang, page);
-  return section('source', pick(lang, '資料來源與更新', 'Data sources and updates', 'データの出典と更新'),
-    `<div class="answer-box"><p>${p1}</p><p class="source-note">${esc(p2)}</p></div><div class="notice"><strong>${esc(pick(lang, '提醒：', 'Note: ', 'ご注意：'))}</strong>${esc(noticeText(lang))}</div>`);
+  return section('source', pick(lang, '資料來源與更新', 'Data sources and updates', 'データの出典と更新', '데이터 출처와 업데이트'),
+    `<div class="answer-box"><p>${p1}</p><p class="source-note">${esc(p2)}</p></div><div class="notice"><strong>${esc(pick(lang, '提醒：', 'Note: ', 'ご注意：', '참고: '))}</strong>${esc(noticeText(lang))}</div>`);
 }
 
 function buildLinePage(lang, page) {
   const sys = SYS[page.sysId];
   const est = page.estimated;
   const pathname = lineHref(lang, page);
-  const alts = { zh: lineHref('zh', page), en: lineHref('en', page), ja: lineHref('ja', page) };
+  const alts = { zh: lineHref('zh', page), en: lineHref('en', page), ja: lineHref('ja', page), ko: lineHref('ko', page) };
   const n = page.name[lang], s = sys.name[lang], hn = headName(lang, page);
   // 線名與系統名相同時（日文的機場捷運）不重複系統段：「桃園空港MRT … ｜桃園空港MRT｜軌島」→「桃園空港MRT … ｜軌島」
   const sysSeg = n === s ? null : s;
   const title = pick(lang,
     `${n}路線圖、車站與${est ? '營運時間' : '首末班車'}${sysSeg ? `｜${sysSeg}` : ''}｜軌島`,
     `${n} Map, Stations & ${est ? 'Operating Hours' : 'First/Last Trains'}${sysSeg ? ` | ${sysSeg}` : ''} | Rail Island`,
-    `${n} 路線図・駅一覧・${est ? '運行時間' : '始発終電'}${sysSeg ? `｜${sysSeg}` : ''}｜軌島`);
+    `${n} 路線図・駅一覧・${est ? '運行時間' : '始発終電'}${sysSeg ? `｜${sysSeg}` : ''}｜軌島`,
+    `${n} 노선도, 역, ${est ? '운행 시간' : '첫차 · 막차'}${sysSeg ? ` | ${sysSeg}` : ''} | Rail Island`);
   const h1 = pick(lang,
     `${hn}路線圖、車站與${est ? '營運時間' : '首末班車'}`,
     `${hn}: Map, Stations & ${est ? 'Operating Hours' : 'First/Last Trains'}`,
-    `${hn} 路線図・駅一覧・${est ? '運行時間' : '始発終電'}`);
+    `${hn} 路線図・駅一覧・${est ? '運行時間' : '始発終電'}`,
+    `${hn}: 노선도, 역, ${est ? '운행 시간' : '첫차 · 막차'}`);
   const structure = structureText(lang, page);
   const xc = xferStationCount(page);
   const alias = page.cfg.alias ? page.cfg.alias[lang] : '';
-  const nameAlias = alias ? pick(lang, `（${alias}）`, ` (${alias})`, `（${alias}）`) : '';
+  const nameAlias = alias ? pick(lang, `（${alias}）`, ` (${alias})`, `（${alias}）`, `(${alias})`) : '';
   const lede = pick(lang,
     `${hn}${nameAlias}${structure}${xc ? `，其中 ${xc} 站可轉乘其他路線、台鐵或高鐵` : ''}。${est ? '軌島的資料來源沒有這條路線的逐班時刻表，下面只列營運時段與班距。' : '下面列出兩個方向的首末班車、班距與各站轉乘。'}`,
     `${hn}${nameAlias}: ${structure}${xc ? `; ${xc === 1 ? '1 station connects' : `${xc} stations connect`} to other lines, Taiwan Railway (TRA) or High Speed Rail` : ''}. ${est ? 'Rail Island\'s data sources have no train-by-train timetable for this line, so only the operating hours and headways are listed below.' : 'Below are the first and last trains in both directions, headways and the transfers at each station.'}`,
-    `${hn}${nameAlias}は、${structure}${xc ? `。そのうち${xc}駅で他の路線や台鉄、台湾高速鉄道に乗り換えられます` : ''}。${est ? '軌島のデータソースにはこの路線の列車ごとの時刻表がないため、下には運行時間帯と運転間隔だけを載せています。' : '下に両方向の始発・終電、運転間隔、各駅の乗り換えを載せています。'}`);
+    `${hn}${nameAlias}は、${structure}${xc ? `。そのうち${xc}駅で他の路線や台鉄、台湾高速鉄道に乗り換えられます` : ''}。${est ? '軌島のデータソースにはこの路線の列車ごとの時刻表がないため、下には運行時間帯と運転間隔だけを載せています。' : '下に両方向の始発・終電、運転間隔、各駅の乗り換えを載せています。'}`,
+    `${hn}${nameAlias}: ${structure}${xc ? `. 그중 ${xc}개 역에서 다른 노선, 대만철도 또는 고속철도로 환승할 수 있어요` : ''}. ${est ? 'Rail Island의 데이터 출처에는 이 노선의 열차별 시간표가 없어서 아래에는 운행 시간과 배차간격만 실었어요.' : '아래에 양방향 첫차 · 막차, 배차간격, 역별 환승을 실었어요.'}`);
   const sp = spanText(lang, page);
-  const brief = pick(lang, `共 ${page.stationCount} 站（${termText(lang, page)}）`, `${page.stationCount} stations (${termText(lang, page)})`, `全${page.stationCount}駅（${termText(lang, page)}）`);
+  const brief = pick(lang, `共 ${page.stationCount} 站（${termText(lang, page)}）`, `${page.stationCount} stations (${termText(lang, page)})`, `全${page.stationCount}駅（${termText(lang, page)}）`, `총 ${page.stationCount}개 역(${termText(lang, page)})`);
   const description = pick(lang,
     `${hn}${brief}。${sp}。附各站轉乘${est ? '' : '、首末班車與班距'}，可在軌島地圖上看列車。`,
     `${hn}: ${brief}. ${sp}. Includes each station's transfers${est ? '' : ', first and last trains and headways'}, plus a link to the trains on Rail Island's live map.`,
-    `${hn}は${brief}。${sp}。各駅の乗り換え${est ? '' : '、始発・終電、運転間隔'}をまとめ、軌島のライブ地図で列車を見られます。`);
+    `${hn}は${brief}。${sp}。各駅の乗り換え${est ? '' : '、始発・終電、運転間隔'}をまとめ、軌島のライブ地図で列車を見られます。`,
+    `${hn}: ${brief}. ${sp}. 역별 환승${est ? '' : ', 첫차 · 막차, 배차간격'} 정보를 담았고, Rail Island 지도에서 열차를 볼 수 있어요.`);
   const crumbs = crumbList(lang, 'line', sys, page);
   const schema = schemaFor(lang, {
     type: 'WebPage', title, description, pathname, crumbs,
-    extra: { mainEntity: { '@type': 'ItemList', name: `${n} ${pick(lang, '車站', 'stations', '駅')}`, numberOfItems: allRows(page).length, itemListElement: allRows(page).map((r, i) => ({ '@type': 'ListItem', position: i + 1, name: dn(lang, r) })) } },
+    extra: { mainEntity: { '@type': 'ItemList', name: `${n} ${pick(lang, '車站', 'stations', '駅', K('車站'))}`, numberOfItems: allRows(page).length, itemListElement: allRows(page).map((r, i) => ({ '@type': 'ListItem', position: i + 1, name: dn(lang, r) })) } },
   });
   const live = liveHref(lang, page.bbox);
   const content = [answerSection(lang, page), stopsSection(lang, page), timesSection(lang, page), stationTimesSection(lang, page), liveSection(lang, live, page, sys), siblingSection(lang, page), sourceSection(lang, page)].filter(Boolean).join('\n    ');
@@ -1402,7 +1433,7 @@ function buildLinePage(lang, page) {
     pathname,
     html: pageDocument(lang, {
       title, description, pathname, alts, schema, crumbs: crumbs.map(c => c), eyebrow: `${sys.name.en.toUpperCase()} · LINE MAP`, h1, lede,
-      actions: `${liveButton(lang, live)}<a class="button secondary" href="${sysHref(lang, sys.id)}">${esc(pick(lang, `回${sys.name.zh}路線圖`, `Back to the ${sys.name.en} map`, `${sys.name.ja} 路線図へ`))}</a>`,
+      actions: `${liveButton(lang, live)}<a class="button secondary" href="${sysHref(lang, sys.id)}">${esc(pick(lang, `回${sys.name.zh}路線圖`, `Back to the ${sys.name.en} map`, `${sys.name.ja} 路線図へ`, `${sys.name.ko} 노선도로 돌아가기`))}</a>`,
       content,
     }),
   };
@@ -1426,22 +1457,22 @@ function legendEntries(lang, sys, lineIds) {
 }
 
 function systemMapFigures(lang, sys) {
-  const descOf = names => pick(lang, `${names}的路線示意圖`, `Schematic map of ${names}`, `${names}の路線略図`);
+  const descOf = names => pick(lang, `${names}的路線示意圖`, `Schematic map of ${names}`, `${names}の路線略図`, `${names} 노선 개략도`);
   return sys.panels.map((panel, pi) => {
     const names = legendEntries(lang, sys, panel).map(e => e.name);
-    const r = geoMapSvg(M, B, lang, panel, `map-${sys.id}-${pi}`, `${sys.name[lang]} ${pick(lang, '路線圖', 'route map', '路線図')}`, descOf(list(lang, names)));
+    const r = geoMapSvg(M, B, lang, panel, `map-${sys.id}-${pi}`, `${sys.name[lang]} ${pick(lang, '路線圖', 'route map', '路線図', '노선도')}`, descOf(list(lang, names)));
     const legend = `<ul class="map-legend">${legendEntries(lang, sys, panel).map(e => `<li><a href="${lineHref(lang, e.page)}"><span class="swatch" style="background:${e.color}" aria-hidden="true"></span>${esc(e.name)}</a></li>`).join('')}</ul>`;
-    const symbols = `<ul class="map-symbols"><li><span class="sym end"></span>${esc(pick(lang, '端點站', 'Terminus', '終点駅'))}</li><li><span class="sym xfer"></span>${esc(pick(lang, '轉乘站', 'Transfer station', '乗り換え駅'))}</li><li><span class="sym"></span>${esc(pick(lang, '車站', 'Station', '駅'))}</li></ul>`;
-    const noteKey = r.mode === 'key' ? pick(lang, '圖中只標端點站與部分轉乘站，完整站名請看各路線頁。', 'Only termini and some transfer stations are named on the map; every station is listed on the line pages.', '地図には終点駅と一部の乗り換え駅だけを載せています。全駅の名前は各路線のページにあります。') : '';
-    const note = `<p class="map-note">${esc(pick(lang, '路線圖依站點座標繪製，比例僅供參考。', 'The map is drawn from station coordinates; distances are not to scale.', '路線図は駅の座標から描いたもので、縮尺は目安です。'))}${noteKey ? (lang === 'en' ? ' ' : '') + esc(noteKey) : ''}</p>`;
-    const caption = sys.panels.length > 1 ? panel.map(id => B.pageOfLine.get(id).name[lang]).filter((v, i, a) => a.indexOf(v) === i).join(pick(lang, '、', ', ', '・')) : `${sys.name[lang]} ${pick(lang, '路線圖', 'route map', '路線図')}`;
+    const symbols = `<ul class="map-symbols"><li><span class="sym end"></span>${esc(pick(lang, '端點站', 'Terminus', '終点駅', '종점역'))}</li><li><span class="sym xfer"></span>${esc(pick(lang, '轉乘站', 'Transfer station', '乗り換え駅', K('轉乘站')))}</li><li><span class="sym"></span>${esc(pick(lang, '車站', 'Station', '駅', K('車站')))}</li></ul>`;
+    const noteKey = r.mode === 'key' ? pick(lang, '圖中只標端點站與部分轉乘站，完整站名請看各路線頁。', 'Only termini and some transfer stations are named on the map; every station is listed on the line pages.', '地図には終点駅と一部の乗り換え駅だけを載せています。全駅の名前は各路線のページにあります。', '지도에는 종점역과 일부 환승역만 표시했어요. 전체 역 이름은 각 노선 페이지에서 볼 수 있어요.') : '';
+    const note = `<p class="map-note">${esc(pick(lang, '路線圖依站點座標繪製，比例僅供參考。', 'The map is drawn from station coordinates; distances are not to scale.', '路線図は駅の座標から描いたもので、縮尺は目安です。', '노선도는 역 좌표로 그렸고, 축척은 참고용이에요.'))}${noteKey ? (lang === 'en' || lang === 'ko' ? ' ' : '') + esc(noteKey) : ''}</p>`;
+    const caption = sys.panels.length > 1 ? panel.map(id => B.pageOfLine.get(id).name[lang]).filter((v, i, a) => a.indexOf(v) === i).join(pick(lang, '、', ', ', '・', ' · ')) : `${sys.name[lang]} ${pick(lang, '路線圖', 'route map', '路線図', '노선도')}`;
     return `<figure class="metro-figure"><figcaption>${esc(caption)}</figcaption>${r.svg}${legend}${symbols}${note}</figure>`;
   }).join('');
 }
 
 function lineIndexItem(lang, page, withSys) {
   const sys = SYS[page.sysId];
-  const meta = [withSys ? sys.name[lang] : '', termText(lang, page), pick(lang, `${page.stationCount} 站`, `${page.stationCount} stations`, `${page.stationCount}駅`), spanText(lang, page)].filter(Boolean).join(' · ');
+  const meta = [withSys ? sys.name[lang] : '', termText(lang, page), pick(lang, `${page.stationCount} 站`, `${page.stationCount} stations`, `${page.stationCount}駅`, `${page.stationCount}개 역`), spanText(lang, page)].filter(Boolean).join(' · ');
   return `<li><span class="line-swatch" style="background:${page.color}" aria-hidden="true"></span><div class="line-main"><div class="line-title"><a href="${lineHref(lang, page)}">${esc(page.name[lang])}</a></div><div class="line-meta">${esc(meta)}</div></div></li>`;
 }
 
@@ -1467,34 +1498,37 @@ function systemTransferSection(lang, sys) {
     const parts = [...e.lines.values()].map(l => ({ head: `<a href="${lineHref(lang, l.page)}">${esc(l.page.name[lang])}</a>`, code: l.code }));
     for (const t of [...e.ext.values()].sort((a, b) => (a.kind === 'metro' ? a.page.order : a.kind === 'tra' ? 100 : 101) - (b.kind === 'metro' ? b.page.order : b.kind === 'tra' ? 100 : 101))) {
       if (t.kind === 'metro') parts.push({ head: `<a href="${lineHref(lang, t.page)}">${esc(lineName(lang, t.page, sys.id))}</a>`, code: t.code });
-      else parts.push({ head: esc(t.kind === 'tra' ? pick(lang, '台鐵', 'Taiwan Railway (TRA)', '台鉄（TRA）') : pick(lang, '高鐵', 'Taiwan High Speed Rail', '台湾高速鉄道')) });
+      else parts.push({ head: esc(t.kind === 'tra' ? pick(lang, '台鐵', 'Taiwan Railway (TRA)', '台鉄（TRA）', K('台鐵')) : pick(lang, '高鐵', 'Taiwan High Speed Rail', '台湾高速鉄道', K('高鐵'))) });
     }
     return `<tr><th scope="row">${esc(dn(lang, e.row))}</th><td>${joinXfer(lang, parts)}</td></tr>`;
   }).join('');
-  const head = pick(lang, ['車站', '可轉乘'], ['Station', 'Connects to'], ['駅', '乗り換え先']).map(t => `<th scope="col">${esc(t)}</th>`).join('');
-  return section('transfers', pick(lang, `${sys.name.zh}的轉乘站`, `${sys.name.en} transfer stations`, `${sys.name.ja}の乗り換え駅`),
+  const head = pick(lang, ['車站', '可轉乘'], ['Station', 'Connects to'], ['駅', '乗り換え先'], [K('車站'), K('可轉乘')]).map(t => `<th scope="col">${esc(t)}</th>`).join('');
+  return section('transfers', pick(lang, `${sys.name.zh}的轉乘站`, `${sys.name.en} transfer stations`, `${sys.name.ja}の乗り換え駅`, `${sys.name.ko} 환승역`),
     `<p class="section-intro">${esc(pick(lang,
       `可換乘同系統的其他路線，或台鐵、高鐵與其他捷運系統的車站。轉乘依站名相同且距離小於 ${M.transfers.criteria.maxDistanceM} 公尺判讀。`,
       `Stations where you can change to another line of the same system, Taiwan Railway (TRA), High Speed Rail or another metro system. A transfer means the same station name within ${M.transfers.criteria.maxDistanceM} m.`,
-      `同じシステムの別路線、台鉄、台湾高速鉄道、ほかのメトロに乗り換えられる駅です。乗り換えは、同じ駅名で距離が${M.transfers.criteria.maxDistanceM}m未満のものを示します。`))}</p><div class="table-wrap"><table class="xfer-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`);
+      `同じシステムの別路線、台鉄、台湾高速鉄道、ほかのメトロに乗り換えられる駅です。乗り換えは、同じ駅名で距離が${M.transfers.criteria.maxDistanceM}m未満のものを示します。`,
+      `같은 시스템의 다른 노선이나 대만철도, 고속철도, 다른 MRT로 갈아탈 수 있는 역이에요. 환승은 역 이름이 같고 거리가 ${M.transfers.criteria.maxDistanceM}m 미만인 경우를 뜻해요.`))}</p><div class="table-wrap"><table class="xfer-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`);
 }
 
 function buildSystemPage(lang, sys) {
   const pathname = sysHref(lang, sys.id);
-  const alts = { zh: sysHref('zh', sys.id), en: sysHref('en', sys.id), ja: sysHref('ja', sys.id) };
+  const alts = { zh: sysHref('zh', sys.id), en: sysHref('en', sys.id), ja: sysHref('ja', sys.id), ko: sysHref('ko', sys.id) };
   const title = sys.title[lang];
   const lineCount = sys.pages.length;
   const realLines = sys.pages.some(p => !p.estimated);
-  const what = realLines ? pick(lang, '首末班車', 'first and last trains', '始発・終電') : pick(lang, '營運時間', 'operating hours', '運行時間');
+  const what = realLines ? pick(lang, '首末班車', 'first and last trains', '始発・終電', '첫차 · 막차') : pick(lang, '營運時間', 'operating hours', '運行時間', '운행 시간');
   const names = sys.pages.map(p => p.name[lang]);
   const description = pick(lang,
     `${sys.name.zh}路線圖：${list(lang, names)}，共 ${lineCount} 條路線、${sys.stationCount} 站。附各線站序、轉乘站與${what}，可在軌島地圖上看列車。`,
     `${sys.name.en} map: ${list(lang, names)} — ${lineCount} ${lineCount === 1 ? 'line' : 'lines'} and ${sys.stationCount} stations, with stop order, transfers and ${what} for each line, plus a link to the trains on Rail Island's live map.`,
-    `${sys.name.ja}の路線図：${list(lang, names)}の${lineCount}路線・${sys.stationCount}駅。各路線の停車駅順、乗り換え、${what}をまとめ、軌島のライブ地図で列車を見られます。`);
+    `${sys.name.ja}の路線図：${list(lang, names)}の${lineCount}路線・${sys.stationCount}駅。各路線の停車駅順、乗り換え、${what}をまとめ、軌島のライブ地図で列車を見られます。`,
+    `${sys.name.ko} 노선도: ${list(lang, names)}. ${lineCount}개 노선, ${sys.stationCount}개 역의 역 순서, 환승역, ${what} 정보를 담았고, Rail Island 지도에서 열차를 볼 수 있어요.`);
   const lede = pick(lang,
     `${sys.name.zh}在軌島收錄 ${lineCount} 條路線、${sys.stationCount} 站。下方路線圖依站點座標繪製；點路線名稱可看站序、轉乘站與${what}。`,
     `Rail Island covers ${lineCount} ${lineCount === 1 ? 'line' : 'lines'} and ${sys.stationCount} stations on the ${sys.name.en}. The map below is drawn from station coordinates; open a line for its stop order, transfers and ${what}.`,
-    `軌島には${sys.name.ja}の${lineCount}路線・${sys.stationCount}駅を収録しています。下の路線図は駅の座標から描いたものです。路線名を選ぶと、停車駅の順序、乗り換え、${what}を確認できます。`);
+    `軌島には${sys.name.ja}の${lineCount}路線・${sys.stationCount}駅を収録しています。下の路線図は駅の座標から描いたものです。路線名を選ぶと、停車駅の順序、乗り換え、${what}を確認できます。`,
+    `Rail Island에는 ${sys.name.ko}의 ${lineCount}개 노선, ${sys.stationCount}개 역이 있어요. 아래 노선도는 역 좌표로 그렸어요. 노선 이름을 누르면 역 순서, 환승역, ${what} 정보를 볼 수 있어요.`);
   const crumbs = crumbList(lang, 'system', sys);
   const schema = schemaFor(lang, {
     type: 'CollectionPage', title, description, pathname, crumbs,
@@ -1503,17 +1537,17 @@ function buildSystemPage(lang, sys) {
   const live = liveHref(lang, sys.bbox);
   const estNames = sys.pages.filter(p => p.estimated).map(p => lineName(lang, p, sys.id));
   const estNote = estNames.length && estNames.length < sys.pages.length
-    ? pick(lang, `軌島的資料來源沒有${list(lang, estNames)}的逐班時刻表，頁面只列營運時段與班距。`, `Rail Island's data sources have no train-by-train timetable for ${list(lang, estNames)}, so the page lists only operating hours and headways.`, `軌島のデータソースには${list(lang, estNames)}の列車ごとの時刻表がないため、運行時間帯と運転間隔だけを載せています。`)
+    ? pick(lang, `軌島的資料來源沒有${list(lang, estNames)}的逐班時刻表，頁面只列營運時段與班距。`, `Rail Island's data sources have no train-by-train timetable for ${list(lang, estNames)}, so the page lists only operating hours and headways.`, `軌島のデータソースには${list(lang, estNames)}の列車ごとの時刻表がないため、運行時間帯と運転間隔だけを載せています。`, `Rail Island의 데이터 출처에는 ${list(lang, estNames)}의 열차별 시간표가 없어서 운행 시간과 배차간격만 실었어요.`)
     : '';
   const content = [
-    section('map', pick(lang, `${sys.name.zh}路線圖`, `${sys.name.en} route map`, `${sys.name.ja} 路線図`), systemMapFigures(lang, sys)),
-    section('lines', pick(lang, `${sys.name.zh}的路線與車站`, `Lines and stations of ${sys.name.en}`, `${sys.name.ja}の路線と駅`), `<ul class="line-index">${sys.pages.map(p => lineIndexItem(lang, p, false)).join('')}</ul>${estNote ? `<p class="table-note">${esc(estNote)}</p>` : ''}`),
+    section('map', pick(lang, `${sys.name.zh}路線圖`, `${sys.name.en} route map`, `${sys.name.ja} 路線図`, `${sys.name.ko} 노선도`), systemMapFigures(lang, sys)),
+    section('lines', pick(lang, `${sys.name.zh}的路線與車站`, `Lines and stations of ${sys.name.en}`, `${sys.name.ja}の路線と駅`, `${sys.name.ko}의 노선과 역`), `<ul class="line-index">${sys.pages.map(p => lineIndexItem(lang, p, false)).join('')}</ul>${estNote ? `<p class="table-note">${esc(estNote)}</p>` : ''}`),
     systemTransferSection(lang, sys),
-    section('live', pick(lang, '在地圖上看即時列車', 'See the trains on the live map', 'ライブ地図で列車を見る'), `<div class="answer-box">${systemRunHtml(lang, sys)}</div><p>${liveButton(lang, live)}</p>`),
-    section('related', pick(lang, '其他捷運系統', 'Other metro systems', 'ほかのメトロ'), `<ul class="sibling-links">${SYSTEMS.filter(s => s.id !== sys.id).map(s => `<li><a href="${sysHref(lang, s.id)}">${esc(s.name[lang])}</a></li>`).join('')}<li><a href="${ovHref(lang)}">${esc(pick(lang, '捷運路線圖總覽', 'All metro maps', 'メトロ路線図の一覧'))}</a></li></ul>`),
-    section('source', pick(lang, '資料來源與更新', 'Data sources and updates', 'データの出典と更新'), `<div class="answer-box"><p>${systemSourceText(lang, sys)}</p><p class="source-note">${esc(pick(lang, `頁面產生日期：${M.date}。`, `Page generated on ${M.date}.`, `ページ生成日：${M.date}。`))}</p></div><div class="notice"><strong>${esc(pick(lang, '提醒：', 'Note: ', 'ご注意：'))}</strong>${esc(noticeText(lang))}</div>`),
+    section('live', pick(lang, '在地圖上看即時列車', 'See the trains on the live map', 'ライブ地図で列車を見る', '지도에서 실시간 열차 보기'), `<div class="answer-box">${systemRunHtml(lang, sys)}</div><p>${liveButton(lang, live)}</p>`),
+    section('related', pick(lang, '其他捷運系統', 'Other metro systems', 'ほかのメトロ', '다른 MRT 시스템'), `<ul class="sibling-links">${SYSTEMS.filter(s => s.id !== sys.id).map(s => `<li><a href="${sysHref(lang, s.id)}">${esc(s.name[lang])}</a></li>`).join('')}<li><a href="${ovHref(lang)}">${esc(pick(lang, '捷運路線圖總覽', 'All metro maps', 'メトロ路線図の一覧', '전체 MRT 노선도'))}</a></li></ul>`),
+    section('source', pick(lang, '資料來源與更新', 'Data sources and updates', 'データの出典と更新', '데이터 출처와 업데이트'), `<div class="answer-box"><p>${systemSourceText(lang, sys)}</p><p class="source-note">${esc(pageDateText(lang))}</p></div><div class="notice"><strong>${esc(pick(lang, '提醒：', 'Note: ', 'ご注意：', '참고: '))}</strong>${esc(noticeText(lang))}</div>`),
   ].filter(Boolean).join('\n    ');
-  return { pathname, html: pageDocument(lang, { title, description, pathname, alts, schema, crumbs, eyebrow: `${sys.name.en.toUpperCase()} · SYSTEM MAP`, h1: pick(lang, `${sys.name.zh}路線圖`, `${sys.name.en} Map`, `${sys.name.ja} 路線図`), lede, actions: `${liveButton(lang, live)}<a class="button secondary" href="${ovHref(lang)}">${esc(pick(lang, '捷運路線圖總覽', 'All metro maps', 'メトロ路線図の一覧'))}</a>`, content }) };
+  return { pathname, html: pageDocument(lang, { title, description, pathname, alts, schema, crumbs, eyebrow: `${sys.name.en.toUpperCase()} · SYSTEM MAP`, h1: pick(lang, `${sys.name.zh}路線圖`, `${sys.name.en} Map`, `${sys.name.ja} 路線図`, `${sys.name.ko} 노선도`), lede, actions: `${liveButton(lang, live)}<a class="button secondary" href="${ovHref(lang)}">${esc(pick(lang, '捷運路線圖總覽', 'All metro maps', 'メトロ路線図の一覧', '전체 MRT 노선도'))}</a>`, content }) };
 }
 
 // 系統頁的「地圖上怎麼跑」：台北捷運整個系統一種說法（推估線另補一句備援時刻表的來源）；其他單一路線的系統直接用該線的說法；
@@ -1524,59 +1558,65 @@ function systemRunHtml(lang, sys) {
     return `<p>${esc(pick(lang,
       `台北捷運各線的列車位置與車站倒數來自官方逐班即時資料；沒有即時資料時，才改依時刻表推演${est.length ? `，其中${list(lang, est)}的時刻表是依官方班距推估的` : ''}。`,
       `On all Taipei MRT lines, train positions and station countdowns come from official train-by-train live data; only when there is no live data does Rail Island fall back to the timetable${est.length ? `, and the ${list(lang, est)} timetable is estimated from official headways` : ''}.`,
-      `台北MRTの各線は、列車位置と駅のカウントダウンが公式の列車ごとのリアルタイムデータにもとづきます。リアルタイムデータがないときだけ時刻表にもとづいて表示します${est.length ? `。${list(lang, est)}の時刻表は公式の運転間隔からの推定です` : ''}。`))}</p>`;
+      `台北MRTの各線は、列車位置と駅のカウントダウンが公式の列車ごとのリアルタイムデータにもとづきます。リアルタイムデータがないときだけ時刻表にもとづいて表示します${est.length ? `。${list(lang, est)}の時刻表は公式の運転間隔からの推定です` : ''}。`,
+      `타이베이 MRT 각 노선의 열차 위치와 역 도착 카운트다운은 공식 열차별 실시간 데이터를 바탕으로 해요. 실시간 데이터가 없을 때만 시간표로 추정해요${est.length ? `. 그중 ${list(lang, est)}의 시간표는 공식 배차간격으로 추정한 거예요` : ''}.`))}</p>`;
   }
   if (sys.pages.length === 1) return `<p>${esc(runNote(lang, sys.pages[0]))}</p>`;
   const out = [];
   if (sys.pages.some(p => !p.estimated && !p.dataLineIds.includes('C'))) out.push(runNote(lang, null));
-  for (const p of sys.pages) if (p.estimated || p.dataLineIds.includes('C')) out.push(`${p.name[lang]}${pick(lang, '：', ': ', '：')}${runNote(lang, p)}`);
+  for (const p of sys.pages) if (p.estimated || p.dataLineIds.includes('C')) out.push(`${p.name[lang]}${pick(lang, '：', ': ', '：', ': ')}${runNote(lang, p)}`);
   return out.map(t => `<p>${esc(t)}</p>`).join('');
 }
 
 function systemSourceText(lang, sys) {
   const dates = [...new Set(sys.pages.map(p => fetchInfo(p).timesDate).filter(Boolean))].sort();
-  const d = dates.length ? dates.join(pick(lang, '、', ', ', '・')) : '';
+  const d = dates.length ? dates.join(pick(lang, '、', ', ', '・', ', ')) : '';
   return pick(lang,
     `路線、站序與站間資料來自交通部 TDX 運輸資料流通服務與 OpenStreetMap 貢獻者（詳見<a href="/data-sources/">資料來源</a>）。${sys.estimatedOnly ? '軌島的資料來源沒有這個系統的逐班時刻表，營運時段取自資料，班次依官方班距推估。' : '首末班車與班距依本站收錄的逐站時刻表計算。'}${d ? `時刻表資料抓取日：${d}。` : ''}`,
     `Routes, stop order and running times come from Taiwan's Ministry of Transportation TDX open data and OpenStreetMap contributors (see <a href="/data-sources/" hreflang="zh-Hant">Data sources</a>, Traditional Chinese). ${sys.estimatedOnly ? 'Rail Island\'s data sources have no train-by-train timetable for this system: the operating hours come from the data and the services are estimated from official headways.' : 'First and last trains and headways are calculated from the station-by-station timetable used on this site.'}${d ? ` Timetable data fetched on ${d}.` : ''}`,
-    `路線、停車駅の順序、駅間データは交通部TDXの運輸データとOpenStreetMap貢献者のデータにもとづきます（<a href="/data-sources/" hreflang="zh-Hant">データの出典</a>・繁体字中国語）。${sys.estimatedOnly ? '軌島のデータソースにはこのシステムの列車ごとの時刻表がなく、運行時間帯はデータから、運行本数は公式の運転間隔からの推定です。' : '始発・終電と運転間隔は、このサイトで使っている駅別時刻表から計算しています。'}${d ? `時刻表データの取得日：${d}。` : ''}`);
+    `路線、停車駅の順序、駅間データは交通部TDXの運輸データとOpenStreetMap貢献者のデータにもとづきます（<a href="/data-sources/" hreflang="zh-Hant">データの出典</a>・繁体字中国語）。${sys.estimatedOnly ? '軌島のデータソースにはこのシステムの列車ごとの時刻表がなく、運行時間帯はデータから、運行本数は公式の運転間隔からの推定です。' : '始発・終電と運転間隔は、このサイトで使っている駅別時刻表から計算しています。'}${d ? `時刻表データの取得日：${d}。` : ''}`,
+    `노선, 역 순서, 역간 데이터는 대만 교통부 TDX 운수 데이터와 OpenStreetMap 기여자 데이터를 바탕으로 해요(<a href="/ko/data-sources/">데이터 출처</a> 참고). ${sys.estimatedOnly ? 'Rail Island의 데이터 출처에는 이 시스템의 열차별 시간표가 없어요. 운행 시간은 데이터에서 가져왔고, 운행 횟수는 공식 배차간격으로 추정했어요.' : '첫차 · 막차와 배차간격은 이 사이트에서 쓰는 역별 시간표로 계산해요.'}${d ? ` 시간표 데이터 수집일: ${d}.` : ''}`);
 }
 
 // ── 總覽頁 ───────────────────────────────────────────────────────────────────────────
 function buildOverviewPage(lang) {
   const pathname = ovHref(lang);
-  const alts = { zh: ovHref('zh'), en: ovHref('en'), ja: ovHref('ja') };
+  const alts = { zh: ovHref('zh'), en: ovHref('en'), ja: ovHref('ja'), ko: ovHref('ko') };
   const lineCount = B.pages.length;
   const sysCount = B.systems.length;
   const title = pick(lang,
     '台灣捷運路線圖：台北、桃園、新北、台中、高雄｜軌島',
     'Taiwan Metro Maps: Taipei, Taoyuan, New Taipei, Taichung & Kaohsiung MRT | Rail Island',
-    '台湾MRT 路線図｜台北・桃園・新北・台中・高雄｜軌島');
+    '台湾MRT 路線図｜台北・桃園・新北・台中・高雄｜軌島',
+    '대만 MRT 노선도: 타이베이 · 타오위안 · 신베이 · 타이중 · 가오슝 | Rail Island');
   const description = pick(lang,
     `軌島整理台北、桃園、新北、台中、高雄共 ${sysCount} 個捷運與輕軌系統、${lineCount} 條路線的路線圖、車站順序、轉乘站、首末班車與班距，並可在軌島地圖上看列車。`,
     `Line maps, stop order, transfers, first and last trains and headways for ${lineCount} lines in ${sysCount} metro and light rail systems: Taipei MRT, Taoyuan Airport MRT, New Taipei Metro, Taichung MRT and Kaohsiung MRT — with a link to the trains on Rail Island's live map.`,
-    `台北MRT、桃園空港MRT、新北メトロ、台中MRT、高雄MRTの${sysCount}システム・${lineCount}路線について、路線図、停車駅の順序、乗り換え、始発・終電、運転間隔をまとめました。軌島のライブ地図で列車も見られます。`);
+    `台北MRT、桃園空港MRT、新北メトロ、台中MRT、高雄MRTの${sysCount}システム・${lineCount}路線について、路線図、停車駅の順序、乗り換え、始発・終電、運転間隔をまとめました。軌島のライブ地図で列車も見られます。`,
+    `타이베이 · 타오위안 · 신베이 · 타이중 · 가오슝의 MRT · 경전철 ${sysCount}개 시스템, ${lineCount}개 노선의 노선도, 역 순서, 환승역, 첫차 · 막차, 배차간격을 정리했어요. Rail Island 지도에서 열차도 볼 수 있어요.`);
   const lede = pick(lang,
     '台北、桃園、新北、台中、高雄的捷運與輕軌，路線圖、車站順序、轉乘站、首末班車與班距一次查。每一頁的內容都由軌島的路線與時刻表資料產生，並可一鍵在地圖上看列車。',
     'Line maps, stop order, transfers, first and last trains and headways for the metro and light rail of Taipei, Taoyuan, New Taipei, Taichung and Kaohsiung. Every page is generated from the same route and timetable data that drives the Rail Island map, and each one links to the trains on the live map.',
-    '台北・桃園・新北・台中・高雄のメトロとライトレールについて、路線図、停車駅の順序、乗り換え駅、始発・終電、運転間隔をまとめて確認できます。各ページは軌島の地図と同じ路線・時刻表データから生成され、ワンタップでライブ地図の列車に移動できます。');
+    '台北・桃園・新北・台中・高雄のメトロとライトレールについて、路線図、停車駅の順序、乗り換え駅、始発・終電、運転間隔をまとめて確認できます。各ページは軌島の地図と同じ路線・時刻表データから生成され、ワンタップでライブ地図の列車に移動できます。',
+    '타이베이 · 타오위안 · 신베이 · 타이중 · 가오슝의 MRT와 경전철 노선도, 역 순서, 환승역, 첫차 · 막차, 배차간격을 한곳에서 볼 수 있어요. 모든 페이지는 Rail Island 지도와 같은 노선 · 시간표 데이터로 만들었고, 한 번 누르면 지도에서 열차를 볼 수 있어요.');
   const crumbs = crumbList(lang, 'overview');
   const schema = schemaFor(lang, {
     type: 'CollectionPage', title, description, pathname, crumbs,
     extra: { mainEntity: { '@type': 'ItemList', numberOfItems: sysCount, itemListElement: B.systems.map((s, i) => ({ '@type': 'ListItem', position: i + 1, name: s.name[lang], url: absUrl(sysHref(lang, s.id)) })) } },
   });
   const estNames = B.pages.filter(p => p.estimated).map(p => lineName(lang, p));
-  const cards = B.systems.map(s => `<article class="card"><h3><a href="${sysHref(lang, s.id)}">${esc(s.name[lang])}</a></h3><p>${esc(pick(lang, `${s.pages.length} 條路線、${s.stationCount} 站：${list(lang, s.pages.map(p => p.name[lang]))}`, `${s.pages.length} ${s.pages.length === 1 ? 'line' : 'lines'}, ${s.stationCount} stations: ${list(lang, s.pages.map(p => p.name[lang]))}`, `${s.pages.length}路線・${s.stationCount}駅：${list(lang, s.pages.map(p => p.name[lang]))}`))}</p><a class="card-link" href="${sysHref(lang, s.id)}">${esc(pick(lang, `看${s.name.zh}路線圖 →`, `${s.name.en} map →`, `${s.name.ja} 路線図 →`))}</a></article>`).join('');
+  const cards = B.systems.map(s => `<article class="card"><h3><a href="${sysHref(lang, s.id)}">${esc(s.name[lang])}</a></h3><p>${esc(pick(lang, `${s.pages.length} 條路線、${s.stationCount} 站：${list(lang, s.pages.map(p => p.name[lang]))}`, `${s.pages.length} ${s.pages.length === 1 ? 'line' : 'lines'}, ${s.stationCount} stations: ${list(lang, s.pages.map(p => p.name[lang]))}`, `${s.pages.length}路線・${s.stationCount}駅：${list(lang, s.pages.map(p => p.name[lang]))}`, `${s.pages.length}개 노선, ${s.stationCount}개 역: ${list(lang, s.pages.map(p => p.name[lang]))}`))}</p><a class="card-link" href="${sysHref(lang, s.id)}">${esc(pick(lang, `看${s.name.zh}路線圖 →`, `${s.name.en} map →`, `${s.name.ja} 路線図 →`, `${s.name.ko} 노선도 보기 →`))}</a></article>`).join('');
   const notes = `<div class="answer-box"><p>${esc(pick(lang,
     `站名、站序與座標來自交通部 TDX 與 OpenStreetMap。軌島的資料來源沒有${list(lang, estNames)}的逐班時刻表，這些頁面只列營運時段與班距；其餘路線的首末班車與班距，由各系統公開的逐站時刻表計算。`,
     `Routes, stop order and station positions come from Taiwan's Ministry of Transportation TDX open data and OpenStreetMap. Rail Island's data sources have no train-by-train timetable for ${list(lang, estNames)}, so those pages list only operating hours and headways; for every other line, first and last trains and headways are calculated from each system's published station-by-station timetable.`,
-    `路線、停車駅の順序、駅の位置は交通部TDXのオープンデータとOpenStreetMapにもとづきます。軌島のデータソースには${list(lang, estNames)}の列車ごとの時刻表がないため、これらのページは運行時間帯と運転間隔だけを載せています。そのほかの路線の始発・終電と運転間隔は、各システムが公開している駅別時刻表から計算しています。`))}</p><p>${esc(overviewRunNote(lang))}</p><p class="source-note">${esc(pick(lang, `頁面產生日期：${M.date}。`, `Page generated on ${M.date}.`, `ページ生成日：${M.date}。`))}</p></div><div class="notice"><strong>${esc(pick(lang, '提醒：', 'Note: ', 'ご注意：'))}</strong>${esc(noticeText(lang))}</div>`;
+    `路線、停車駅の順序、駅の位置は交通部TDXのオープンデータとOpenStreetMapにもとづきます。軌島のデータソースには${list(lang, estNames)}の列車ごとの時刻表がないため、これらのページは運行時間帯と運転間隔だけを載せています。そのほかの路線の始発・終電と運転間隔は、各システムが公開している駅別時刻表から計算しています。`,
+    `노선, 역 순서, 역 좌표는 대만 교통부 TDX와 OpenStreetMap을 바탕으로 해요. Rail Island의 데이터 출처에는 ${list(lang, estNames)}의 열차별 시간표가 없어서 이 페이지들은 운행 시간과 배차간격만 실었어요. 나머지 노선의 첫차 · 막차와 배차간격은 각 시스템이 공개한 역별 시간표로 계산해요.`))}</p><p>${esc(overviewRunNote(lang))}</p><p class="source-note">${esc(pageDateText(lang))}</p></div><div class="notice"><strong>${esc(pick(lang, '提醒：', 'Note: ', 'ご注意：', '참고: '))}</strong>${esc(noticeText(lang))}</div>`;
   const content = [
-    section('systems', pick(lang, '選擇城市或系統', 'Choose a city or system', '都市・システムを選ぶ'), `<div class="card-grid system-cards">${cards}</div>`),
-    section('lines', pick(lang, '所有捷運與輕軌路線', 'All metro and light rail lines', 'すべてのメトロ・ライトレール路線'), `<ul class="line-index">${B.pages.map(p => lineIndexItem(lang, p, true)).join('')}</ul>`),
-    section('notes', pick(lang, '這些頁面的資料與限制', 'About the data on these pages', 'これらのページのデータと限界'), notes),
+    section('systems', pick(lang, '選擇城市或系統', 'Choose a city or system', '都市・システムを選ぶ', '도시 · 시스템 선택'), `<div class="card-grid system-cards">${cards}</div>`),
+    section('lines', pick(lang, '所有捷運與輕軌路線', 'All metro and light rail lines', 'すべてのメトロ・ライトレール路線', '전체 MRT · 경전철 노선'), `<ul class="line-index">${B.pages.map(p => lineIndexItem(lang, p, true)).join('')}</ul>`),
+    section('notes', pick(lang, '這些頁面的資料與限制', 'About the data on these pages', 'これらのページのデータと限界', '이 페이지들의 데이터와 한계'), notes),
   ].join('\n    ');
-  return { pathname, html: pageDocument(lang, { title, description, pathname, alts, schema, crumbs, eyebrow: 'TAIWAN METRO MAPS', h1: pick(lang, '台灣捷運路線圖', 'Taiwan Metro Maps', '台湾MRT 路線図'), lede, actions: liveButton(lang, liveAll(lang)), content }) };
+  return { pathname, html: pageDocument(lang, { title, description, pathname, alts, schema, crumbs, eyebrow: 'TAIWAN METRO MAPS', h1: pick(lang, '台灣捷運路線圖', 'Taiwan Metro Maps', '台湾MRT 路線図', '대만 MRT 노선도'), lede, actions: liveButton(lang, liveAll(lang)), content }) };
 }
 
 // ── 對外入口 ─────────────────────────────────────────────────────────────────────────
@@ -1604,9 +1644,9 @@ export function buildMetroPages(root, { stationPages = [], zhShell, koText, esca
     files, paths, date: M.date, templateDate: METRO_TEMPLATE_DATE, counts,
     missingNames: [...M.missingNames].sort(),
     overviewHref: ovHref,
-    // 給車站時刻頁（build_aeo_pages.mjs）沿用同一套三語 head／頁首／頁尾／麵包屑；只回傳函式，不影響本模組任何輸出
+    // 給車站時刻頁（build_aeo_pages.mjs）沿用同一套四語 head／頁首／頁尾／麵包屑；只回傳函式，不影響本模組任何輸出
     shell: { headHtml, headerHtml, footerHtml, crumbsHtml, homeHref },
-    // 給 /about/、/stations/、/en/、/ja/ 的入口區塊用
+    // 給 /about/、/stations/、/en/、/ja/ 的入口區塊用（ko 查字典，在 build_aeo_pages.mjs 補）
     linkSectionText: {
       zh: { h: '捷運路線圖', text: '台北、桃園、新北、台中、高雄的捷運與輕軌路線圖、車站順序、轉乘站、首末班車與班距，全部由軌島的路線與時刻表資料整理，並可一鍵在地圖上看列車。', link: '看台灣捷運路線圖' },
       en: { h: 'Metro maps', text: 'Line maps, stop order, transfers, first and last trains and headways for the metro and light rail of Taipei, Taoyuan, New Taipei, Taichung and Kaohsiung, generated from the same data as the Rail Island map.', link: 'Taiwan metro maps' },
