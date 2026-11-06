@@ -46,11 +46,11 @@
   ],
   "mesh": {
     "file": "r150.mesh.bin",
-    "sha256": "bd983ac8faac6a51767d21dd8e0159bd1e9574eda9285307504c642a81ba60fa",
+    "sha256": "baa75bb9c42f02546e8bf987619b71a12ea486c96ee42b406250a0d1cd40215f",
     "encoding": "float32-le",
     "strideBytes": 24,
-    "vertexCount": 209730,
-    "triangleCount": 69910,
+    "vertexCount": 210114,
+    "triangleCount": 70038,
     "drawGroups": [
       {
         "name": "hdframe",
@@ -211,7 +211,7 @@
       {
         "name": "hdwhite",
         "start": 152322,
-        "count": 1656,
+        "count": 2040,
         "color": [
           0.8879231214523315,
           0.8549926280975342,
@@ -223,7 +223,7 @@
       },
       {
         "name": "taillamp",
-        "start": 153978,
+        "start": 154362,
         "count": 5328,
         "color": [
           0.43415364623069763,
@@ -236,7 +236,7 @@
       },
       {
         "name": "glass",
-        "start": 159306,
+        "start": 159690,
         "count": 7248,
         "color": [
           0.009134058840572834,
@@ -249,7 +249,7 @@
       },
       {
         "name": "可移除車型示意牌",
-        "start": 166554,
+        "start": 166938,
         "count": 29856,
         "color": [
           0.8069522380828857,
@@ -262,7 +262,7 @@
       },
       {
         "name": "lamp",
-        "start": 196410,
+        "start": 196794,
         "count": 2664,
         "color": [
           1.0,
@@ -275,7 +275,7 @@
       },
       {
         "name": "hdrail",
-        "start": 199074,
+        "start": 199458,
         "count": 3024,
         "color": [
           0.8549926280975342,
@@ -288,7 +288,7 @@
       },
       {
         "name": "hdslat",
-        "start": 202098,
+        "start": 202482,
         "count": 4968,
         "color": [
           0.0423114113509655,
@@ -301,7 +301,7 @@
       },
       {
         "name": "hdlens",
-        "start": 207066,
+        "start": 207450,
         "count": 2664,
         "color": [
           0.8468732237815857,

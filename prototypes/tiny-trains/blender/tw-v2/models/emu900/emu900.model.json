@@ -46,7 +46,7 @@
   ],
   "mesh": {
     "file": "emu900.mesh.bin",
-    "sha256": "e4849636207201bb88f060f7ddebdf139fa5a158e4a89c6a9faee144a608b612",
+    "sha256": "a136e7877a50f75a9ad7b138f93a19dc30df0d32fccd7786ad5945e3e7434237",
     "encoding": "float32-le",
     "strideBytes": 24,
     "vertexCount": 182004,

@@ -46,16 +46,16 @@
   ],
   "mesh": {
     "file": "ct250.mesh.bin",
-    "sha256": "1958f3902857e84b64795ce8699ae3f5e2575998069446232b2b7d43c673785b",
+    "sha256": "946939a2666c3e4864b68ddc0268a1edc4db8d0ecf200114296a60565e61ff80",
     "encoding": "float32-le",
     "strideBytes": 24,
-    "vertexCount": 164814,
-    "triangleCount": 54938,
+    "vertexCount": 166710,
+    "triangleCount": 55570,
     "drawGroups": [
       {
         "name": "body",
         "start": 0,
-        "count": 19872,
+        "count": 21060,
         "color": [
           0.01599629409611225,
           0.020288562402129173,
@@ -67,8 +67,8 @@
       },
       {
         "name": "white",
-        "start": 19872,
-        "count": 11184,
+        "start": 21060,
+        "count": 11388,
         "color": [
           0.8713670969009399,
           0.838798999786377,
@@ -80,8 +80,8 @@
       },
       {
         "name": "ctblack",
-        "start": 31056,
-        "count": 69492,
+        "start": 32448,
+        "count": 70212,
         "color": [
           0.011612244881689548,
           0.014443843625485897,
@@ -93,8 +93,8 @@
       },
       {
         "name": "metal",
-        "start": 100548,
-        "count": 12444,
+        "start": 102660,
+        "count": 12228,
         "color": [
           0.30946892499923706,
           0.38642942905426025,
@@ -106,7 +106,7 @@
       },
       {
         "name": "red",
-        "start": 112992,
+        "start": 114888,
         "count": 1248,
         "color": [
           0.43415364623069763,
@@ -119,7 +119,7 @@
       },
       {
         "name": "可移除車型示意牌",
-        "start": 114240,
+        "start": 116136,
         "count": 39264,
         "color": [
           0.8069522380828857,
@@ -132,7 +132,7 @@
       },
       {
         "name": "frame",
-        "start": 153504,
+        "start": 155400,
         "count": 3936,
         "color": [
           0.008568125776946545,
@@ -145,7 +145,7 @@
       },
       {
         "name": "lamp",
-        "start": 157440,
+        "start": 159336,
         "count": 1608,
         "color": [
           1.0,
@@ -158,7 +158,7 @@
       },
       {
         "name": "glass",
-        "start": 159048,
+        "start": 160944,
         "count": 1656,
         "color": [
           0.009134058840572834,
@@ -171,7 +171,7 @@
       },
       {
         "name": "ctcoal",
-        "start": 160704,
+        "start": 162600,
         "count": 1938,
         "color": [
           0.006995410192757845,
@@ -184,7 +184,7 @@
       },
       {
         "name": "taillamp",
-        "start": 162642,
+        "start": 164538,
         "count": 180,
         "color": [
           0.43415364623069763,
@@ -197,7 +197,7 @@
       },
       {
         "name": "chassis",
-        "start": 162822,
+        "start": 164718,
         "count": 1128,
         "color": [
           0.03433980792760849,
@@ -210,7 +210,7 @@
       },
       {
         "name": "rubber",
-        "start": 163950,
+        "start": 165846,
         "count": 864,
         "color": [
           0.014443843625485897,
@@ -223,7 +223,7 @@
       }
     ]
   },
-  "nativeObjectCount": 532,
+  "nativeObjectCount": 540,
   "features": {
     "sideDoorGroups": 0,
     "doorLeavesPerGroup": 2,

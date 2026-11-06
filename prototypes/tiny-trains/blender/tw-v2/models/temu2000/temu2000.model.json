@@ -46,11 +46,11 @@
   ],
   "mesh": {
     "file": "temu2000.mesh.bin",
-    "sha256": "c6d84194fc7b7626f46271e2ac00032dabbf6af977746e122943c27f8db90c29",
+    "sha256": "af177548be341016473f61f2eb4b03bef5364f89a12f884804700a383a8548b0",
     "encoding": "float32-le",
     "strideBytes": 24,
-    "vertexCount": 170736,
-    "triangleCount": 56912,
+    "vertexCount": 177096,
+    "triangleCount": 59032,
     "drawGroups": [
       {
         "name": "t2white",
@@ -170,9 +170,22 @@
         "clearcoat": 0.18000000715255737
       },
       {
-        "name": "t2black",
+        "name": "t2silver",
         "start": 140808,
-        "count": 5340,
+        "count": 4608,
+        "color": [
+          0.4564110338687897,
+          0.4793201684951782,
+          0.4910208582878113
+        ],
+        "metalness": 0.550000011920929,
+        "roughness": 0.30000001192092896,
+        "clearcoat": 0.15000000596046448
+      },
+      {
+        "name": "t2black",
+        "start": 145416,
+        "count": 5940,
         "color": [
           0.007499032188206911,
           0.009721217676997185,
@@ -184,7 +197,7 @@
       },
       {
         "name": "可移除車型示意牌",
-        "start": 146148,
+        "start": 151356,
         "count": 13908,
         "color": [
           0.8069522380828857,
@@ -197,7 +210,7 @@
       },
       {
         "name": "lamp",
-        "start": 160056,
+        "start": 165264,
         "count": 5328,
         "color": [
           1.0,
@@ -210,7 +223,7 @@
       },
       {
         "name": "t2amber",
-        "start": 165384,
+        "start": 170592,
         "count": 1536,
         "color": [
           0.9130986332893372,
@@ -223,12 +236,12 @@
       },
       {
         "name": "t2smoke",
-        "start": 166920,
-        "count": 1152,
+        "start": 172128,
+        "count": 2304,
         "color": [
-          0.023153366521000862,
-          0.02955683507025242,
-          0.03688944876194
+          0.06847816705703735,
+          0.1441284716129303,
+          0.2622506618499756
         ],
         "metalness": 0.25,
         "roughness": 0.18000000715255737,
@@ -236,7 +249,7 @@
       },
       {
         "name": "taillamp",
-        "start": 168072,
+        "start": 174432,
         "count": 2664,
         "color": [
           0.43415364623069763,
@@ -249,7 +262,7 @@
       }
     ]
   },
-  "nativeObjectCount": 233,
+  "nativeObjectCount": 238,
   "features": {
     "sideDoorGroups": 2,
     "doorLeavesPerGroup": 1,

@@ -2,13 +2,31 @@
   {
     "name": "分色主車殼",
     "type": "MESH",
-    "polygons": 1087,
+    "polygons": 1065,
     "modifiers": []
   },
   {
-    "name": "環繞前窗",
+    "name": "黑色面罩",
+    "type": "MESH",
+    "polygons": 640,
+    "modifiers": []
+  },
+  {
+    "name": "前窗",
     "type": "MESH",
     "polygons": 400,
+    "modifiers": []
+  },
+  {
+    "name": "頂部燈座",
+    "type": "MESH",
+    "polygons": 256,
+    "modifiers": []
+  },
+  {
+    "name": "頂部頭燈",
+    "type": "MESH",
+    "polygons": 256,
     "modifiers": []
   },
   {
@@ -16,33 +34,6 @@
     "type": "FONT",
     "polygons": 1751,
     "modifiers": []
-  },
-  {
-    "name": "頂部頭燈 鍍鉻圈",
-    "type": "MESH",
-    "polygons": 226,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "頂部頭燈 黑色內襯",
-    "type": "MESH",
-    "polygons": 198,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "頂部頭燈 透鏡",
-    "type": "MESH",
-    "polygons": 198,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
   },
   {
     "name": "窗下扶手",
@@ -53,62 +44,20 @@
   {
     "name": "頭燈燈座",
     "type": "MESH",
-    "polygons": 40,
+    "polygons": 48,
     "modifiers": []
   },
   {
-    "name": "頭燈 鍍鉻圈",
+    "name": "頭燈",
     "type": "MESH",
-    "polygons": 226,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 256,
+    "modifiers": []
   },
   {
-    "name": "頭燈 黑色內襯",
+    "name": "尾燈",
     "type": "MESH",
-    "polygons": 198,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "頭燈 透鏡",
-    "type": "MESH",
-    "polygons": 198,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "尾燈 鍍鉻圈",
-    "type": "MESH",
-    "polygons": 226,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "尾燈 黑色內襯",
-    "type": "MESH",
-    "polygons": 198,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "尾燈 透鏡",
-    "type": "MESH",
-    "polygons": 198,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 256,
+    "modifiers": []
   },
   {
     "name": "標識燈 鍍鉻圈",
@@ -146,62 +95,20 @@
   {
     "name": "頭燈燈座.001",
     "type": "MESH",
-    "polygons": 40,
+    "polygons": 48,
     "modifiers": []
   },
   {
-    "name": "頭燈 鍍鉻圈.001",
+    "name": "頭燈.001",
     "type": "MESH",
-    "polygons": 226,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 256,
+    "modifiers": []
   },
   {
-    "name": "頭燈 黑色內襯.001",
+    "name": "尾燈.001",
     "type": "MESH",
-    "polygons": 198,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "頭燈 透鏡.001",
-    "type": "MESH",
-    "polygons": 198,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "尾燈 鍍鉻圈.001",
-    "type": "MESH",
-    "polygons": 226,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "尾燈 黑色內襯.001",
-    "type": "MESH",
-    "polygons": 198,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "尾燈 透鏡.001",
-    "type": "MESH",
-    "polygons": 198,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 256,
+    "modifiers": []
   },
   {
     "name": "標識燈 鍍鉻圈.001",

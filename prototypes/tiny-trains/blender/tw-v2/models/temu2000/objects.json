@@ -1548,6 +1548,12 @@
     "modifiers": []
   },
   {
+    "name": "銀灰下巴",
+    "type": "MESH",
+    "polygons": 144,
+    "modifiers": []
+  },
+  {
     "name": "黑色前窗框",
     "type": "MESH",
     "polygons": 320,
@@ -1578,9 +1584,15 @@
     "modifiers": []
   },
   {
+    "name": "頂部頭燈銀框",
+    "type": "MESH",
+    "polygons": 120,
+    "modifiers": []
+  },
+  {
     "name": "頂部頭燈座",
     "type": "MESH",
-    "polygons": 70,
+    "polygons": 120,
     "modifiers": []
   },
   {
@@ -1611,9 +1623,15 @@
     ]
   },
   {
+    "name": "頂部頭燈銀框.001",
+    "type": "MESH",
+    "polygons": 120,
+    "modifiers": []
+  },
+  {
     "name": "頂部頭燈座.001",
     "type": "MESH",
-    "polygons": 70,
+    "polygons": 120,
     "modifiers": []
   },
   {
@@ -1656,9 +1674,15 @@
     "modifiers": []
   },
   {
+    "name": "眼睛燈座銀框",
+    "type": "MESH",
+    "polygons": 192,
+    "modifiers": []
+  },
+  {
     "name": "眼睛燈座",
     "type": "MESH",
-    "polygons": 96,
+    "polygons": 192,
     "modifiers": []
   },
   {
@@ -1716,9 +1740,15 @@
     ]
   },
   {
+    "name": "眼睛燈座銀框.001",
+    "type": "MESH",
+    "polygons": 192,
+    "modifiers": []
+  },
+  {
     "name": "眼睛燈座.001",
     "type": "MESH",
-    "polygons": 96,
+    "polygons": 192,
     "modifiers": []
   },
   {

@@ -2,44 +2,8 @@
   {
     "name": "分色主車殼",
     "type": "MESH",
-    "polygons": 1065,
+    "polygons": 999,
     "modifiers": []
-  },
-  {
-    "name": "側面色帶",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "側面色帶.001",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "側面色帶.002",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "側面色帶.003",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
   },
   {
     "name": "固定窗橡膠框",
@@ -1784,25 +1748,235 @@
   {
     "name": "車頭面罩",
     "type": "MESH",
-    "polygons": 480,
+    "polygons": 576,
     "modifiers": []
   },
   {
     "name": "微笑色帶",
     "type": "MESH",
-    "polygons": 192,
+    "polygons": 256,
     "modifiers": []
   },
   {
-    "name": "車頭側緣色帶",
+    "name": "駕駛室側面面罩",
     "type": "MESH",
-    "polygons": 56,
+    "polygons": 40,
     "modifiers": []
   },
   {
-    "name": "車頭側緣色帶.001",
+    "name": "駕駛室側面斜帶",
     "type": "MESH",
-    "polygons": 56,
+    "polygons": 40,
+    "modifiers": []
+  },
+  {
+    "name": "側面色帶",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "側面色帶.001",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "車側上緣細線",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "乘務員門框",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "乘務員門扇",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "乘務員門窗嵌框",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "乘務員門窗",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "乘務員門色帶",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "乘務員門色帶.001",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "乘務員扶手",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "乘務員扶手.001",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "駕駛室黑色側窗",
+    "type": "MESH",
+    "polygons": 8,
+    "modifiers": []
+  },
+  {
+    "name": "固定窗橡膠框.010",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "獨立深色玻璃.010",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "駕駛室側面面罩.001",
+    "type": "MESH",
+    "polygons": 40,
+    "modifiers": []
+  },
+  {
+    "name": "駕駛室側面斜帶.001",
+    "type": "MESH",
+    "polygons": 40,
+    "modifiers": []
+  },
+  {
+    "name": "側面色帶.002",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "側面色帶.003",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "車側上緣細線.001",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "乘務員門框.001",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "乘務員門扇.001",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "乘務員門窗嵌框.001",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "乘務員門窗.001",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "乘務員門色帶.002",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "乘務員門色帶.003",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "乘務員扶手.002",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "乘務員扶手.003",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "駕駛室黑色側窗.001",
+    "type": "MESH",
+    "polygons": 8,
+    "modifiers": []
+  },
+  {
+    "name": "固定窗橡膠框.011",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "獨立深色玻璃.011",
+    "type": "MESH",
+    "polygons": 26,
     "modifiers": []
   },
   {
@@ -2067,6 +2241,96 @@
     "name": "下巴中縫",
     "type": "MESH",
     "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "車鼻蓋接縫",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "車鼻蓋接縫.001",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "車鼻蓋接縫.002",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "車鼻蓋接縫.003",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "車鼻蓋接縫.004",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "車鼻蓋接縫.005",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "車鼻蓋接縫.006",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "車鼻蓋接縫.007",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "車鼻蓋接縫.008",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "車鼻蓋接縫.009",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "車鼻蓋接縫.010",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "車鼻蓋接縫.011",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "車鼻蓋接縫.012",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "車鼻蓋接縫.013",
+    "type": "MESH",
+    "polygons": 12,
+    "modifiers": []
+  },
+  {
+    "name": "車鼻蓋接縫.014",
+    "type": "MESH",
+    "polygons": 12,
     "modifiers": []
   }
 ]

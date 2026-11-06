@@ -2,7 +2,7 @@
   {
     "name": "分色主車殼",
     "type": "MESH",
-    "polygons": 1131,
+    "polygons": 1153,
     "modifiers": []
   },
   {
@@ -1806,9 +1806,15 @@
     "modifiers": []
   },
   {
-    "name": "駕駛室橘紅頂帽",
+    "name": "駕駛室橘紅屋簷",
     "type": "MESH",
-    "polygons": 420,
+    "polygons": 154,
+    "modifiers": []
+  },
+  {
+    "name": "駕駛室橘紅屋簷.001",
+    "type": "MESH",
+    "polygons": 154,
     "modifiers": []
   },
   {
@@ -1824,7 +1830,19 @@
     "modifiers": []
   },
   {
-    "name": "貫通門黑色底板",
+    "name": "貫通門金屬外框",
+    "type": "MESH",
+    "polygons": 896,
+    "modifiers": []
+  },
+  {
+    "name": "貫通門黃色框面",
+    "type": "MESH",
+    "polygons": 896,
+    "modifiers": []
+  },
+  {
+    "name": "門洞",
     "type": "MESH",
     "polygons": 256,
     "modifiers": []
@@ -1848,19 +1866,7 @@
     "modifiers": []
   },
   {
-    "name": "貫通門凸框",
-    "type": "MESH",
-    "polygons": 256,
-    "modifiers": []
-  },
-  {
-    "name": "貫通門凸框.001",
-    "type": "MESH",
-    "polygons": 256,
-    "modifiers": []
-  },
-  {
-    "name": "貫通門凸框.002",
+    "name": "貫通門門檻",
     "type": "MESH",
     "polygons": 256,
     "modifiers": []
