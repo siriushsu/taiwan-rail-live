@@ -167,7 +167,8 @@ const widths = [360, 375, 414, 768];
 // 11/05: metro page dates adds one (580 -> 581).
 // 11/06: custom train fleet and roundhouse depot adds one (581 -> 582).
 // 11/06: EMU3000 model and Q-style side view add two (582 -> 584).
-const expectedHistoryCount = 584;
+// 11/06: steam, coach add 2 (584 -> 586).
+const expectedHistoryCount = 586;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
