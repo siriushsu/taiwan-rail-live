@@ -5,7 +5,6 @@
 // 判準若跟著設定檔走,把規則刪掉判準就一起消失、把日期改掉判準就跟著改(判準與實作同源),
 // 突變測試會全綠。每加一筆 op 就要在 EXPECT 補一筆,否則直接 FAIL。
 import { readFileSync } from 'node:fs';
-import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -79,23 +78,6 @@ const EXPECT = {
     out: 'data/krtc_times.json', date: '2026-10-11', next: '2026-10-12',
     dateUse: { line: 'KR', from: 0, sat: 169, sun: 153, same: 'KO' },
   },
-  // 桃園機捷官網各站時刻表(timetable-A1…A22,每站先 POST station-timetable-date.php 指定查詢日期),
-  // 2026-09-25 實查 10/12–10/31(官網附註「目前時刻表更新至115/10/31」)共 20 天:
-  //   週一到週五每天 22 站兩方向出發共 3752 筆、15 天彼此逐筆相同;週六日每天 3650 筆、5 天彼此逐筆相同。
-  //   兩種都沒有○區間加班車;★「尖峰增停直達車(停靠A1、A3、A8、A12、A13、A18、A21)」照常開到 A21。
-  //   10/26(一,光復節補假)官網給平日版;網站照 data/tw_daytype.json 走假日型。
-  //   10/26 的日型尚未定案,預計提前一週再對一次官網。這裡照網站自己的日型挑期望值,不替那天做決定。
-  // sha＝每筆「站 方向 時:分 車種」(方向 S 往老街溪、N 往台北;車種照官網標記:直、★＝直達 '2',
-  // 普、▲增開往機場、◆尖峰跳站普通車＝普通 '1')排序後以換行接起來的 sha256,由官網抓回的原始資料直接算,
-  // 不讀 special_ops.json、也不讀快照檔。marker = 展期才有的○區間車兩端站序(A12=11、A21=20):
-  // 基準(TDX)還有它 ⇒ TDX 仍是展期版,那天必須改指展後版;沒有了 ⇒ TDX 已換版,不准再套(重複套)。
-  'tymc-20261012-post-expo': {
-    out: 'data/tymc_times.json', line: 'A', from: '2026-10-12', marker: [11, 20],
-    official: {
-      平日: { n: 3752, sha: '26b38727bebf7f50e06cac8225c3e837c299b6e6126b171fa84a8842c8ab60a4' },
-      假日: { n: 3650, sha: 'f8565769d1fd4e8b1866c1366dd1c5de3f293c55402543268a38052a9d5271d2' },
-    },
-  },
 };
 // 臺北日期,給上面 expo.through、「例外日已過」與往後幾天的視窗用;VERIFY_TODAY(或建置端同名的
 // SPECIAL_OPS_TODAY)=YYYY-MM-DD 覆寫——模擬某天時建置與驗收要用同一天,只設一個另一個會照今天跑(假綠)
@@ -109,15 +91,6 @@ const dayType = (L, d) => DT[d] === 1 ? (L.holiday || L.days[0]) : DT[d] === 2 ?
 const siteSet = (L, d) => (L.dates && L.dates[d] && L.sets[L.dates[d]]) ? L.dates[d] : dayType(L, d);
 const groupBy = (arr, f) => { const m = new Map(); for (const x of arr) { const k = f(x); m.set(k, [...(m.get(k) || []), x]); } return m; };
 const span = ds => `${ds[0]}～${ds[ds.length - 1]} ${ds.length} 天`;
-const STN = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9', 'A10', 'A11', 'A12', 'A13', 'A14a', 'A15', 'A16', 'A17', 'A18', 'A19', 'A20', 'A21', 'A22'];
-const hm24 = s => { s = ((s % 86400) + 86400) % 86400; return hh(s); };   // 官網把過午夜的班寫在 00 時那列
-// 逐站出發紀錄(終點站只有到站、官網沒有那筆):「站 方向 時:分 車種」
-const recsOf = (set, ks) => set.flatMap((tr, i) => {
-  const asc = tr[tr.length - 2] > tr[0], r = [];
-  for (let j = 0; j < tr.length - 2; j += 2) r.push(`${STN[tr[j]]}${asc ? 'S' : 'N'} ${hm24(tr[j + 1])} ${(ks || '')[i] || '?'}`);
-  return r;
-});
-const shaOf = recs => createHash('sha256').update([...recs].sort().join('\n')).digest('hex');
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) { pass++; console.log(`  ✓ ${m}`); } else { fail++; console.log(`  ✗ ${m}`); } };
@@ -168,38 +141,6 @@ for (const [id, E] of Object.entries(EXPECT)) {
     for (const [s, ds] of wk) check(s, X.to, false, `${span(ds)}的平日走`);
     for (const [s, ds] of groupBy(win.filter(d => dayType(L, d) !== E.base), d => siteSet(L, d)))
       ok(!L.sets[s].some(tr => same(tr, X.to)), `對照:${span(ds)}的非平日走「${s}」,沒有這班(公告只說平日)`);
-    continue;
-  }
-
-  if (E.official) {
-    const L = T[E.line];
-    if (!L) { ok(false, `線 ${E.line} 存在`); continue; }
-    const [a, b] = E.marker;
-    const expoLeft = s => L.sets[s].filter(tr => (tr[0] === a && tr[tr.length - 2] === b) || (tr[0] === b && tr[tr.length - 2] === a)).length;
-    const memo = new Map();
-    const digest = s => { if (!memo.has(s)) { const r = recsOf(L.sets[s], L.kinds && L.kinds[s]); memo.set(s, { n: r.length, sha: shaOf(r) }); } return memo.get(s); };
-    const win = daysFrom(TODAY > E.from ? TODAY : E.from);
-    ok(Object.keys(E.official).every(t => win.some(d => dayType(L, d) === t)) && win.every(d => E.official[dayType(L, d)]),
-      `${win[0]} 起 ${WINDOW} 天兩種日型都有、每天都有官網期望值可比(沒有就等於沒驗)`);
-    for (const t of Object.keys(E.official)) {
-      const want = E.official[t], ds = win.filter(d => dayType(L, d) === t);
-      if (!ds.length) continue;
-      if (!expoLeft(t)) {
-        // TDX 已換成展後版:這種日型不准再套快照(重複套),直接走 TDX
-        const bad = ds.filter(d => siteSet(L, d) !== t);
-        ok(!bad.length, `TDX「${t}」已沒有○(已換版),${span(ds)}都直接走「${t}」、不再指到快照 — 違反 ${bad.length} 天${bad.length ? ':' + bad.slice(0, 3).join(',') : ''}`);
-        const g = digest(t);
-        console.log(`  ⚑ TDX「${t}」已換版,本筆 EXPECT 與 special_ops.json 那筆的「${t}」都可刪;TDX 新版與官網展後${t}${g.sha === want.sha ? '逐筆相同' : `不同(${g.n}/${want.n} 筆,不擋出貨,交給巡檢 check_tymc_official_dates 比官網)`}`);
-        continue;
-      }
-      // TDX 還是展期版(有○):那幾天必須改指展後版,內容與官網逐站逐筆相同
-      ok(digest(t).sha !== want.sha, `對照:TDX 展期版「${t}」(○ ${expoLeft(t)} 班)對不上官網展後${t}(判準分得出兩版)`);
-      for (const [s, dd] of groupBy(ds, d => siteSet(L, d))) {
-        const g = digest(s), ks = L.kinds && L.kinds[s];
-        ok(g.sha === want.sha, `${span(dd)}的${t}走「${s}」,與官網展後${t}逐站逐筆相同(含車種,${want.n} 筆) — 網站 ${g.n} 筆、○ ${expoLeft(s)} 班${g.sha === want.sha ? '' : `;差在哪:node scripts/check_tymc_official_dates.mjs ${dd[0]} --detail`}`);
-        ok(!!ks && ks.length === L.sets[s].length && !ks.includes('0'), `「${s}」每班帶官方車種、與班表等長(對不上前端整天不標車種)`);
-      }
-    }
     continue;
   }
 

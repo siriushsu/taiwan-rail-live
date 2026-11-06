@@ -100,17 +100,9 @@ const BRANCH_NAME = {
 const KIND_LABEL = { '1': N('普通車', 'Commuter', '普通列車', '보통열차'), '2': N('直達車', 'Express', '直達列車', '급행열차') };
 
 // 臨時營運調整的頁面附註：data/special_ops.json 仍有該條、且頁面日期（M.date，由資料日期決定、不讀時鐘）不晚於 until 才輸出。
-// 展後那條 op 的 until 是保險上限（可能到 2027），附註講的疏運期卻在 10/11 結束；之後任一份時刻表重抓有變動，build_metro_times 就更新 source_notes 的抓取日，M.date 越過 until，附註就消失。
 // 文字改寫自該條 `quote`（桃園捷運官網原文，已在 special_ops.json 留存）；站名／站號從資料線的站序取，不手打。
 // text(lang, a, z)：a／z＝區間起訖站（「站名（站號）」）。
-const SPECIAL_NOTES = [
-  { opId: 'tymc-20261012-post-expo', until: '2026-10-11', lineIds: ['A'], fromIdx: 11, toIdx: 20,
-    text: (lang, a, z) => pick(lang,
-      `9/24（四）至 10/11（日）為 2026 台灣設計展疏運期間，${a}到${z}之間加開每站停靠的區間加班車（週一至四 16:00–20:00；週五至日含國定假日 11:00–22:00；10/11 為 11:00–20:00），該時段取消南延直達車。10/12 起改用展後班表。下列首末班車與班距是一般班表的計算結果，臨時班表以營運單位公告為準。`,
-      `Sep 24 (Thu) to Oct 11 (Sun) is the special service period for the 2026 Taiwan Design Expo. Extra trains that stop at every station run between ${a} and ${z} (Mon–Thu 16:00–20:00; Fri–Sun and public holidays 11:00–22:00; Oct 11 11:00–20:00), and the express trains that run on to the southern extension are cancelled in those hours. From Oct 12 the post-expo timetable applies. The first and last trains and headways below are calculated from the regular timetable; temporary timetables are subject to the operator's announcements.`,
-      `9/24（木）〜10/11（日）は2026台湾デザイン展の輸送対策期間です。${a}〜${z}の間で各駅に停車する区間臨時列車が増発され（月〜木 16:00〜20:00、金〜日・祝日 11:00〜22:00、10/11は11:00〜20:00）、この時間帯は南側の延伸区間まで走る直達列車が運休になります。10/12からは展示会終了後のダイヤになります。以下の始発・終電と運転間隔は通常ダイヤから計算したもので、臨時ダイヤは運営会社の発表を優先してください。`,
-      `9월 24일(목)~10월 11일(일)은 2026 대만 디자인 엑스포 수송 기간이에요. ${a}~${z} 구간에 모든 역에 정차하는 임시 열차를 추가로 운행하고(월~목 16:00–20:00, 금~일 · 휴일 11:00–22:00, 10월 11일은 11:00–20:00), 이 시간대에는 남쪽 연장 구간까지 가는 급행열차를 운행하지 않아요. 10월 12일부터는 엑스포 종료 후 시간표를 적용해요. 아래 첫차 · 막차와 배차간격은 일반 시간표로 계산했고, 임시 시간표는 운영사 공지를 따라 주세요.`) },
-];
+const SPECIAL_NOTES = [];
 
 // ── 共用小工具 ───────────────────────────────────────────────────────────────────
 const pad2 = n => String(n).padStart(2, '0');
