@@ -203,17 +203,17 @@ def st_cab(s,xf,xr,xp,zb,ze,zw,crown,win,plate,hw=1.36):
   st_plate_side(plate[0],side*(hw+.002),plate[1],.86,.27,s['label'],.15)
   use('01');box('駕駛室下緣白帶',((xf+xr)/2,side*(hw+.006),zb+.04),(xf-xr,.012,.09),'white',0)
   for k in range(5):box('側板通風格',(plate[0]+.54+k*.035,side*(hw+.006),plate[1]),(.018,.012,.16),'frame',0)
-  use('05');rod('駕駛室扶手',(xp-.05,side*(hw+.05),zb+.05),(xp-.05,side*(hw+.05),ze-.14),.018,'metal',8)
+  use('05');rod('駕駛室扶手',(xp-.05,side*(hw+.03),zb+.05),(xp-.05,side*(hw+.03),ze-.14),.018,'metal',8)
   rod('駕駛室扶手',(xr-.06,side*(hw+.03),zb-.12),(xr-.06,side*(hw+.03),zw+.42),.018,'metal',8)
   for z in [zb-.75,zb-.42]:box('司機踏階',(xr-.10,side*(hw-.08),z),(.36,.28,.04),'stsoot',0)
-  rod('踏階吊架',(xr-.10,side*(hw+.05),zb-.77),(xr-.10,side*(hw+.05),zb),.018,'stsoot',6)
- use('01');top=lambda y:ze+(crown-ze)*(1-(y/(hw+.09))**2)
+  rod('踏階吊架',(xr-.10,side*(hw+.03),zb-.77),(xr-.10,side*(hw+.03),zb),.018,'stsoot',6)
+ use('01');top=lambda y:ze+(crown-ze)*(1-(y/(hw+.05))**2)
  wall=[(-hw+.02,zb),(hw-.02,zb)]+[(hw-.02-2*(hw-.02)*i/12,top(hw-.02-2*(hw-.02)*i/12)-.03) for i in range(13)]
  ty_xplate('駕駛室前牆',wall,xf-.07,xf,'stblack');box('駕駛室地板',((xf+xr)/2,0,zb+.04),(xf-xr,2*hw-.04,.06),'stsoot',0)
  box('駕駛室內部',((xf+xr)/2-.05,0,(zb+ze)/2),(xf-xr-.20,2*hw-.18,ze-zb-.10),'frame',0)
- k=14;roof=[(-hw-.09+2*(hw+.09)*i/k,top(-hw-.09+2*(hw+.09)*i/k)) for i in range(k+1)]
+ k=14;roof=[(-hw-.05+2*(hw+.05)*i/k,top(-hw-.05+2*(hw+.05)*i/k)) for i in range(k+1)]
  ty_xplate('駕駛室圓拱頂',roof+[(y,z-.05) for y,z in reversed(roof)],xr-.30,xf+.10,'stsoot',True,{0,k,k+1,2*k+1})
- use('05');box('駕駛室頂通風器',((xf+xr)/2-.10,0,crown+.01),(.62,.40,.06),'stsoot',.01);rod('屋簷雨槽',(xr-.30,hw+.085,ze-.015),(xf+.10,hw+.085,ze-.015),.014,'stblack',6);rod('屋簷雨槽',(xr-.30,-hw-.085,ze-.015),(xf+.10,-hw-.085,ze-.015),.014,'stblack',6)
+ use('05');box('駕駛室頂通風器',((xf+xr)/2-.10,0,crown+.01),(.62,.40,.06),'stsoot',.01);rod('屋簷雨槽',(xr-.30,hw+.035,ze+.01),(xf+.10,hw+.035,ze+.01),.014,'stblack',6);rod('屋簷雨槽',(xr-.30,-hw-.035,ze+.01),(xf+.10,-hw-.035,ze+.01),.014,'stblack',6)
  use('02')
  for side in [-1,1]:
   st_ring_x('前牆圓窗框',xf+.006,side*.98,ze-.20,.10,.135,.03,'stblack',20);cyl('前牆圓窗',(xf+.004,side*.98,ze-.20),.11,.012,'glass','X',20,0)
@@ -242,7 +242,7 @@ def st_tender(s,x0,x1,zb,tz,zf,xc,rim,grille):
    for k in range(7):box('格柵條',(xg-.21+k*.07,side*(hw+.034),zg),(.038,.010,2*b-.18),'stvoid',0)
  # 底架、後端梁、梯子、後方燈（不發光鏡片）、紅色標識燈與車號牌。
  box('煤水車底架',((x0+x1)/2,0,zb-.06),(x1-x0+.06,2*hw+.08,.16),'stblack',0);box('底架側緣',((x0+x1)/2,0,zb-.17),(x1-x0-.1,2*hw-.10,.08),'stsoot',0)
- for side in [-1,1]:box('底架白線',((x0+x1)/2,side*(hw+.045),zb-.06),(x1-x0+.05,.012,.11),'white',0)
+ for side in [-1,1]:box('底架白線',((x0+x1)/2,side*(hw+.04),zb-.06),(x1-x0+.05,.012,.11),'white',0)
  box('煤水車後端梁',(x0-.02,0,zb-.14),(.12,2*hw-.06,.30),'stsoot',0)
  for yy in [-1.08,-.82]:rod('後端梯',(x0-.04,yy,1.10),(x0-.04,yy,tz-.08),.018,'metal',6)
  for z in [1.35,1.65,1.95,2.25,2.55,2.85,3.10]:rod('後端梯橫檔',(x0-.04,-1.08,z),(x0-.04,-.82,z),.014,'metal',6)
@@ -272,7 +272,7 @@ def big_steam(s,c):
  # 步道：黑板、外緣白線，往前斜坡與甲板鋪花紋鋼板。
  use('01')
  for side in [-1,1]:
-  ct_strip('兩側步道板',rb,side*.78,side*1.40,.06,'stblack');ct_strip('步道外緣白線',rb,side*1.40,side*1.415,.095,'white')
+  ct_strip('兩側步道板',rb,side*.78,side*1.40,.06,'stblack');ct_strip('步道外緣白線',rb,side*1.40,side*1.41,.095,'white')
   ct_strip('步道斜坡花紋鋼板',[(x,z+.004) for x,z in rb if x>=xd[0]-.01],side*.80,side*1.38,.02,'stcheck')
   for x,z in c.get('steps',[]):box('甲板斜坡踏階',(x,side*1.08,z),(.20,.26,.03),'stsoot',0)
  box('前端甲板',((xs+.75+xd[1])/2,0,zdk-.03),(xs+.80-xd[1]+.40,2.70,.06),'stcheck',0);box('汽缸鞍座',(xd[0]+.25,0,1.30),(.80,1.40,.60),'stblack',0)
@@ -294,7 +294,7 @@ def big_steam(s,c):
   ct_plate('導煙板',dp,side*1.36,side*1.40,'stblack')
   for a,b in zip(c['dline'],c['dline'][1:]):ct_bar('導煙板前緣白線',a,b,.05,.008,side*1.404,'white')
   rod('導煙板拉桿',(xs-.55,side*1.36,max(q[1] for q in dp)-.12),(xs-.55,side*.55,bz+.60),.012,'stblack',6)
-  rod('導煙板前扶手',(xs+.08,side*1.44,zdk+.05),(xs+.08,side*1.44,2.60),.018,'metal',8)
+  rod('導煙板前扶手',(xs+.16,side*1.30,zdk+.05),(xs+.16,side*1.30,2.40),.018,'metal',8)
  # 前端：緩衝梁、排障器、扶手、車鉤。
  xf=xs+.82;use('01');box('緩衝梁',(xf,0,1.05),(.18,2.70,.58),'stblack',0)
  for side in [-1,1]:
@@ -467,16 +467,16 @@ def ck124(s):
   st_plate_side(-2.22,side*(hw+.002),2.20,.70,.26,'CK 124',.14)
   use('01');box('駕駛室下緣黃線',((xcf+xcr)/2,side*(hw+.006),zb+.03),(xcf-xcr,.012,.06),'stline',0)
   for k in range(3):rod('駕駛室下護欄',(xcr+.04,side*(hw+.02),1.38+k*.08),(xcf-.04,side*(hw+.02),1.38+k*.08),.014,'stsoot',6)
-  use('05');rod('駕駛室扶手',(xcr-.05,side*(hw+.04),zb-.10),(xcr-.05,side*(hw+.04),ze-.20),.018,'metal',8)
-  rod('駕駛室扶手',(xdr+.05,side*(hw+.04),zb-.10),(xdr+.05,side*(hw+.04),2.40),.018,'metal',8)
+  use('05');rod('駕駛室扶手',(xcr-.05,side*(hw+.03),zb-.10),(xcr-.05,side*(hw+.03),ze-.20),.018,'metal',8)
+  rod('駕駛室扶手',(xdr+.05,side*(hw+.03),zb-.10),(xdr+.05,side*(hw+.03),2.40),.018,'metal',8)
   for z in [.72,1.04,1.34]:box('司機踏階',((xcr+xdr)/2,side*(hw-.08),z),(.26,.26,.035),'stsoot',0)
   rod('踏階吊架',(xcr-.04,side*(hw+.02),.70),(xcr-.04,side*(hw+.02),1.40),.016,'stsoot',6);rod('踏階吊架',(xdr+.04,side*(hw+.02),.70),(xdr+.04,side*(hw+.02),1.40),.016,'stsoot',6)
   use('01')
- top2=lambda y:ze+(crown-ze)*(1-(y/(hw+.07))**2)
+ top2=lambda y:ze+(crown-ze)*(1-(y/(hw+.05))**2)
  wall=[(-hw+.02,zb),(hw-.02,zb)]+[(hw-.02-2*(hw-.02)*i/12,top2(hw-.02-2*(hw-.02)*i/12)-.03) for i in range(13)]
  ty_xplate('駕駛室前牆',wall,xcf-.07,xcf,'stblack');ty_xplate('駕駛室後牆',wall,xdr-.08,xdr,'stblack')
  box('駕駛室地板',((xcf+xdr)/2,0,zb-.02),(xcf-xdr,2*hw-.04,.06),'stsoot',0);box('駕駛室內部',((xcf+xdr)/2-.02,0,(zb+ze)/2),(xcf-xdr-.20,2*hw-.18,ze-zb-.10),'frame',0)
- k=14;roof=[(-hw-.07+2*(hw+.07)*i/k,top2(-hw-.07+2*(hw+.07)*i/k)) for i in range(k+1)]
+ k=14;roof=[(-hw-.05+2*(hw+.05)*i/k,top2(-hw-.05+2*(hw+.05)*i/k)) for i in range(k+1)]
  ty_xplate('駕駛室圓拱頂',roof+[(y,z-.05) for y,z in reversed(roof)],xdr-.10,xcf+.10,'stsoot',True,{0,k,k+1,2*k+1})
  use('05');box('駕駛室頂通風器',(-2.40,0,crown+.01),(.70,.42,.06),'stsoot',.01)
  # 前牆、後牆：外側拱形窗銅框、上方圓窗銅框。
