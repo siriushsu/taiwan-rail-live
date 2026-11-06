@@ -170,7 +170,7 @@ html[data-theme=dark] #trainGarage{--g-hdr:var(--paper-tr);--g-hdr-ink:var(--ink
 
 /* 橫向小螢幕也把車體留在第一屏，說明可接著往下讀。 */
 @media(max-height:500px) and (min-width:600px){#trainGarage .g-top{padding-top:6px;padding-bottom:6px}#trainGarage .g-main{padding-top:10px}#trainGarage .g-heading{margin-bottom:8px}#trainGarage h1{font-size:24px}#trainGarage .g-progress strong{font-size:24px}#trainGarage progress{display:none}#trainGarage .g-progress>span:last-child{margin-left:8px}#trainGarage .g-filters{margin-bottom:10px;gap:8px}#trainGarage .g-picker{flex-basis:0}#trainGarage .g-showcase{grid-template-columns:1.4fr 1fr}#trainGarage .g-stage{align-self:start}#trainGarage .g-view{height:144px}#trainGarage .g-stage-foot{padding:0 12px 8px}#trainGarage .g-detail{padding:16px}}
-@media(max-height:500px) and (min-width:600px){#trainGarage .g-main{display:flex;flex-direction:column}#trainGarage .g-heading{order:0}#trainGarage .g-filters{order:1}#trainGarage .g-empty{order:2}#trainGarage .g-showcase{order:3}#trainGarage .mt-g-hint{order:4}#trainGarage .g-demo{order:4;margin-top:12px}#trainGarage .g-result{order:5}#trainGarage .g-grid{order:6}#trainGarage .g-footer{order:7}}
+@media(max-height:500px) and (min-width:600px){#trainGarage .g-main{display:flex;flex-direction:column}#trainGarage .g-heading{order:0}#trainGarage .g-filters{order:1}#trainGarage .g-empty{order:2}#trainGarage .g-showcase{order:3}#trainGarage .mt-g-hint{order:4}#trainGarage .mt-g-depot{order:4}#trainGarage .g-demo{order:4;margin-top:12px}#trainGarage .g-result{order:5}#trainGarage .g-grid{order:6}#trainGarage .g-footer{order:7}}
 
 /* 縮放欄：卡片鈕樣式，「+」「−」44 方，中間百分比上下各一條淡線。 */
 #trainGarage .g-viewport{position:relative}
