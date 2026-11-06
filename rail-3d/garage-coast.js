@@ -97,7 +97,7 @@ function cabinRange(consist,sign){
 // direction −1），光暈畫在這節車實際的位置；頭燈照地改成車頭前方一盞點光，場景與列車都照得到。
 // 車模材質跟海岸行旅共用，three 不會逐物件重傳同一份材質的 uniform，所以每節車各複製一份燈、車窗材質，lampFrame 釘在這節車的直線編組位置。
 // 要在編組剛建好、還沒 follow 時建；入庫的車每幀先 apply() 換上這份材質，畫之前（matrixWorld 已更新）再 lights()。
-export function createTrainLamps(consist,environment){
+export function createTrainLamps(consist,environment,sharedBeam=null){
  const train={lampHead:{value:new THREE.Vector4()},lampTail:{value:new THREE.Vector4()},cabin:{value:new THREE.Vector4()}},code={lamp:lampGLSL,taillamp:tailGLSL,glass:cabinGLSL},clones=[];
  consist.straight(-1);consist.root.updateMatrixWorld(true);
  // 從 litMaterials 複製：有車門的車那幾份是開門位移的複本（garage-doors.js），clone() 不帶 onBeforeCompile，接回去再疊燈；
@@ -107,7 +107,7 @@ export function createTrainLamps(consist,environment){
    return addLight(m,{...train,lampFrame:{value:frame}},code[m.name],true);});
   return{c,frame,inverse:frame.clone().invert(),materials};});
  // 車頭前 1.8 m、軌面上 1 m 的點光（同 App：場景的燈是 9 cd、7 m，這盞亮一點、照遠一點）；一直掛著、白天強度 0，燈數不變就不重編場景的材質。
- const halos=createHalos(),beam=new THREE.PointLight(new THREE.Color(1,.92,.78),0,9,2),world=new THREE.Matrix4();
+ const halos=createHalos(),beam=sharedBeam??new THREE.PointLight(new THREE.Color(1,.92,.78),0,9,2),world=new THREE.Matrix4();
  return{halos:halos.mesh,beam,materials:clones,
   apply(){for(const k of cars)k.c.body.material=k.materials;},
   // travel：沿路徑前進 +1、倒退 −1（阿里山折返時列車不掉頭，頭尾燈對調）。on＝false（沒入庫、關燈）就全部關掉。回傳光暈數。

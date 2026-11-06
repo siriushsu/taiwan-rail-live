@@ -4,13 +4,13 @@
 // 跟原型不同的只有三處：手機（lite）關陰影、像素比 1（10-30 A54 量測：十分老街跟車 22→57 fps），場景內容不砍；
 // 各座的專屬按鈕（折返、停在月台、看涵洞）沒搬；手勢與滑鼠照主地圖（rail-3d/map-gestures.js），平移由 draw 的 pan 接。
 import * as THREE from './vendor/three.module.js';
-import {COACH_LEAD,createConsist,loadGarageParts} from './garage-model.js';
+import {COACH_LEAD,createConsist,loadGarageModel,loadGarageParts} from './garage-model.js';
 import {createPeople} from './garage-people.js';
 import {loadScooterKit} from './garage-scooter.js';
 import {createTrainLamps} from './garage-coast.js';
 import {createTerrainFollower} from './garage-scenes/consist-3d.js';
 import {createJourney} from './garage-scenes/alishan-route.js';
-import {createStopTimetable} from './garage-scenes/stop-timetable.js';
+import {createCallingPass,createStopTimetable} from './garage-scenes/stop-timetable.js';
 import {separateCoplanar} from './garage-scenes/separate-coplanar.js';
 
 // drive：0 平面環線（garage-model.js follow）、1 車身跟坡度（consist-3d.js）、2 阿里山六段折返（機關車在下山端）、
@@ -56,6 +56,8 @@ const SCENE_ARGS={'south-coast':k=>[k[0],k[1]],alishan:k=>[k[0],k[1]],duoliang:k
 // 田園小站的電車線依車款（同 native railcore GarageCatenary）：電聯車、城際、電力機車畫，柴油客車不畫；輕軌只有淡海、安坑有架空線。純客車款看牽引它的機車。
 const WIRED=new Set(['railcar','express','electric']),DIESEL=new Set(['dr1000','dr2700','dr3000','dr3100']),OVERHEAD=new Set(['danhai','ankeng']);
 export const catenaryFor=(id,family)=>{const lead=COACH_LEAD[id];if(lead)return catenaryFor(lead.mesh,lead.family);return WIRED.has(family)?!DIESEL.has(id):OVERHEAD.has(id);};
+// 有月台的穿越場景：每列車進站停一下再開走，下一列換一款（同款車庫 App 的 META 31-34）。call＝停車時車心的路徑位置。
+for(const id of ['taipei-metro','wenhu','airport-mrt','ntpc-metro','taichung-metro','kaohsiung-metro','thsr','hsinchu','tainan','taichung-old','chiayi','baoan','jiji','haixian','dongshan','kaohsiung-old','shengxing','taipei-under'])SCENES[id].call=id==='shengxing'?2:0;
 // 場景只有白天、黃昏、夜晚三套；車庫的日出用黃昏那套（同 App R3DDiorama.theme）。
 const themeOf=period=>period==='day'||period==='night'?period:'sunset';
 // 車身 [q−半長, q+半長] 碰不碰到隧道段；環線取模（同 App touchesTunnel）。
@@ -67,7 +69,7 @@ async function loadKits(names=[],signal){
  return r.map(x=>x.value);
 }
 
-export async function createDiorama(renderer,sceneId,carId,primary,{family,signal}={}){
+export async function createDiorama(renderer,sceneId,carId,primary,{family,signal,mates=[]}={}){
  const m=SCENES[sceneId];if(!m)throw Error('scene missing');
  const mod=await import(`./garage-scenes/${m.module||sceneId}.js`),kits=await loadKits(m.kits,signal);
  if(signal?.aborted){kits.forEach(k=>k.dispose());throw new DOMException('aborted','AbortError');}
@@ -79,7 +81,7 @@ export async function createDiorama(renderer,sceneId,carId,primary,{family,signa
   consists.push(await createConsist(carId,primary,signal,{locoAtTail:!!m.locoAtTail,doors:!!m.doors}));
   if(m.opposing)consists.push(await createConsist(carId,primary,signal));
  }catch(e){consists.forEach(c=>c.dispose());world.dispose();kits.forEach(k=>k.dispose());throw e;}
- const [consist,opposing]=consists,scale=1.25/primary.size.y;
+ const [consist,opposing]=consists,scale=1.25/primary.size.y,ownedBy=new Map();
  const scene=new THREE.Scene(),camera=new THREE.OrthographicCamera(-40,40,30,-30,.1,400);camera.up.set(0,0,1);
  const sun=new THREE.DirectionalLight('#fff1cf',3.2),hemi=new THREE.HemisphereLight('#c1dce7','#7b8663',2.1);
  sun.position.set(-25,-30,45);sun.shadow.mapSize.set(1024,1024);const [l,r,t,b,n,f]=m.shadow;Object.assign(sun.shadow.camera,{left:l,right:r,top:t,bottom:b,near:n,far:f});sun.shadow.normalBias=.035;sun.shadow.bias=-.0001;scene.add(sun,hemi,sun.target);
@@ -88,11 +90,12 @@ export async function createDiorama(renderer,sceneId,carId,primary,{family,signa
  scene.add(world.group,...consists.map(c=>c.root));
  // 車燈（同 App 的 dioramaLights）：每列車一套（平交道、光華街還有對向那列）。點光要在下面隧道透視把燈開進 XRAY 圖層之前加進場景，兩趟的燈數才一樣。
  const lamps=consists.map(c=>createTrainLamps(c,environment.texture));for(const l of lamps)scene.add(l.halos,l.beam);
+ const beams=lamps.map(l=>l.beam);
  // 電車線依車款畫不畫（同 App GarageCatenary）：田園小站是 catenary 物件，多良那組由場景模組照 update 收到的 wires 開關。
  const wires=sceneId==='paddy'||sceneId==='duoliang'?catenaryFor(carId,family):null;
  if(wires!==null)world.group.traverse(o=>{if(o.name==='catenary')o.visible=wires;});
  // 集電弓頂到場景的接觸線；沒有電車線的場景（或田園小站這款車不畫線）降弓。
- for(const c of consists)c.setContactWire(wires===false?null:world.contactWireZ??null);
+ const contactZ=wires===false?null:world.contactWireZ??null;for(const c of consists)c.setContactWire(contactZ);
  // 隧道透視（田園小站，同 App 與網頁 3D 地圖的地下列車 .42）：被山擋住的車隔著山只透出最外層車殼，不透出車內與對面那片車殼。
  // 整幀畫完後只畫 XRAY 圖層再一趟，stencil 五步（同 App R3DRenderer／garage_scene.cpp）：mark 標出車身比深度遠的像素 →
  // unmark 車身看得到的像素取消（不然車窗玻璃、陰影會被疊色改掉）→ clearDepth 只在剩下的像素把深度清成最遠 → depth 寫車殼深度 → color 只畫最近那層。
@@ -112,13 +115,32 @@ export async function createDiorama(renderer,sceneId,carId,primary,{family,signa
  for(const c of consists)c.root.traverse(o=>{if(o.isMesh&&!xrayMeshes.has(o)){o.castShadow=true;o.receiveShadow=true;}});
  // 穿越的場景：車身在底座兩端被裁掉（同原型）。車頭那份材質車庫其他格也在用，所以裁切只在畫這一格時打開（localClippingEnabled），收掉時把裁切面拿掉。
  const clips=m.clip?[new THREE.Plane(new THREE.Vector3(1,0,0),m.clip),new THREE.Plane(new THREE.Vector3(-1,0,0),m.clip)]:null,clipped=new Set();
- if(clips)for(const c of consists){for(const car of c.cars){[...car.litMaterials,...car.asset.lockedMaterials].forEach(x=>clipped.add(x));car.body.traverse(o=>{if(o.isMesh&&o!==car.body)clipped.add(o.material);});}for(const o of c.root.children)if(o.isMesh)clipped.add(o.material);}
- // 車燈換上的頭燈、尾燈、車窗那幾份複本也要裁。
- if(clips)for(const l of lamps)l.materials.forEach(x=>clipped.add(x));
- for(const x of clipped){x.clippingPlanes=clips;x.clipShadows=true;x.needsUpdate=true;}
+ function clipConsist(c,lamp){
+  if(!clips)return;const own=new Set();
+  for(const car of c.cars){[...car.litMaterials,...car.asset.lockedMaterials].forEach(x=>own.add(x));car.body.traverse(o=>{if(o.isMesh&&o!==car.body)own.add(o.material);});}
+  for(const o of c.root.children)if(o.isMesh)own.add(o.material);
+  // 車燈換上的頭燈、尾燈、車窗那幾份複本也要裁。
+  lamp.materials.forEach(x=>own.add(x));
+  for(const x of own){clipped.add(x);x.clippingPlanes=clips;x.clipShadows=true;x.needsUpdate=true;}
+ }
+ consists.forEach((c,i)=>clipConsist(c,lamps[i]));
  const follow3D=createTerrainFollower(consist),followOpposing=opposing&&createTerrainFollower(opposing),journey=m.drive===2?createJourney(world.routes,consist.length):null;
  const tt=m.stop===undefined?null:createStopTimetable({pathLength:world.path.length,speed:m.speed});
  const passAt=m.pass&&(t=>{const [L,phase]=m.pass;return(((t*m.speed+phase+L/2)%L)+L)%L-L/2;});
+ // 進站的場景：每股輪著跑這座的幾款車。tracks 一股一筆，list 是這股備好的編組（第 0 款是使用者選的車）；另一股晚半個週期。
+ const calling=m.pass&&m.call!==undefined?createCallingPass({length:m.pass[0],speed:m.speed,at:m.call}):null;
+ const delay=calling?calling.cycle/2:m.opposing,tracks=[{path:world.path,list:[{c:consist,follow:null}]}];
+ if(opposing)tracks.push({path:world.opposingPath,list:[{c:opposing,follow:null}]});
+ // 同一股同時只跑一列，車頭燈的點光共用一盞；鄰站的車款等畫面開了才載，載不到就只跑選的那款。
+ const addMate=async({id,owned})=>{
+  const asset=await loadGarageModel(id,signal);if(gone){asset.dispose();return;}
+  extras.push(asset);
+  for(let i=0;i<tracks.length;i++){const c=await createConsist(id,asset,signal);if(gone){c.dispose();return;}
+   c.setContactWire(contactZ);c.root.visible=false;const lamp=createTrainLamps(c,environment.texture,beams[i]);c.root.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
+   clipConsist(c,lamp);scene.add(c.root,lamp.halos);consists.push(c);lamps.push(lamp);ownedBy.set(c,owned);tracks[i].list.push({c,follow:createTerrainFollower(c)});}
+ };
+ const extras=[];let gone=false;
+ if(calling)(async()=>{for(const mate of mates.slice(0,2))await addMate(mate).catch(()=>{});})();
  // 掛件：零件庫載好之後才建得出來的人、天燈、樹（同原型的 *-view.js）。比例尺跟車同一個 1.25/車寬。
  let people=null,attendant=null,lanterns=null,vegetation=null,visitors=null;const platformNormal=new THREE.Vector3();
  if(sceneId==='south-coast'){people=createPeople({kit:kits[2],timetable:tt,doors:[],platform:world.platform,scale,seed:20260927});attendant=mod.createAttendant(kits[2],scale,world.platform);scene.add(people.group,attendant);}
@@ -145,20 +167,25 @@ export async function createDiorama(renderer,sceneId,carId,primary,{family,signa
  // 穿越的車：擺好、更新集電弓；整列開出底座就整列藏起來（裁切面之外還有車鉤、陰影）。
  function pass(c,follow,path,d){follow(path,d);c.updateParts();c.root.visible=Math.abs(d)<m.clip+3+c.length/2+.8;}
  return{
-  scene,camera,consist,meta:m,wires,
+  scene,camera,consist,consists,meta:m,wires,
   // time：行駛累計秒數（同原型只在行駛時累加；停站與穿越都是時間的純函數）。回傳這一幀的狀態給 data-* 用。
   draw(w,h,{period:want='day',time=0,trainView=false,yaw=m.yaw,elevation=m.world,zoom=1,owned=true,lite:wantLite=false,lights=true,pan=[0,0]}={}){
    const p=themeOf(want);if(p!==period)setTheme(p);if(wantLite!==lite)setLite(wantLite);
    renderer.shadowMap.enabled=!lite;renderer.toneMappingExposure=themes[p].exposure;
    const now=time+(m.start||0);
-   for(const c of consists)c.update(owned);if(owned)lamps.forEach(l=>l.apply());
+   for(const c of consists)c.update(ownedBy.get(c)??owned);lamps.forEach((l,i)=>{if(ownedBy.get(consists[i])??owned)l.apply();});
    let route=0,s,stop=null,pose,travel=1;
    if(journey){pose=journey.at(now);route=pose.route;s=pose.s;travel=pose.sign;follow3D(world.routes[route],s);consist.updateParts();}
-   else if(passAt){s=passAt(now);pass(consist,follow3D,world.path,s);if(opposing)pass(opposing,followOpposing,world.opposingPath,passAt(now-m.opposing));}
+   else if(passAt){
+    tracks[0].list[0].follow=follow3D;if(opposing)tracks[1].list[0].follow=followOpposing;
+    tracks.forEach((track,i)=>{const at=calling?calling.state(now-(i?delay:0)):{n:0,s:passAt(now-(i?delay:0))},count=track.list.length,pick=track.list[(((at.n*tracks.length+i)%count)+count)%count];
+     for(const x of track.list)if(x!==pick)x.c.root.visible=false;track.s=at.s;track.now=pick.c;pass(pick.c,pick.follow,track.path,at.s);});
+    s=tracks[0].s;
+   }
    else{if(tt){stop=tt.at(now);s=stop.distance+m.stop;}else s=now*m.speed;if(m.drive===0)consist.follow(world.path,s,1);else follow3D(world.path,s);consist.updateParts();}
    if(stop)consist.doors?.update(stop.doors,platformNormal);
    const cars=[];if(passAt)for(const c of consists)if(c.root.visible)for(const car of c.cars)cars.push(car.car.getWorldPosition(point).toArray());
-   world.update(now,p,pose??(passAt?{id:carId,wires,distance:s,opposingDistance:opposing?passAt(now-m.opposing):undefined,length:consist.length,speed:m.speed,cars,scale:mod.UNIT_PER_M?.[carId]??mod.METER}:undefined));
+   world.update(now,p,pose??(passAt?{id:carId,wires,distance:s,opposingDistance:tracks[1]?.s,length:consist.length,speed:m.speed,cars,scale:mod.UNIT_PER_M?.[carId]??mod.METER}:undefined));
    people?.update(now);lanterns?.update(now,p);vegetation?.update?.(now,p);visitors?.update?.(now,stop.distance,world.path,consist);
    const path=journey?world.routes[route]:world.path;let inTunnel=0;
    const touching=xrays.map((_,i)=>{const c=consist.cars[i];return touchesTunnel(s+c.offset,c.length/2,world.tunnel,path.length);});
@@ -184,7 +211,9 @@ export async function createDiorama(renderer,sceneId,carId,primary,{family,signa
    }
    scene.updateMatrixWorld(true);
    // 車燈強度照時段（日出不併黃昏），同 App 的 lampStrength。開出底座藏起來的那列不亮、裁切線外的光暈與照地點光不畫（它們不跟著車身藏、也不吃裁切面）。
-   const halos=lamps.reduce((n,l,i)=>n+l.lights(owned&&lights&&consists[i].root.visible,want,i?1:travel,camera.position,clips?m.clip:Infinity),0);
+   // 藏起來的車先關，共用同一盞點光的車才不會蓋掉開著的那列。
+   const order=lamps.map((l,i)=>i).sort((a,b)=>consists[a].root.visible-consists[b].root.visible);
+   const halos=order.reduce((n,i)=>n+lamps[i].lights((ownedBy.get(consists[i])??owned)&&lights&&consists[i].root.visible,want,i?1:travel,camera.position,clips?m.clip:Infinity),0);
    renderer.localClippingEnabled=!!clips;renderer.render(scene,camera);
    if(inTunnel){
     // 透視那趟：不清畫面（背景是顏色時 three 會強制清，先拿掉）、不重算陰影圖、draw call 累加到同一幀。
@@ -197,9 +226,9 @@ export async function createDiorama(renderer,sceneId,carId,primary,{family,signa
    return{period:p,distance:s,route,inTunnel,shadows:!lite,phase:stop?.phase??null,halos,span,base,box,focus:[target.x,target.y,target.z]};
   },
   dispose(){
-   for(const x of clipped){x.clippingPlanes=null;x.clipShadows=false;x.needsUpdate=true;}
+   gone=true;for(const x of clipped){x.clippingPlanes=null;x.clipShadows=false;x.needsUpdate=true;}
    people?.dispose();lanterns?.dispose();vegetation?.dispose();visitors?.dispose();attendant?.traverse(o=>{if(o.isMesh)[].concat(o.material).forEach(x=>x.dispose());});
-   lamps.forEach(l=>l.dispose());consists.forEach(c=>c.dispose());world.dispose();planes.clones.forEach(g=>g.dispose());kits.forEach(k=>k.dispose());for(const by of xrayMaterials.values())for(const list of Object.values(by))list.forEach(x=>x.dispose());clearDepth.geometry.dispose();clearDepth.material.dispose();environment.dispose();groundGeo.dispose();groundMat.dispose();sun.shadow.map?.dispose();sun.dispose();
+   lamps.forEach(l=>l.dispose());consists.forEach(c=>c.dispose());world.dispose();planes.clones.forEach(g=>g.dispose());extras.forEach(a=>a.dispose());kits.forEach(k=>k.dispose());for(const by of xrayMaterials.values())for(const list of Object.values(by))list.forEach(x=>x.dispose());clearDepth.geometry.dispose();clearDepth.material.dispose();environment.dispose();groundGeo.dispose();groundMat.dispose();sun.shadow.map?.dispose();sun.dispose();
   }
  };
 }

@@ -157,7 +157,7 @@
       await rendererPromise;
       if(ticket!==modelTicket||!active)return;
       if(!renderer)throw Error('renderer unavailable');
-      await renderer.load(id,mode,{scene,family:row?.model.family});
+      await renderer.load(id,mode,{scene,family:row?.model.family,mates:scene?roster(scene).filter(r=>r.id!==id).slice(0,2).map(r=>({id:r.id,owned:r.owned})):undefined});
       if(ticket!==modelTicket||!active)return;
       loadedId=id;loadedMode=mode;loadedScene=scene;$(scene?'.g-sf-loading':'.g-fallback').hidden=true;
       if(scene&&viewPending){resetView();showControls();}

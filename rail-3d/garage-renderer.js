@@ -41,7 +41,7 @@ export function createRenderer(onLost = () => {}) {
   renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();if(!disposed){lost=true;onLost();}});
   return {
     // mode 'scene' 要帶 scene（場景 id）與 family（田園小站的電車線依車款）；同一款車只留目前這一座。
-    async load(nextId,mode='model',{scene:sceneId='',family}={}){
+    async load(nextId,mode='model',{scene:sceneId='',family,mates}={}){
       if(disposed||lost)throw Error('renderer unavailable');
       const key=nextId+':'+mode+(mode==='scene'?':'+sceneId:'');if(key===loadKey){revision++;abort?.abort();return;}
       const ticket=++revision;abort?.abort();abort=new AbortController();const {signal}=abort;
@@ -49,7 +49,7 @@ export function createRenderer(onLost = () => {}) {
         primary=a;car=new THREE.Mesh(a.geometry,a.materials);trainRoot.add(car);id=nextId;
       }
       if((mode==='loop'||mode==='track')&&!consist){const c=await createConsist(id,primary,signal);if(disposed||ticket!==revision){c.dispose();return;}consist=c;scene.add(c.root);}
-      if(mode==='scene'&&dioramaKey!==sceneId){dropDiorama();const d=await createDiorama(renderer,sceneId,id,primary,{family,signal});if(disposed||ticket!==revision){d.dispose();return;}diorama=d;dioramaKey=sceneId;}
+      if(mode==='scene'&&dioramaKey!==sceneId){dropDiorama();const d=await createDiorama(renderer,sceneId,id,primary,{family,signal,mates});if(disposed||ticket!==revision){d.dispose();return;}diorama=d;dioramaKey=sceneId;}
       if(!disposed&&ticket===revision)loadKey=key;
     },
     draw(target,row,angle,options={}){
@@ -63,7 +63,7 @@ export function createRenderer(onLost = () => {}) {
         // 海岸行旅的燈材質跟場景的編組共用，先關掉；場景的車燈每節車另有一份材質（garage-coast.js createTrainLamps）。
         if(coast){coast.group.visible=false;coast.lights(null);}
         const zoom=Math.max(.7,Math.min(1.8,options.zoom??1)),elevation=Math.max(.2,Math.min(1.2,options.elevation??diorama.meta.world));
-        for(const a of new Set(diorama.consist.cars.map(c=>c.asset)))for(const m of [...a.materials,...a.lockedMaterials])if(m.name==='glass'||m.name==='glass:locked'){
+        for(const a of new Set(diorama.consists.flatMap(x=>x.cars.map(c=>c.asset))))for(const m of [...a.materials,...a.lockedMaterials])if(m.name==='glass'||m.name==='glass:locked'){
           if(m.envMap!==diorama.scene.environment){m.envMap=diorama.scene.environment;m.needsUpdate=true;}m.envMapIntensity=1;
         }
         const shot=diorama.draw(w,h,{period:options.period,time:options.time||0,trainView:!!options.trainView,yaw:angle,elevation,zoom,owned:row.owned,lite:!!options.lite,lights:options.lights!==false,pan});
