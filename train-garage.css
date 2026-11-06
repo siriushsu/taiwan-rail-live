@@ -242,8 +242,9 @@ html[data-theme=dark] #trainGarage{--g-hdr:var(--paper-tr);--g-hdr-ink:var(--ink
 /* 標題那塊：這座跑的車不只一款時是按鈕（第二行尾巴有 ▾），點了開車款選單；只有一款時停用、外觀不變淡。 */
 #trainGarage .g-sf-title{flex:1 1 96px;min-width:0;display:block;padding:0;border:0;background:none;text-align:left;line-height:1.35}
 #trainGarage .g-sf .g-sf-title:disabled{opacity:1}
-#trainGarage .g-sf-title b{display:block;font-size:16px;font-weight:800;letter-spacing:.06em;color:var(--sf-strong);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#trainGarage .g-sf-title small{display:block;font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--sf-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 地名、車名放不下時換行，不裁成省略號：外語字常比這塊寬一倍。 */
+#trainGarage .g-sf-title b{display:block;font-size:16px;font-weight:800;letter-spacing:.06em;color:var(--sf-strong);overflow:hidden;text-overflow:ellipsis;white-space:normal;text-wrap:balance}
+#trainGarage .g-sf-title small{display:block;font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--sf-muted);overflow:hidden;text-overflow:ellipsis;white-space:normal;text-wrap:balance}
 /* 分段選擇（場景鈕列、時段）：1px 線框、6 圓角，選中 navy 底；鎖著的場景名字前有鎖頭。 */
 #trainGarage .g-sf-seg{display:inline-flex;vertical-align:top;border:1px solid var(--sf-line);border-radius:6px;background:var(--sf-paper)}
 #trainGarage .g-sf-seg button{display:inline-flex;align-items:center;gap:4px;padding:0 12px;border:0;border-radius:0;background:none;color:var(--sf-ink);font-size:12px;font-weight:600;white-space:nowrap}

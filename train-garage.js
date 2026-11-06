@@ -316,8 +316,10 @@
   function showFrame(row){
     const [world,periods,,caption]=FRAME_TEXT[frameScene],f=$('.g-sf'),many=roster(frameScene).length>1,title=$('.g-sf-title');
     f.dataset.period=period;
-    $('.g-sf-title b').textContent=tr(frameScene===DEFAULT_SCENE?'田園小站':scenePlace(frameScene));
-    $('.g-sf-title small').innerHTML=row?esc(tr(row.model.name)+' · '+status(row))+(many?'<span aria-hidden="true"> ▾</span>':''):'';
+    // 標題放不下會換行；「·」前接不斷行空白，留在上一行尾，不掉到下一行開頭。
+    const keepDot=text=>text.replace(/ · /g,'\u00a0· ');
+    $('.g-sf-title b').textContent=keepDot(tr(frameScene===DEFAULT_SCENE?'田園小站':scenePlace(frameScene)));
+    $('.g-sf-title small').innerHTML=row?esc(keepDot(tr(row.model.name)+' · '+status(row)))+(many?'<span aria-hidden="true"> ▾</span>':''):'';
     title.disabled=!many;$('.g-sf-swap').hidden=!many;
     if(many&&row)title.setAttribute('aria-label',tr('換車：{name}',{name:tr(row.model.name)}));else title.removeAttribute('aria-label');
     const ctx=walletCtx(),box=$('.g-sf-scenes'),seg=box.firstElementChild;

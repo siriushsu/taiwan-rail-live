@@ -116,6 +116,9 @@ try{
   await openScene(p);
   const seg=await p.evaluate(()=>[...document.querySelectorAll('[data-sf-period]')].map(el=>(el.textContent='Sunset on the Maokong Gondola',el)).map(el=>{const r=el.getBoundingClientRect();return{left:r.left,right:r.right,edge:innerWidth,hit:el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))};}));
   check(width+' 場景頁時段鈕字長也留在畫面內、點得到',seg.every(s=>s.left>=0&&s.right<=s.edge&&s.hit),seg);
+  // 場景頁標題：地名、車名字長放不下要換行看得全，不裁成省略號，也不壓到旁邊的鈕；長字是塞的。「·」前要是不斷行空白，換行才不會掉到行首。
+  const head=await p.evaluate(()=>{const q=s=>document.querySelector(s),b=q('.g-sf-title b'),s=q('.g-sf-title small'),nb=s.textContent.includes('\u00a0· ');b.textContent='Taichung Metro Green Line · Wenxin Forest Park Station';s.textContent='Push–pull Tze-Chiang · 40PPD2500 passenger-baggage car · To collect';const t=q('.g-sf-title').getBoundingClientRect();return{nb,cut:[b,s].filter(e=>e.scrollWidth>e.clientWidth+1).length,left:t.left-q('.g-sf-leave').getBoundingClientRect().right,right:q('.g-sf-music').hidden?innerWidth-t.right:q('.g-sf-music').getBoundingClientRect().left-t.right};});
+  check(width+' 場景頁標題字長也看得全，「·」留在行尾',head.nb&&!head.cut&&head.left>=0&&head.right>=0,head);
   await leaveScene(p);
   await pick(p,'auto');check(width+' 無 JS 例外',!errors.length,errors);await c.close();
  }
