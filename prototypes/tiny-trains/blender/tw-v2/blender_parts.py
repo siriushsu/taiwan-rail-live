@@ -83,7 +83,7 @@ def rounded(w,h,r,steps=5):
    a=math.radians(base+90*i/steps);p.append((cx+r*math.cos(a),cy+r*math.sin(a)))
  return p
 
-def panel(name,center,w,h,material,plane='side',r=.055,depth=.018,surface=None):
+def panel(name,center,w,h,material,plane='side',r=.055,depth=.018,surface=None,rows=16):
  pts=rounded(w,h,r);v=[]
  for d in [-depth/2,depth/2]:
   for u,z in pts:
@@ -94,7 +94,7 @@ def panel(name,center,w,h,material,plane='side',r=.055,depth=.018,surface=None):
  n=len(pts);faces=[tuple(reversed(range(n))),tuple(range(n,2*n))]+[(i,(i+1)%n,(i+1)%n+n,i+n) for i in range(n)]
  # 凹凸車鼻的面片切成條帶，避免單一 n-gon 把曲面跨平。
  if surface:
-  rows=16;cols=16;verts=[]
+  cols=16;verts=[]
   for iz in range(rows+1):
    zz=center[2]-h/2+h*iz/rows;dz=abs(zz-center[2]);half=w/2
    if dz>h/2-r:half=w/2-r+math.sqrt(max(0,r*r-(dz-(h/2-r))**2))

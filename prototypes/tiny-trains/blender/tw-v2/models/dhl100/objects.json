@@ -1136,7 +1136,7 @@
   {
     "name": "白色 V 字飛翼",
     "type": "MESH",
-    "polygons": 192,
+    "polygons": 256,
     "modifiers": []
   },
   {
@@ -1364,7 +1364,7 @@
   {
     "name": "白色 V 字飛翼.001",
     "type": "MESH",
-    "polygons": 192,
+    "polygons": 256,
     "modifiers": []
   },
   {

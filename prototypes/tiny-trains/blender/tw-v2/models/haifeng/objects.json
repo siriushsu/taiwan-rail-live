@@ -225,6 +225,18 @@
     ]
   },
   {
+    "name": "固定窗橡膠框.005",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "獨立深色玻璃.005",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
     "name": "側門門框.001",
     "type": "MESH",
     "polygons": 26,
@@ -382,6 +394,66 @@
       "BEVEL",
       "WEIGHTED_NORMAL"
     ]
+  },
+  {
+    "name": "固定窗橡膠框.006",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "獨立深色玻璃.006",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "固定窗橡膠框.007",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "獨立深色玻璃.007",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "固定窗橡膠框.008",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "獨立深色玻璃.008",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "固定窗橡膠框.009",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "獨立深色玻璃.009",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "固定窗橡膠框.010",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "獨立深色玻璃.010",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
   },
   {
     "name": "側門門框.002",
@@ -543,61 +615,13 @@
     ]
   },
   {
-    "name": "固定窗橡膠框.005",
+    "name": "固定窗橡膠框.011",
     "type": "MESH",
     "polygons": 26,
     "modifiers": []
   },
   {
-    "name": "獨立深色玻璃.005",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "固定窗橡膠框.006",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "獨立深色玻璃.006",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "固定窗橡膠框.007",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "獨立深色玻璃.007",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "固定窗橡膠框.008",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "獨立深色玻璃.008",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "固定窗橡膠框.009",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "獨立深色玻璃.009",
+    "name": "獨立深色玻璃.011",
     "type": "MESH",
     "polygons": 26,
     "modifiers": []
@@ -754,690 +778,6 @@
   },
   {
     "name": "車門踏板.003",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "側門門框.004",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "獨立門扇.008",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "門窗嵌框.008",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "門窗玻璃.008",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "門扇色帶.048",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "門扇色帶.049",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "門扇色帶.050",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "門扇色帶.051",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "門扇色帶.052",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "門扇色帶.053",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "獨立門扇.009",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "門窗嵌框.009",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "門窗玻璃.009",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "門扇色帶.054",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "門扇色帶.055",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "門扇色帶.056",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "門扇色帶.057",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "門扇色帶.058",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "門扇色帶.059",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "車門踏板.004",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "側門門框.005",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "獨立門扇.010",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "門窗嵌框.010",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "門窗玻璃.010",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "門扇色帶.060",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "門扇色帶.061",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "門扇色帶.062",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "門扇色帶.063",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "門扇色帶.064",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "門扇色帶.065",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "獨立門扇.011",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "門窗嵌框.011",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "門窗玻璃.011",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "門扇色帶.066",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "門扇色帶.067",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "門扇色帶.068",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "門扇色帶.069",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "門扇色帶.070",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "門扇色帶.071",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "車門踏板.005",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣機罩",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣罩頂部格柵",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣罩頂部格柵.001",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣罩頂部格柵.002",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣罩頂部格柵.003",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣罩頂部格柵.004",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣罩頂部格柵.005",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣罩頂部格柵.006",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣罩頂部格柵.007",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣側格柵 黑色底槽",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "冷氣側格柵 百葉",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣側格柵 百葉.001",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣側格柵 百葉.002",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣側格柵 百葉.003",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣側格柵 百葉.004",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣側格柵 黑色底槽.001",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "冷氣側格柵 百葉.005",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣側格柵 百葉.006",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣側格柵 百葉.007",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣側格柵 百葉.008",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣側格柵 百葉.009",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣機罩.001",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣罩頂部格柵.008",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣罩頂部格柵.009",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣罩頂部格柵.010",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣罩頂部格柵.011",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣罩頂部格柵.012",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣罩頂部格柵.013",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣罩頂部格柵.014",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣罩頂部格柵.015",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣側格柵 黑色底槽.002",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "冷氣側格柵 百葉.010",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣側格柵 百葉.011",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣側格柵 百葉.012",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣側格柵 百葉.013",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣側格柵 百葉.014",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣側格柵 黑色底槽.003",
-    "type": "MESH",
-    "polygons": 26,
-    "modifiers": []
-  },
-  {
-    "name": "冷氣側格柵 百葉.015",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣側格柵 百葉.016",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣側格柵 百葉.017",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣側格柵 百葉.018",
-    "type": "MESH",
-    "polygons": 98,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "冷氣側格柵 百葉.019",
     "type": "MESH",
     "polygons": 98,
     "modifiers": [
@@ -2178,6 +1518,162 @@
     "modifiers": []
   },
   {
+    "name": "車側橫向壓紋",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "車側橫向壓紋.001",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "車側橫向壓紋.002",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "車側橫向壓紋.003",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "車側橫向壓紋.004",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "車側橫向壓紋.005",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "車側橫向壓紋.006",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "車側橫向壓紋.007",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "駕駛室側窗亮框",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "駕駛室側窗",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "駕駛室側窗中框",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "駕駛室側窗亮框.001",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "駕駛室側窗.001",
+    "type": "MESH",
+    "polygons": 26,
+    "modifiers": []
+  },
+  {
+    "name": "駕駛室側窗中框.001",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "冷氣斜面罩",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "冷氣罩側面格柵",
+    "type": "MESH",
+    "polygons": 1,
+    "modifiers": []
+  },
+  {
+    "name": "冷氣罩側面格柵.001",
+    "type": "MESH",
+    "polygons": 1,
+    "modifiers": []
+  },
+  {
+    "name": "冷氣斜面罩.001",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "冷氣罩側面格柵.002",
+    "type": "MESH",
+    "polygons": 1,
+    "modifiers": []
+  },
+  {
+    "name": "冷氣罩側面格柵.003",
+    "type": "MESH",
+    "polygons": 1,
+    "modifiers": []
+  },
+  {
     "name": "貫通門門縫",
     "type": "MESH",
     "polygons": 8,
@@ -2198,37 +1694,37 @@
   {
     "name": "貫通門窗窗框",
     "type": "MESH",
-    "polygons": 256,
+    "polygons": 896,
     "modifiers": []
   },
   {
     "name": "貫通門窗",
     "type": "MESH",
-    "polygons": 256,
+    "polygons": 896,
     "modifiers": []
   },
   {
     "name": "左前窗窗框",
     "type": "MESH",
-    "polygons": 256,
+    "polygons": 896,
     "modifiers": []
   },
   {
     "name": "左前窗",
     "type": "MESH",
-    "polygons": 256,
+    "polygons": 896,
     "modifiers": []
   },
   {
     "name": "司機前窗窗框",
     "type": "MESH",
-    "polygons": 256,
+    "polygons": 896,
     "modifiers": []
   },
   {
     "name": "司機前窗",
     "type": "MESH",
-    "polygons": 256,
+    "polygons": 896,
     "modifiers": []
   },
   {
@@ -2244,37 +1740,16 @@
     "modifiers": []
   },
   {
-    "name": "頭尾燈燈座",
+    "name": "藥丸形燈座",
     "type": "MESH",
-    "polygons": 256,
+    "polygons": 512,
     "modifiers": []
   },
   {
-    "name": "頭燈 鍍鉻圈",
+    "name": "尾燈白環",
     "type": "MESH",
-    "polygons": 226,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "頭燈 黑色內襯",
-    "type": "MESH",
-    "polygons": 198,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "頭燈 透鏡",
-    "type": "MESH",
-    "polygons": 198,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 512,
+    "modifiers": []
   },
   {
     "name": "尾燈 鍍鉻圈",
@@ -2304,6 +1779,33 @@
     ]
   },
   {
+    "name": "頭燈 鍍鉻圈",
+    "type": "MESH",
+    "polygons": 226,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "頭燈 黑色內襯",
+    "type": "MESH",
+    "polygons": 198,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "頭燈 透鏡",
+    "type": "MESH",
+    "polygons": 198,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
     "name": "獨立雨刷臂.001",
     "type": "MESH",
     "polygons": 12,
@@ -2316,37 +1818,16 @@
     "modifiers": []
   },
   {
-    "name": "頭尾燈燈座.001",
+    "name": "藥丸形燈座.001",
     "type": "MESH",
-    "polygons": 256,
+    "polygons": 512,
     "modifiers": []
   },
   {
-    "name": "頭燈 鍍鉻圈.001",
+    "name": "尾燈白環.001",
     "type": "MESH",
-    "polygons": 226,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "頭燈 黑色內襯.001",
-    "type": "MESH",
-    "polygons": 198,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
-  },
-  {
-    "name": "頭燈 透鏡.001",
-    "type": "MESH",
-    "polygons": 198,
-    "modifiers": [
-      "BEVEL",
-      "WEIGHTED_NORMAL"
-    ]
+    "polygons": 512,
+    "modifiers": []
   },
   {
     "name": "尾燈 鍍鉻圈.001",
@@ -2376,6 +1857,33 @@
     ]
   },
   {
+    "name": "頭燈 鍍鉻圈.001",
+    "type": "MESH",
+    "polygons": 226,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "頭燈 黑色內襯.001",
+    "type": "MESH",
+    "polygons": 198,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "頭燈 透鏡.001",
+    "type": "MESH",
+    "polygons": 198,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
     "name": "目的地顯示器",
     "type": "MESH",
     "polygons": 256,
@@ -2388,7 +1896,7 @@
     "modifiers": []
   },
   {
-    "name": "車頂頭燈座",
+    "name": "車頭上緣燈座",
     "type": "MESH",
     "polygons": 98,
     "modifiers": [
@@ -2397,7 +1905,7 @@
     ]
   },
   {
-    "name": "車頂頭燈 鍍鉻圈",
+    "name": "上方頭燈 鍍鉻圈",
     "type": "MESH",
     "polygons": 226,
     "modifiers": [
@@ -2406,7 +1914,7 @@
     ]
   },
   {
-    "name": "車頂頭燈 黑色內襯",
+    "name": "上方頭燈 黑色內襯",
     "type": "MESH",
     "polygons": 198,
     "modifiers": [
@@ -2415,7 +1923,7 @@
     ]
   },
   {
-    "name": "車頂頭燈 透鏡",
+    "name": "上方頭燈 透鏡",
     "type": "MESH",
     "polygons": 198,
     "modifiers": [
@@ -2424,7 +1932,7 @@
     ]
   },
   {
-    "name": "車頂頭燈 鍍鉻圈.001",
+    "name": "上方頭燈 鍍鉻圈.001",
     "type": "MESH",
     "polygons": 226,
     "modifiers": [
@@ -2433,7 +1941,7 @@
     ]
   },
   {
-    "name": "車頂頭燈 黑色內襯.001",
+    "name": "上方頭燈 黑色內襯.001",
     "type": "MESH",
     "polygons": 198,
     "modifiers": [
@@ -2442,7 +1950,7 @@
     ]
   },
   {
-    "name": "車頂頭燈 透鏡.001",
+    "name": "上方頭燈 透鏡.001",
     "type": "MESH",
     "polygons": 198,
     "modifiers": [
@@ -2452,6 +1960,24 @@
   },
   {
     "name": "黑色下裙",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "下裙側包",
+    "type": "MESH",
+    "polygons": 98,
+    "modifiers": [
+      "BEVEL",
+      "WEIGHTED_NORMAL"
+    ]
+  },
+  {
+    "name": "下裙側包.001",
     "type": "MESH",
     "polygons": 98,
     "modifiers": [

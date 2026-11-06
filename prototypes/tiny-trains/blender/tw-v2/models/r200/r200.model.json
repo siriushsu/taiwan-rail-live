@@ -46,16 +46,16 @@
   ],
   "mesh": {
     "file": "r200.mesh.bin",
-    "sha256": "3737d52de326595bb06ff6c58bd18f161fdef1009ffcf3064e9a4b241a21a13e",
+    "sha256": "cd670cb2ee5660491a385da076fe4c114a36d7b81a8425f1ea267e4cb5517e70",
     "encoding": "float32-le",
     "strideBytes": 24,
-    "vertexCount": 194988,
-    "triangleCount": 64996,
+    "vertexCount": 187062,
+    "triangleCount": 62354,
     "drawGroups": [
       {
         "name": "r2white",
         "start": 0,
-        "count": 6012,
+        "count": 8178,
         "color": [
           0.8879231214523315,
           0.8962693810462952,
@@ -67,8 +67,8 @@
       },
       {
         "name": "r2black",
-        "start": 6012,
-        "count": 19116,
+        "start": 8178,
+        "count": 20748,
         "color": [
           0.006048833020031452,
           0.006995410192757845,
@@ -80,7 +80,7 @@
       },
       {
         "name": "r2navy",
-        "start": 25128,
+        "start": 28926,
         "count": 28656,
         "color": [
           0.008568125776946545,
@@ -93,7 +93,7 @@
       },
       {
         "name": "glass",
-        "start": 53784,
+        "start": 57582,
         "count": 3504,
         "color": [
           0.009134058840572834,
@@ -105,8 +105,34 @@
         "clearcoat": 0.41999998688697815
       },
       {
+        "name": "r2lamp",
+        "start": 61086,
+        "count": 1536,
+        "color": [
+          0.2541520893573761,
+          0.2746773064136505,
+          0.2917706370353699
+        ],
+        "metalness": 0.4000000059604645,
+        "roughness": 0.30000001192092896,
+        "clearcoat": 0.10000000149011612
+      },
+      {
+        "name": "lamp",
+        "start": 62622,
+        "count": 7272,
+        "color": [
+          1.0,
+          0.8879231214523315,
+          0.5840784311294556
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
         "name": "可移除車型示意牌",
-        "start": 57288,
+        "start": 69894,
         "count": 9708,
         "color": [
           0.8069522380828857,
@@ -119,8 +145,8 @@
       },
       {
         "name": "metal",
-        "start": 66996,
-        "count": 51108,
+        "start": 79602,
+        "count": 43488,
         "color": [
           0.30946892499923706,
           0.38642942905426025,
@@ -131,35 +157,9 @@
         "clearcoat": 0.18000000715255737
       },
       {
-        "name": "frame",
-        "start": 118104,
-        "count": 15564,
-        "color": [
-          0.008568125776946545,
-          0.016807375475764275,
-          0.022173885256052017
-        ],
-        "metalness": 0.10000000149011612,
-        "roughness": 0.3799999952316284,
-        "clearcoat": 0.18000000715255737
-      },
-      {
-        "name": "lamp",
-        "start": 133668,
-        "count": 6660,
-        "color": [
-          1.0,
-          0.8879231214523315,
-          0.5840784311294556
-        ],
-        "metalness": 0.10000000149011612,
-        "roughness": 0.3799999952316284,
-        "clearcoat": 0.18000000715255737
-      },
-      {
         "name": "taillamp",
-        "start": 140328,
-        "count": 5328,
+        "start": 123090,
+        "count": 5736,
         "color": [
           0.43415364623069763,
           0.0382043719291687,
@@ -170,8 +170,21 @@
         "clearcoat": 0.18000000715255737
       },
       {
+        "name": "frame",
+        "start": 128826,
+        "count": 8904,
+        "color": [
+          0.008568125776946545,
+          0.016807375475764275,
+          0.022173885256052017
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
         "name": "r2slat",
-        "start": 145656,
+        "start": 137730,
         "count": 4704,
         "color": [
           0.0423114113509655,
@@ -184,7 +197,7 @@
       },
       {
         "name": "chassis",
-        "start": 150360,
+        "start": 142434,
         "count": 27900,
         "color": [
           0.03433980792760849,
@@ -197,7 +210,7 @@
       },
       {
         "name": "rubber",
-        "start": 178260,
+        "start": 170334,
         "count": 8448,
         "color": [
           0.014443843625485897,
@@ -210,7 +223,7 @@
       },
       {
         "name": "r2grille",
-        "start": 186708,
+        "start": 178782,
         "count": 5616,
         "color": [
           0.0043914420530200005,
@@ -223,7 +236,7 @@
       },
       {
         "name": "r2lens",
-        "start": 192324,
+        "start": 184398,
         "count": 2664,
         "color": [
           0.8468732237815857,
@@ -236,7 +249,7 @@
       }
     ]
   },
-  "nativeObjectCount": 232,
+  "nativeObjectCount": 224,
   "features": {
     "sideDoorGroups": 0,
     "doorLeavesPerGroup": 2,
@@ -258,11 +271,11 @@
     "body": "F2F3F1",
     "accent": "173660",
     "label": "R200",
-    "bowPow": 3
+    "bowKnee": 0.98
   },
   "reference": {
     "source": "https://blair-train.blogspot.com/2019/12/r200-tra-r200-type-diesel-electric.html",
-    "detail": "白色車身深藍機房 · 環繞大前窗 · 車頂散熱風扇",
+    "detail": "白色車身深藍機房 · 六角形黑面罩 · 車頂散熱風扇",
     "photoUse": "visual-study-only-not-redistributed"
   },
   "formation": {

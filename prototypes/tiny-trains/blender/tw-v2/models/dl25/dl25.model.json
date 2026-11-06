@@ -46,11 +46,11 @@
   ],
   "mesh": {
     "file": "dl25.mesh.bin",
-    "sha256": "662ae4b2067fa08923835b1cec5c4da40b6a4c9611645894f6c4c8b3f0c36326",
+    "sha256": "07c82779a7e1f66aa172fbceaa193f0d9d0a4d2bf24e25c35cfdb0f737eb1e3a",
     "encoding": "float32-le",
     "strideBytes": 24,
-    "vertexCount": 172452,
-    "triangleCount": 57484,
+    "vertexCount": 173220,
+    "triangleCount": 57740,
     "drawGroups": [
       {
         "name": "hdframe",
@@ -146,7 +146,7 @@
       {
         "name": "hdwhite",
         "start": 137136,
-        "count": 5736,
+        "count": 6504,
         "color": [
           0.8879231214523315,
           0.8549926280975342,
@@ -158,7 +158,7 @@
       },
       {
         "name": "frame",
-        "start": 142872,
+        "start": 143640,
         "count": 12204,
         "color": [
           0.008568125776946545,
@@ -171,7 +171,7 @@
       },
       {
         "name": "lamp",
-        "start": 155076,
+        "start": 155844,
         "count": 3996,
         "color": [
           1.0,
@@ -184,7 +184,7 @@
       },
       {
         "name": "taillamp",
-        "start": 159072,
+        "start": 159840,
         "count": 5328,
         "color": [
           0.43415364623069763,
@@ -197,7 +197,7 @@
       },
       {
         "name": "glass",
-        "start": 164400,
+        "start": 165168,
         "count": 5280,
         "color": [
           0.009134058840572834,
@@ -210,7 +210,7 @@
       },
       {
         "name": "hdslat",
-        "start": 169680,
+        "start": 170448,
         "count": 108,
         "color": [
           0.0423114113509655,
@@ -223,7 +223,7 @@
       },
       {
         "name": "hdlens",
-        "start": 169788,
+        "start": 170556,
         "count": 2664,
         "color": [
           0.8468732237815857,

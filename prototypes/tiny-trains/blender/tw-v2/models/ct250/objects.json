@@ -2438,11 +2438,47 @@
   {
     "name": "煤水車車身",
     "type": "MESH",
-    "polygons": 268,
+    "polygons": 434,
     "modifiers": [
       "BEVEL",
       "WEIGHTED_NORMAL"
     ]
+  },
+  {
+    "name": "煤水車上緣外翻",
+    "type": "MESH",
+    "polygons": 10,
+    "modifiers": []
+  },
+  {
+    "name": "煤水車上緣白線",
+    "type": "MESH",
+    "polygons": 10,
+    "modifiers": []
+  },
+  {
+    "name": "煤水車上緣外翻.001",
+    "type": "MESH",
+    "polygons": 10,
+    "modifiers": []
+  },
+  {
+    "name": "煤水車上緣白線.001",
+    "type": "MESH",
+    "polygons": 10,
+    "modifiers": []
+  },
+  {
+    "name": "後緣外翻",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
+  },
+  {
+    "name": "後緣白線",
+    "type": "MESH",
+    "polygons": 6,
+    "modifiers": []
   },
   {
     "name": "擋煤板",
@@ -2787,18 +2823,6 @@
     "modifiers": []
   },
   {
-    "name": "後端梯橫檔.005",
-    "type": "MESH",
-    "polygons": 12,
-    "modifiers": []
-  },
-  {
-    "name": "後端梯橫檔.006",
-    "type": "MESH",
-    "polygons": 12,
-    "modifiers": []
-  },
-  {
     "name": "後端前燈座",
     "type": "MESH",
     "polygons": 6,
@@ -2961,27 +2985,39 @@
     "modifiers": []
   },
   {
-    "name": "煤水車轉向架側樑",
+    "name": "鑄鋼側架",
     "type": "MESH",
-    "polygons": 6,
+    "polygons": 14,
     "modifiers": []
   },
   {
     "name": "疊板彈簧",
     "type": "MESH",
-    "polygons": 6,
-    "modifiers": []
-  },
-  {
-    "name": "煤水車轉向架側樑.001",
-    "type": "MESH",
-    "polygons": 6,
+    "polygons": 8,
     "modifiers": []
   },
   {
     "name": "疊板彈簧.001",
     "type": "MESH",
-    "polygons": 6,
+    "polygons": 8,
+    "modifiers": []
+  },
+  {
+    "name": "鑄鋼側架.001",
+    "type": "MESH",
+    "polygons": 14,
+    "modifiers": []
+  },
+  {
+    "name": "疊板彈簧.002",
+    "type": "MESH",
+    "polygons": 8,
+    "modifiers": []
+  },
+  {
+    "name": "疊板彈簧.003",
+    "type": "MESH",
+    "polygons": 8,
     "modifiers": []
   },
   {
@@ -3099,27 +3135,39 @@
     "modifiers": []
   },
   {
-    "name": "煤水車轉向架側樑.002",
+    "name": "鑄鋼側架.002",
     "type": "MESH",
-    "polygons": 6,
+    "polygons": 14,
     "modifiers": []
   },
   {
-    "name": "疊板彈簧.002",
+    "name": "疊板彈簧.004",
     "type": "MESH",
-    "polygons": 6,
+    "polygons": 8,
     "modifiers": []
   },
   {
-    "name": "煤水車轉向架側樑.003",
+    "name": "疊板彈簧.005",
     "type": "MESH",
-    "polygons": 6,
+    "polygons": 8,
     "modifiers": []
   },
   {
-    "name": "疊板彈簧.003",
+    "name": "鑄鋼側架.003",
     "type": "MESH",
-    "polygons": 6,
+    "polygons": 14,
+    "modifiers": []
+  },
+  {
+    "name": "疊板彈簧.006",
+    "type": "MESH",
+    "polygons": 8,
+    "modifiers": []
+  },
+  {
+    "name": "疊板彈簧.007",
+    "type": "MESH",
+    "polygons": 8,
     "modifiers": []
   },
   {

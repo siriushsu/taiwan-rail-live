@@ -2045,13 +2045,43 @@
   {
     "name": "車頭藍色 V 帶",
     "type": "MESH",
-    "polygons": 144,
+    "polygons": 288,
     "modifiers": []
   },
   {
     "name": "車頭細藍線",
     "type": "MESH",
-    "polygons": 24,
+    "polygons": 36,
+    "modifiers": []
+  },
+  {
+    "name": "車頭細藍線.001",
+    "type": "MESH",
+    "polygons": 36,
+    "modifiers": []
+  },
+  {
+    "name": "燈座細黑邊",
+    "type": "MESH",
+    "polygons": 256,
+    "modifiers": []
+  },
+  {
+    "name": "燈座銀底",
+    "type": "MESH",
+    "polygons": 256,
+    "modifiers": []
+  },
+  {
+    "name": "燈座內藍帶",
+    "type": "MESH",
+    "polygons": 8,
+    "modifiers": []
+  },
+  {
+    "name": "燈座內細線",
+    "type": "MESH",
+    "polygons": 8,
     "modifiers": []
   },
   {
@@ -2140,6 +2170,30 @@
       "BEVEL",
       "WEIGHTED_NORMAL"
     ]
+  },
+  {
+    "name": "燈座細黑邊.001",
+    "type": "MESH",
+    "polygons": 256,
+    "modifiers": []
+  },
+  {
+    "name": "燈座銀底.001",
+    "type": "MESH",
+    "polygons": 256,
+    "modifiers": []
+  },
+  {
+    "name": "燈座內藍帶.001",
+    "type": "MESH",
+    "polygons": 8,
+    "modifiers": []
+  },
+  {
+    "name": "燈座內細線.001",
+    "type": "MESH",
+    "polygons": 8,
+    "modifiers": []
   },
   {
     "name": "頭尾燈燈座.001",

@@ -773,7 +773,7 @@
   {
     "name": "白色 V 字飛翼",
     "type": "MESH",
-    "polygons": 192,
+    "polygons": 256,
     "modifiers": []
   },
   {
@@ -791,7 +791,7 @@
   {
     "name": "外凸頭燈筒",
     "type": "MESH",
-    "polygons": 198,
+    "polygons": 226,
     "modifiers": [
       "BEVEL",
       "WEIGHTED_NORMAL"
@@ -852,27 +852,9 @@
     ]
   },
   {
-    "name": "正面直扶手",
-    "type": "MESH",
-    "polygons": 12,
-    "modifiers": []
-  },
-  {
-    "name": "扶手座",
-    "type": "MESH",
-    "polygons": 12,
-    "modifiers": []
-  },
-  {
-    "name": "扶手座.001",
-    "type": "MESH",
-    "polygons": 12,
-    "modifiers": []
-  },
-  {
     "name": "外凸頭燈筒.001",
     "type": "MESH",
-    "polygons": 198,
+    "polygons": 226,
     "modifiers": [
       "BEVEL",
       "WEIGHTED_NORMAL"
@@ -931,24 +913,6 @@
       "BEVEL",
       "WEIGHTED_NORMAL"
     ]
-  },
-  {
-    "name": "正面直扶手.001",
-    "type": "MESH",
-    "polygons": 12,
-    "modifiers": []
-  },
-  {
-    "name": "扶手座.002",
-    "type": "MESH",
-    "polygons": 12,
-    "modifiers": []
-  },
-  {
-    "name": "扶手座.003",
-    "type": "MESH",
-    "polygons": 12,
-    "modifiers": []
   },
   {
     "name": "短鼻側百葉框",
@@ -2471,7 +2435,7 @@
   {
     "name": "白色 V 字飛翼.001",
     "type": "MESH",
-    "polygons": 192,
+    "polygons": 256,
     "modifiers": []
   },
   {

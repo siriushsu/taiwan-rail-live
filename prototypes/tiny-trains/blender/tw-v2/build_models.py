@@ -59,8 +59,8 @@ def shell(s,front=None,name='圓肩主車殼',rear=None):
  use('01');o=mesh(name,verts,faces,'body',0,True);o['primary_body']=True
  return f,neck
 
-def front_panel(name,f,y,z,w,h,material,r=.06,offset=.024):
- use('03');return panel(name,(0,y,z),w,h,material,'front',r=r,depth=.014,surface=lambda yy,zz:f(yy,zz)+offset)
+def front_panel(name,f,y,z,w,h,material,r=.06,offset=.024,rows=16):
+ use('03');return panel(name,(0,y,z),w,h,material,'front',r=r,depth=.014,surface=lambda yy,zz:f(yy,zz)+offset,rows=rows)
 def front_poly(name,f,points,material):
  use('03');verts=[(f(y,z)+.035,y,z) for y,z in points];return mesh(name,verts,[tuple(range(len(verts)))],material)
 def front_ribbon(name,f,points,width,material):

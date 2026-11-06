@@ -46,11 +46,11 @@
   ],
   "mesh": {
     "file": "c381.mesh.bin",
-    "sha256": "2fe90a10248d38fddf8497892599c83754b423e29769a542fc0e1a96553b9fc6",
+    "sha256": "056adef348c2ad8ae648d7f13469d6d34bd36b9f58f6b7b5fddbf55fcc56b19d",
     "encoding": "float32-le",
     "strideBytes": 24,
-    "vertexCount": 190722,
-    "triangleCount": 63574,
+    "vertexCount": 198210,
+    "triangleCount": 66070,
     "drawGroups": [
       {
         "name": "stain",
@@ -81,7 +81,7 @@
       {
         "name": "c381silver",
         "start": 14850,
-        "count": 4404,
+        "count": 7476,
         "color": [
           0.6583748459815979,
           0.6938717365264893,
@@ -93,8 +93,8 @@
       },
       {
         "name": "tblue",
-        "start": 19254,
-        "count": 21372,
+        "start": 22326,
+        "count": 22716,
         "color": [
           0.017641954123973846,
           0.19120168685913086,
@@ -106,7 +106,7 @@
       },
       {
         "name": "frame",
-        "start": 40626,
+        "start": 45042,
         "count": 26376,
         "color": [
           0.008568125776946545,
@@ -119,7 +119,7 @@
       },
       {
         "name": "glass",
-        "start": 67002,
+        "start": 71418,
         "count": 9696,
         "color": [
           0.009134058840572834,
@@ -132,7 +132,7 @@
       },
       {
         "name": "metal",
-        "start": 76698,
+        "start": 81114,
         "count": 38916,
         "color": [
           0.30946892499923706,
@@ -145,7 +145,7 @@
       },
       {
         "name": "chassis",
-        "start": 115614,
+        "start": 120030,
         "count": 40764,
         "color": [
           0.03433980792760849,
@@ -158,7 +158,7 @@
       },
       {
         "name": "rubber",
-        "start": 156378,
+        "start": 160794,
         "count": 9828,
         "color": [
           0.014443843625485897,
@@ -171,7 +171,7 @@
       },
       {
         "name": "roof",
-        "start": 166206,
+        "start": 170622,
         "count": 1128,
         "color": [
           0.4677838087081909,
@@ -184,7 +184,7 @@
       },
       {
         "name": "dark",
-        "start": 167334,
+        "start": 171750,
         "count": 1536,
         "color": [
           0.02955683507025242,
@@ -197,7 +197,7 @@
       },
       {
         "name": "led",
-        "start": 168870,
+        "start": 173286,
         "count": 1536,
         "color": [
           0.8069522380828857,
@@ -210,7 +210,7 @@
       },
       {
         "name": "可移除車型示意牌",
-        "start": 170406,
+        "start": 174822,
         "count": 10992,
         "color": [
           0.8069522380828857,
@@ -222,8 +222,21 @@
         "clearcoat": 0.0
       },
       {
+        "name": "c381deep",
+        "start": 185814,
+        "count": 3072,
+        "color": [
+          0.013702083379030228,
+          0.07618538290262222,
+          0.34191441535949707
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.30000001192092896,
+        "clearcoat": 0.30000001192092896
+      },
+      {
         "name": "lamp",
-        "start": 181398,
+        "start": 188886,
         "count": 2664,
         "color": [
           1.0,
@@ -236,7 +249,7 @@
       },
       {
         "name": "taillamp",
-        "start": 184062,
+        "start": 191550,
         "count": 3996,
         "color": [
           0.43415364623069763,
@@ -249,7 +262,7 @@
       },
       {
         "name": "amber",
-        "start": 188058,
+        "start": 195546,
         "count": 2664,
         "color": [
           0.68668532371521,
@@ -262,7 +275,7 @@
       }
     ]
   },
-  "nativeObjectCount": 302,
+  "nativeObjectCount": 311,
   "features": {
     "sideDoorGroups": 4,
     "doorLeavesPerGroup": 2,

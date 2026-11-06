@@ -2,13 +2,13 @@
   {
     "name": "700T 白色車殼",
     "type": "MESH",
-    "polygons": 5897,
+    "polygons": 6443,
     "modifiers": []
   },
   {
     "name": "700T 橘色車鼻與橘帶",
     "type": "MESH",
-    "polygons": 3162,
+    "polygons": 3129,
     "modifiers": []
   },
   {
@@ -20,7 +20,7 @@
   {
     "name": "黑色水滴形駕駛窗罩",
     "type": "MESH",
-    "polygons": 1012,
+    "polygons": 1108,
     "modifiers": []
   },
   {

@@ -46,11 +46,11 @@
   ],
   "mesh": {
     "file": "r180.mesh.bin",
-    "sha256": "cfd1120001720bf3c1878b2a3af08fc9262bb22d0d88f2f79f8da821b416d5b1",
+    "sha256": "08a81543ec646406b5b2da5e26b20b7cee7808755fa4002b7cd277aa71690a3b",
     "encoding": "float32-le",
     "strideBytes": 24,
-    "vertexCount": 215814,
-    "triangleCount": 71938,
+    "vertexCount": 216198,
+    "triangleCount": 72066,
     "drawGroups": [
       {
         "name": "hdframe",
@@ -198,7 +198,7 @@
       {
         "name": "hdwhite",
         "start": 150222,
-        "count": 1656,
+        "count": 2040,
         "color": [
           0.8879231214523315,
           0.8549926280975342,
@@ -210,7 +210,7 @@
       },
       {
         "name": "taillamp",
-        "start": 151878,
+        "start": 152262,
         "count": 5328,
         "color": [
           0.43415364623069763,
@@ -223,7 +223,7 @@
       },
       {
         "name": "glass",
-        "start": 157206,
+        "start": 157590,
         "count": 7248,
         "color": [
           0.009134058840572834,
@@ -236,7 +236,7 @@
       },
       {
         "name": "可移除車型示意牌",
-        "start": 164454,
+        "start": 164838,
         "count": 39744,
         "color": [
           0.8069522380828857,
@@ -249,7 +249,7 @@
       },
       {
         "name": "lamp",
-        "start": 204198,
+        "start": 204582,
         "count": 2664,
         "color": [
           1.0,
@@ -262,7 +262,7 @@
       },
       {
         "name": "hdlight",
-        "start": 206862,
+        "start": 207246,
         "count": 564,
         "color": [
           0.5840784311294556,
@@ -275,7 +275,7 @@
       },
       {
         "name": "hdrail",
-        "start": 207426,
+        "start": 207810,
         "count": 3024,
         "color": [
           0.8549926280975342,
@@ -288,7 +288,7 @@
       },
       {
         "name": "hdslat",
-        "start": 210450,
+        "start": 210834,
         "count": 2700,
         "color": [
           0.0423114113509655,
@@ -301,7 +301,7 @@
       },
       {
         "name": "hdlens",
-        "start": 213150,
+        "start": 213534,
         "count": 2664,
         "color": [
           0.8468732237815857,
