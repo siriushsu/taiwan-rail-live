@@ -170,7 +170,8 @@ const widths = [360, 375, 414, 768];
 // 11/06: steam, coach add 2 (584 -> 586).
 // 11/06: fleet add 1 (586 -> 587).
 // 11/06: fit, short add 2 (587 -> 589).
-const expectedHistoryCount = 589;
+// 11/06: garage scene music add 1 (589 -> 590).
+const expectedHistoryCount = 590;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

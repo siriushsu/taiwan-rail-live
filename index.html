@@ -5892,6 +5892,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="garagescenemusic1106"><span class="d">11/06</span><span>車庫音樂改到場景頁才放，只放慢版鋼琴，車跑起來還有鐵軌聲；車庫首頁不出聲，音符鈕留在場景頁</span></li>
         <li data-cl-of="garagefit1106"><span class="d">11/06</span><span>車庫場景頁的時段鈕、標題和車款選單放不下時改成換行，Safari 點車款也換得到車</span></li>
         <li data-cl-of="garageshort1106"><span class="d">11/06</span><span>手機橫放時，車庫的機務段入口排到展示台下面，第一屏看得到完整車模</span></li>
         <li data-cl-of="fleet22-1106"><span class="d">11/06</span><span>22 款列車的 3D 車模對照實車照片修正，海風號、山嵐號、R200 改動最大</span></li>
@@ -5899,7 +5900,6 @@
         <li data-cl-of="coachlead1106"><span class="d">11/06</span><span>車庫裡的客車款跑起來會配上機車頭，復興號、莒光號不再沒有車頭</span></li>
         <li data-cl-of="emu3000new1106"><span class="d">11/06</span><span>EMU3000 新自強號的 3D 車模重新製作，外型更接近實車</span></li>
         <li data-cl-of="qclip1106"><span class="d">11/06</span><span>Q 版列車從側面看時，並行的列車不再互相穿過</span></li>
-        <li data-cl-of="roundhouse1106"><span class="d">11/06</span><span>通行證的自製列車擴成 6 列，住進新的 3D 扇形車庫「軌島機務段」：每列有成就、頭牌和車牌框，還能親手發車；登入同帳號，車隊跨裝置同步（目前網站版）</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -6439,6 +6439,7 @@
         <li><span class="d">7/10</span><span>夜間與衛星模式視覺升級；「軌」軌道顯示三段切換：自動／淡化／隱藏</span></li>
         <li><span class="d">7/9</span><span>站名移到軌道側邊不再互相壓住；雙欄版面：搜尋／最愛／旅程收集移到右側欄</span></li>
         <li class="grp">分享與個人化</li>
+        <li data-cl="garagescenemusic1106"><span class="d">11/06</span><span>車庫音樂改到場景頁才放，只放慢版鋼琴，車跑起來還有鐵軌聲；車庫首頁不出聲，音符鈕留在場景頁</span></li>
         <li data-cl="fleet22-1106"><span class="d">11/06</span><span>22 款列車的 3D 車模對照實車照片修正，海風號、山嵐號、R200 改動最大</span></li>
         <li data-cl="coachlead1106"><span class="d">11/06</span><span>車庫裡的客車款跑起來會配上機車頭，復興號、莒光號不再沒有車頭</span></li>
         <li data-cl="steam1106"><span class="d">11/06</span><span>CK124、CT273、DT668 三款蒸汽機車的 3D 車模照實車重新製作</span></li>
@@ -7434,7 +7435,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1105f：捷運路線圖頁的資料日期跟著班表走，過期的設計展附註消失
 // v1106a：自製列車擴成六股車隊，新增 3D 扇形車庫「軌島機務段」、成就與外觀，車隊跟著帳號同步（網站版）
 // v1106b：EMU3000 車模照實車重做；Q 版並行列車側視時，畫面上疊到的組再沿視線分開。
-const BUILD = 'v1106b';
+// v1106c：車庫音樂改到場景頁才放，只放鋼琴（通行證再加花蓮山海兩首），車在跑時墊車聲。
+const BUILD = 'v1106c';
 // v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
@@ -22080,7 +22082,7 @@ function ambTick(force) {
     } else moving = a.playing;   // 這一秒相機沒有新位置(頁面被凍結/轉場):維持原狀,不亂切
   } else if (a.on && state.ambient && !(state.followTrain || state.freqFollow)) moving = true;   // 群車放空:沒有單一目標,一直放
   if (a.lat != null) { a.plat = a.lat; a.plon = a.lon; a.pat = a.at; }
-  const want = !!(a.on && moving);
+  const want = !!(a.on && moving) || (musicSceneSound && musicSceneRunning && state.music.enabled);   // 車庫場景頁不看車聲開關，由音樂鈕一起管
   const gain = Math.max(0, Math.min(1, state.music.vol * AMB_GAIN));
   if (force || want !== a.playing || (want && Math.abs(gain - a.gain) > 0.02)) {
     a.playing = want; a.gain = gain;
@@ -22146,10 +22148,11 @@ function initMusic() {
     // 🔴 _fellBack 一次性:少了它,內建清單也載不到時 _fails 每被歸零一次就會再退一次,無限重試。
     //    它在 'playing' 歸零,所以網路回來後再遇到斷線仍會再退一次。
     const bundled = (window.MUSIC_DATA.free.bundled || []);
-    if (++m._fails >= 3 && !m._fellBack && musicIsApp() && bundled.length) {
+    const fallback = musicSceneSaved ? bundled.filter(f => m.list.includes(f)) : bundled;
+    if (++m._fails >= 3 && !m._fellBack && musicIsApp() && fallback.length) {
       m._fellBack = true;
       m._fails = 0;
-      m.list = musicShuffle(bundled.slice());
+      m.list = musicShuffle(fallback.slice());
       m.idx = 0;
       musicLoadCur();
       if (m.enabled) { m.audio.volume = m.vol; m.audio.play().catch(() => {}); }
@@ -22255,7 +22258,7 @@ function musicNext() {
   const m = state.music;
   // 自動模式:曲末才重新評估情境。這是「絕不打斷正在播的曲子」那條政策的實作點——
   // 情境在播放中變了只會更新 _ctxKey,真正換池要等到這裡。
-  if (musicEffectiveMode().kind === 'auto') {
+  if (musicEffectiveMode().kind === 'auto' && !musicSceneSaved) {
     const p = musicAutoPool();
     if (p) m._curCtxKey = m._ctxKey;   // 這一輪的池是在此刻的情境下選的
     if (p && p.id !== m._curPoolId) {
@@ -22293,29 +22296,58 @@ function musicPlay() {
   m.audio.play().then(() => musicRamp(m.vol, 1200)).catch(() => {}); // 自動播放被擋就靜默略過
 }
 function musicStop() { musicRamp(0, 800, true); }
-// 看車庫放音樂（規則同 App 的 garageOpened／garageClosed）：開關開著、現在沒在放才換一首開播（清單洗過，下一首就是隨機），
-// 關過的人不自動放，已經在放的不動。離開時是車庫開的才收，開關偏好不動；中途自己按過開關就算他的（setMusicEnabled 清掉）。
-// 要在點擊那一拍同步呼叫，瀏覽器才認得是使用者手勢；被擋時 musicNext 裡的 catch 靜默略過，鈕面照實際狀態。
-let musicGarageStarted = false;
-function musicGarageOpened() {
-  const m = state.music;
-  if (!musicAvailable() || !m.enabled || !m.audio.paused) return;
-  musicGarageStarted = true;
-  musicNext();
-  m.audio.volume = 0; musicRamp(m.vol, 1200);
+// 車庫場景頁的配樂（規則同 App 的 garageSceneOpened／garageSceneClosed，曲目同 railcore M6SceneMusic）：
+// 開關開著、現在沒在放才開播，這段時間只放場景曲，使用者選的模式不動，離開接回原清單；車在跑時墊車聲。
+// 關過的人不自動放，已經在放的不動。離開時是場景頁開的才收，開關偏好不動；中途自己按過開關就算他的（setMusicEnabled 清掉）。
+// 要在點擊那一拍同步呼叫，瀏覽器才認得是使用者手勢；被擋時 catch 靜默略過，鈕面照實際狀態。
+const MUSIC_SCENE_PASS = ['_pass/hualien-cliffs/Stone River Window-2.mp3', '_pass/hualien-cliffs/Between Cliffs and Blue.mp3'];
+let musicSceneOpen = false, musicSceneSound = false, musicSceneRunning = false, musicSceneStarted = false, musicSceneSaved = null;
+function musicSceneTracks() {
+  const piano = MUSIC_FILES.filter(f => f.startsWith('peaceful piano/'));
+  return plusIsActive() ? piano.concat(MUSIC_SCENE_PASS) : piano;
 }
-function musicGarageClosed() {
-  if (!musicGarageStarted) return;
-  musicGarageStarted = false;
-  if (!state.music.audio.paused) musicStop();
+function musicSceneBegin() {
+  const m = state.music;
+  if (!musicSceneSaved) musicSceneSaved = { list: m.list, idx: m.idx };
+  m.list = musicShuffle(musicSceneTracks());
+  m.idx = 0;
+  m._fails = 0;
+  musicLoadCur();
+}
+function musicSceneOpened() {
+  const m = state.music;
+  musicSceneOpen = true;
+  if (!musicAvailable() || !m.enabled) return;
+  musicSceneSound = true;
+  if (!musicIsApp() && ambAvailable()) ambWebCtx();   // 車聲的 AudioContext 也要在這一拍解開
+  if (m.audio.paused) {
+    musicSceneStarted = true;
+    musicSceneBegin();
+    m.audio.volume = 0;
+    m.audio.play().catch(() => {});
+    musicRamp(m.vol, 1200);
+  }
+  ambTick();
+}
+function musicSceneSetRunning(on) { musicSceneRunning = !!on; ambTick(); }
+function musicSceneClosed() {
+  if (!musicSceneOpen) return;
+  const m = state.music, saved = musicSceneSaved, started = musicSceneStarted;
+  musicSceneOpen = musicSceneSound = musicSceneRunning = musicSceneStarted = false;
+  musicSceneSaved = null;
+  ambTick();
+  if (saved) { m.list = saved.list; m.idx = saved.idx; m._fails = 0; }
+  if (started && !m.audio.paused) musicStop();
 }
 function setMusicEnabled(on) {
   if (!musicAvailable()) on = false;
   state.music.enabled = on;
-  musicGarageStarted = false;
+  musicSceneStarted = false;
   saveMusicPref();
   updateMusicBtn();
+  if (on && musicSceneOpen) { musicSceneSound = true; musicSceneBegin(); }
   on ? musicPlay() : musicStop(); // 開關即播/停,放空與否都一樣
+  ambTick();
 }
 
 // 時鐘防漂移,每秒由 tick 呼叫。前景純靠 rAF 的
@@ -24218,16 +24250,16 @@ function openTrainGarage(options = {}) {
   if (!window.TrainGarage) { showToast(t('車庫暫時無法載入，請稍後重試。')); return; }
   if (!state.ready) { showToast(t('收藏資料載入中，請稍後再試。')); return; }
   garageReturnFocus = document.activeElement;
-  if (!window.TrainGarage.isOpen) musicGarageOpened();
   window.TrainGarage.open({
     ...ownTrainHost(), // 自製列車:TrainGarage 用 host.plan();下面同名欄位以車庫自己的為準
     ownTrainCard, ownTrainSchedule, ownTrainView, ownTrainReplan, ownTrainFull,
     ownTrainDepot: () => openMyTrainDepot({ back: true }),
     snapshot: garageSnapshot, t, lang: () => I18N_LANG, dark: () => !!state.mapDark,
     wallet: garageWallet,
-    music: { available: musicAvailable, playing: () => state.music.enabled && !state.music.audio.paused, toggle: () => document.getElementById('musicBtn').click() },
+    music: { available: musicAvailable, playing: () => state.music.enabled && !state.music.audio.paused, toggle: () => document.getElementById('musicBtn').click(),
+      sceneOpened: musicSceneOpened, sceneClosed: musicSceneClosed, sceneRunning: musicSceneSetRunning },
     onClose: () => {
-      musicGarageClosed();
+      musicSceneClosed();
       garageResumeMap();
       if (garageReturnFocus?.isConnected && garageReturnFocus.getClientRects().length) garageReturnFocus.focus({preventScroll:true});
     },

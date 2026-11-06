@@ -1,5 +1,6 @@
-// 看車庫放音樂：真的點進車庫，量 <audio> 有沒有在走（currentTime），不是看旗標。
-// 規則同 App（garageOpened／garageClosed）：開關開著、沒在放才換一首開播；關過不放；在放的不動；車庫開的才收。
+// 車庫場景頁的配樂：真的點進場景頁，量 <audio> 有沒有在走（currentTime），不是看旗標。
+// 規則同 App（garageSceneOpened／garageSceneClosed）：車庫首頁不出聲；場景頁開關開著、沒在放才開播，只放場景曲；
+// 關過不放；在放的不動；場景頁開的才收；車在跑才有車聲（state.amb.playing，打亂檔只有出貨才產生，這裡量不到真的聲音）。
 // 自己起 dev_server：它支援 Range，python http.server 不支援，WebKit 拿不到 Range 會放不起來，那是假紅。
 // 自動播放限制：Playwright 的 evaluate 帶 userGesture，輪詢一次頁面就算有過手勢，所以「沒手勢」那段只聽 console、不碰頁面；
 // 其他段落的頁面已經被碰過，改靠 window.event 確認 play() 在真實點擊的同一拍。
@@ -64,10 +65,10 @@ async function enter(p, touch = false) {
   await p.waitForFunction(() => TrainGarage.isOpen);
 }
 const snap = p => p.evaluate(() => {
-  const m = state.music, a = m.audio, g = document.querySelector('.g-music');
+  const m = state.music, a = m.audio;
   return { paused: a.paused, t: a.currentTime, vol: a.volume, want: m.vol, src: decodeURI(a.src), ready: a.readyState, enabled: m.enabled,
     pref: JSON.parse(localStorage.getItem('trainmap-music') || '{}').enabled, map: document.getElementById('musicBtn').classList.contains('playing'),
-    garage: g && g.getAttribute('aria-pressed'), scene: document.querySelector('.g-sf-music')?.getAttribute('aria-pressed') };
+    scene: document.querySelector('.g-sf-music')?.getAttribute('aria-pressed'), amb: !!state.amb?.playing, list: m.list.slice() };
 });
 // 在放＝沒暫停、currentTime 真的往前走、音量淡到設定值。
 async function sounding(p) {
@@ -114,6 +115,9 @@ async function openScene(p, touch) {
   await p.waitForSelector('.g-sf:not([hidden])');
 }
 
+const piano = s => s.src.includes('peaceful piano/');
+const ambIs = (p, on) => p.waitForFunction(v => !!state.amb?.playing === v, on, { timeout: 5000 }).then(() => true, () => false);
+
 async function run(name, b) {
   const scene = async (label, fn) => {
     try { await fn(); } catch (e) { check(`${name} ${label}`, false, e.message.split('\n')[0]); }
@@ -121,38 +125,71 @@ async function run(name, b) {
 
   await scene('預設', async () => {
     const { ctx, p, errors } = await boot(b);
-    check(`${name} 進車庫前沒在放`, (await snap(p)).paused);
+    const before = await snap(p);
+    check(`${name} 進車庫前沒在放`, before.paused);
     await enter(p);
+    check(`${name} 車庫首頁不出聲`, await silent(p) && (await p.evaluate(() => window.__plays.length)) === 0, await snap(p));
+    check(`${name} 車庫頂列沒有音樂鈕`, !await p.locator('.g-music').count());
+    await openScene(p);
     const gesture = await p.evaluate(() => window.__plays.at(-1));
     check(`${name} play() 在真實點擊的同一拍`, gesture?.trusted === true && gesture.type === 'click', gesture);
     const playing = await sounding(p), on = await snap(p);
-    check(`${name} 點進車庫音樂真的在放`, playing, on);
-    check(`${name} 地圖鈕與車庫鈕都亮`, on.map && on.garage === 'true', on);
-    await p.click('.g-close');
+    check(`${name} 點進場景頁音樂真的在放`, playing, on);
+    check(`${name} 放的是鋼琴`, piano(on) && on.list.every(s => s.startsWith('peaceful piano/')), on.src);
+    check(`${name} 沒通行證不放通行證曲`, on.list.length === 12, on.list);
+    check(`${name} 地圖鈕與場景鈕都亮`, on.map && on.scene === 'true', on);
+    check(`${name} 車在跑有車聲`, await ambIs(p, true), on);
+    await p.click('.g-sf-play');
+    check(`${name} 暫停行駛車聲收掉`, await ambIs(p, false));
+    check(`${name} 暫停行駛音樂照放`, await sounding(p), await snap(p));
+    await p.click('.g-sf-play');
+    check(`${name} 開始行駛車聲回來`, await ambIs(p, true));
+    await p.evaluate(() => musicNext());
+    await sounding(p);
+    check(`${name} 換下一首還是鋼琴`, piano(await snap(p)), (await snap(p)).src);
+    await p.click('.g-sf-leave');
     const stopped = await silent(p), off = await snap(p);
-    check(`${name} 離開車庫音樂停`, stopped, off);
+    check(`${name} 離開場景頁音樂停`, stopped, off);
+    check(`${name} 離開場景頁車聲停`, await ambIs(p, false));
     check(`${name} 離開不動開關偏好`, off.enabled === true && off.pref !== false, off);
     check(`${name} 離開後鈕面回到沒在放`, !off.map, off);
-    await enter(p);
-    const again = await sounding(p), next = await snap(p);
-    check(`${name} 再進車庫換一首`, again && next.src !== on.src, [on.src, next.src]);
+    check(`${name} 離開接回原清單`, off.list.length === before.list.length && off.list.join() === before.list.join(), [off.list.length, before.list.length]);
+    await openScene(p);
+    check(`${name} 再進場景頁又放`, await sounding(p) && piano(await snap(p)), await snap(p));
     await p.keyboard.press('Escape');
     check(`${name} Esc 離開也停`, await silent(p), await snap(p));
     check(`${name} 預設流程無例外`, await quiet(p, errors), errors);
-    console.log(`  ${name} 兩次的曲子：${on.src.split('suno musics/')[1]} → ${next.src.split('suno musics/')[1]}`);
+    await ctx.close();
+  });
+
+  await scene('通行證', async () => {
+    const { ctx, p, errors } = await boot(b);
+    await p.evaluate(() => { state.plus = { ...state.plus, active: true }; });
+    await enter(p);
+    await openScene(p);
+    await sounding(p);
+    const on = await snap(p), pass = on.list.filter(s => s.startsWith('_pass/'));
+    check(`${name} 有通行證多放花蓮山海兩首`, on.list.length === 14 && pass.length === 2 && pass.every(s => s.includes('hualien-cliffs')), pass);
+    check(`${name} Gorge Light 不在清單`, !on.list.some(s => s.includes('Gorge Light')), on.list);
+    check(`${name} 通行證曲的檔案在`, await p.evaluate(async list => (await Promise.all(list.map(f => fetch(musicSrc(f), { method: 'HEAD' })))).every(r => r.ok), pass));
+    check(`${name} 通行證流程無例外`, await quiet(p, errors), errors);
     await ctx.close();
   });
 
   await scene('關過', async () => {
     const { ctx, p, errors } = await boot(b, { pref: { enabled: false, vol: .5 } });
     await enter(p);
+    await openScene(p);
     const off = await snap(p);
-    check(`${name} 關過音樂不自動放`, await silent(p) && off.garage === 'false' && !off.src.includes('suno'), off);
-    await p.click('.g-music');
+    check(`${name} 關過音樂不自動放`, await silent(p) && off.scene === 'false' && !off.src.includes('suno'), off);
+    check(`${name} 關過也沒車聲`, await ambIs(p, false));
+    await p.click('.g-sf-music');
     const playing = await sounding(p), on = await snap(p);
-    check(`${name} 車庫鈕打開就放且記住`, playing && on.pref === true && on.garage === 'true', on);
-    await p.click('.g-close');
+    check(`${name} 場景鈕打開就放且記住`, playing && on.pref === true && on.scene === 'true', on);
+    check(`${name} 打開後放鋼琴也有車聲`, piano(on) && await ambIs(p, true), on);
+    await p.click('.g-sf-leave');
     check(`${name} 自己打開的離開照放`, await sounding(p), await snap(p));
+    check(`${name} 自己打開的離開車聲收`, await ambIs(p, false));
     check(`${name} 關過流程無例外`, await quiet(p, errors), errors);
     await ctx.close();
   });
@@ -163,63 +200,52 @@ async function run(name, b) {
     await sounding(p);
     const before = await snap(p);
     await enter(p);
+    await openScene(p);
     const inside = await snap(p);
     check(`${name} 已經在放的不動`, inside.src === before.src && inside.t >= before.t && !inside.paused, [before, inside]);
+    check(`${name} 已經在放也墊車聲`, await ambIs(p, true));
+    await p.click('.g-sf-leave');
     await p.click('.g-close');
     const still = await sounding(p), after = await snap(p);
-    check(`${name} 不是車庫開的離開不停`, still && after.src === before.src, after);
+    check(`${name} 不是場景開的離開不停`, still && after.src === before.src, after);
     check(`${name} 在放流程無例外`, await quiet(p, errors), errors);
     await ctx.close();
   });
 
-  await scene('車庫裡按開關', async () => {
+  await scene('場景裡按開關', async () => {
     const { ctx, p, errors } = await boot(b);
     await enter(p);
+    await openScene(p);
     await sounding(p);
-    await p.click('.g-music');
+    await p.click('.g-sf-music');
     const stopped = await silent(p), off = await snap(p);
-    check(`${name} 車庫鈕關掉就停且記住`, stopped && off.pref === false && off.garage === 'false', off);
-    await p.click('.g-music');
+    check(`${name} 音符鈕關掉就停且記住`, stopped && off.pref === false && off.scene === 'false', off);
+    check(`${name} 音符鈕關掉車聲也停`, await ambIs(p, false));
+    await p.click('.g-sf-music');
     await sounding(p);
-    await p.click('.g-close');
+    const on = await snap(p);
+    check(`${name} 再按回來鋼琴與車聲都在`, on.scene === 'true' && piano(on) && await ambIs(p, true), on);
+    await p.click('.g-sf-leave');
     check(`${name} 中途自己按過就算他的、離開照放`, await sounding(p), await snap(p));
+    await p.click('.g-close');
     await mapMusic(p);
     await silent(p);
     await enter(p);
-    check(`${name} 地圖鈕關掉後進車庫不放`, await silent(p), await snap(p));
+    await openScene(p);
+    check(`${name} 地圖鈕關掉後進場景不放`, await silent(p), await snap(p));
+    await p.click('.g-sf-leave');
+    await p.click('.g-fs');
+    await p.waitForFunction(() => document.getElementById('trainGarage').classList.contains('g-full'));
     check(`${name} 開關流程無例外`, await quiet(p, errors), errors);
     await ctx.close();
   });
 
-  await scene('場景頁', async () => {
-    const { ctx, p, errors } = await boot(b);
-    await enter(p);
-    await sounding(p);
-    await openScene(p);
-    await p.click('.g-sf-music');
-    const stopped = await silent(p), off = await snap(p);
-    check(`${name} 場景頁鈕是同一個開關`, stopped && off.scene === 'false' && off.garage === 'false' && off.pref === false, off);
-    await p.click('.g-sf-music');
-    await sounding(p);
-    const on = await snap(p);
-    check(`${name} 兩顆鈕跟著實際狀態`, on.scene === 'true' && on.garage === 'true', on);
-    await p.click('.g-sf-leave');
-    await p.click('.g-fs');
-    await p.waitForFunction(() => document.getElementById('trainGarage').classList.contains('g-full'));
-    check(`${name} 全畫面觀看沒有音樂鈕`, !await p.locator('.g-music').isVisible());
-    check(`${name} 場景流程無例外`, await quiet(p, errors), errors);
-    await ctx.close();
-  });
-
-  // 開網址直進車庫沒有使用者手勢：瀏覽器真的擋不擋是這支量的，不是假設的。
+  // 開網址直進車庫沒有使用者手勢：車庫首頁不出聲，連 play() 都不該叫。只聽 console、不碰頁面。
   await scene('沒手勢', async () => {
-    const { ctx, p, errors, played } = await boot(b, { query: '?lang=zh-TW&garage=1', hands: false });
-    const result = await played;
-    console.log(`  ${name} 沒手勢直進車庫：${result}`);
-    check(`${name} 沒手勢確實被自動播放政策擋`, result === 'NotAllowedError', result);
+    const { ctx, p, errors } = await boot(b, { query: '?lang=zh-TW&garage=1', hands: false });
+    await p.waitForFunction(() => window.TrainGarage?.isOpen, null, { timeout: 60000 });
     await p.waitForTimeout(800);
-    const s = await snap(p);
-    check(`${name} 沒手勢時鈕面照實際狀態`, (s.garage === 'true') === !s.paused, s);
+    check(`${name} 直進車庫不開播`, (await p.evaluate(() => window.__plays.length)) === 0, await p.evaluate(() => window.__plays));
     check(`${name} 沒手勢無例外`, await quiet(p, errors), errors);
     await ctx.close();
   });
@@ -227,10 +253,12 @@ async function run(name, b) {
   await scene('被擋', async () => {
     const { ctx, p, errors } = await boot(b, { blockPlay: true });
     await enter(p);
+    await openScene(p);
     await p.waitForTimeout(800);
     const s = await snap(p);
-    check(`${name} 被擋時車庫照開、鈕面不亮`, s.garage === 'false' && !s.map, s);
+    check(`${name} 被擋時場景照開、鈕面不亮`, s.scene === 'false' && !s.map, s);
     check(`${name} 被擋時不跳提示`, !await p.locator('#toast.show, .toast.show').count());
+    await p.click('.g-sf-leave');
     await p.click('.g-close');
     await p.waitForFunction(() => !TrainGarage.isOpen);
     check(`${name} 被擋時安靜失敗`, await quiet(p, errors), [errors, await p.evaluate(() => window.__rejected)]);
@@ -241,23 +269,19 @@ async function run(name, b) {
     const label = `${name} ${width}`;
     const { ctx, p, errors } = await boot(b, { opts: { viewport: { width, height: 800 }, isMobile: true, hasTouch: true } });
     await enter(p, true);
-    const gesture = await p.evaluate(() => window.__plays.at(-1));
-    check(`${label} 觸控的 play() 在真實點擊的同一拍`, gesture?.trusted === true && gesture.type === 'click', gesture);
-    check(`${label} 真的點進車庫音樂在放`, await sounding(p), await snap(p));
-    let l = await layout(p, '.g-music');
-    check(`${label} 頂列音樂鈕不重疊、點得到`, layoutOk(l), l);
+    check(`${label} 車庫首頁不出聲`, await silent(p), await snap(p));
     const close = await layout(p, '.g-close');
     check(`${label} 回到地圖還點得到`, !close.hits.length && close.on && close.inside, close);
-    await p.locator('.g-music').tap();
-    const off = await silent(p), s = await snap(p);
-    check(`${label} 觸控關掉音樂`, off && s.garage === 'false', s);
-    await p.locator('.g-music').tap();
-    check(`${label} 觸控打開音樂`, await sounding(p), await snap(p));
     await openScene(p, true);
-    l = await layout(p, '.g-sf-music');
+    const gesture = await p.evaluate(() => window.__plays.at(-1));
+    check(`${label} 觸控的 play() 在真實點擊的同一拍`, gesture?.trusted === true && gesture.type === 'click', gesture);
+    check(`${label} 真的點進場景頁音樂在放`, await sounding(p), await snap(p));
+    const l = await layout(p, '.g-sf-music');
     check(`${label} 場景頁音樂鈕不重疊、點得到`, layoutOk(l), l);
     await p.locator('.g-sf-music').tap();
     check(`${label} 場景頁觸控關掉音樂`, await silent(p), await snap(p));
+    await p.locator('.g-sf-music').tap();
+    check(`${label} 場景頁觸控打開音樂`, await sounding(p), await snap(p));
     await p.locator('.g-sf-leave').tap();
     await p.locator('.g-close').tap();
     await p.waitForFunction(() => !TrainGarage.isOpen);
@@ -265,14 +289,12 @@ async function run(name, b) {
     await ctx.close();
   });
 
-  // 最窄時外語的頂列也要放得下：品牌字可以省略，鈕不能被擠掉。
+  // 最窄時外語的場景頁頂列也要放得下：鈕不能被擠掉。
   for (const lang of ['en', 'ja', 'ko']) await scene(`360 ${lang}`, async () => {
     const { ctx, p } = await boot(b, { query: `?lang=${lang}`, pref: { enabled: false, vol: .5 }, opts: { viewport: { width: 360, height: 800 }, isMobile: true, hasTouch: true } });
     await enter(p, true);
-    let l = await layout(p, '.g-music');
-    check(`${name} 360 ${lang} 頂列`, layoutOk(l), l);
     await openScene(p, true);
-    l = await layout(p, '.g-sf-music');
+    const l = await layout(p, '.g-sf-music');
     check(`${name} 360 ${lang} 場景頁`, layoutOk(l), l);
     await ctx.close();
   });

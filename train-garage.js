@@ -191,13 +191,13 @@
   // 舞台鋪滿畫面，頁籤、縮放、提示與控制鈕疊在上面；同一個 renderer，模式、角度、縮放與行駛時間點照舊。
   // 有 Fullscreen API 的（桌機、Android Chrome）連瀏覽器外框一起藏，Esc／返回手勢由瀏覽器退出；
   // iPhone Safari 沒有元素全畫面，只用 CSS 鋪滿，另推一筆瀏覽紀錄讓返回手勢退出。
-  // 車庫音樂鈕（頂列、場景頁頂列；全畫面觀看沒放，同 App）：在放是音符，沒在放是喇叭斜線。
+  // 音樂鈕只在場景頁頂列（車庫首頁、全畫面觀看都沒放，同 App）：在放是音符，沒在放是喇叭斜線。
   const MUSIC_PATH={on:'M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z',off:'M16.5 12A4.5 4.5 0 0 0 14 7.97v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51A8.8 8.8 0 0 0 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a8.99 8.99 0 0 0 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4 9.91 6.09 12 8.18V4z'};
-  const musicButton=cls=>`<button class="${cls}" type="button" hidden aria-pressed="false" title="${esc(tr('背景音樂'))}" aria-label="${esc(tr('背景音樂'))}"><svg viewBox="0 0 24 24" aria-hidden="true"><path/></svg></button>`;
+  const musicButton=()=>`<button class="g-sf-music g-sf-icon" type="button" hidden aria-pressed="false" title="${esc(tr('背景音樂'))}" aria-label="${esc(tr('背景音樂'))}"><svg viewBox="0 0 24 24" aria-hidden="true"><path/></svg></button>`;
   function showMusic(){
     if(!dialog?.open)return;
     const on=!!host.music?.playing();
-    for(const b of dialog.querySelectorAll('.g-music,.g-sf-music')){b.hidden=!host.music?.available();b.setAttribute('aria-pressed',String(on));b.querySelector('path').setAttribute('d',on?MUSIC_PATH.on:MUSIC_PATH.off);}
+    for(const b of dialog.querySelectorAll('.g-sf-music')){b.hidden=!host.music?.available();b.setAttribute('aria-pressed',String(on));b.querySelector('path').setAttribute('d',on?MUSIC_PATH.on:MUSIC_PATH.off);}
   }
   const FS_PATH={on:'M9 4 L9 9 L4 9 M15 4 L15 9 L20 9 M20 15 L15 15 L15 20 M9 20 L9 15 L4 15',off:'M4 9 L4 4 L9 4 M15 4 L20 4 L20 9 M20 15 L20 20 L15 20 M9 20 L4 20 L4 15'};
   const fsElement=()=>document.fullscreenElement||document.webkitFullscreenElement||null;
@@ -228,6 +228,7 @@
       setFullscreen(false);frameBack=mode;mode='scene';auto=false;running=!reduced.matches;last=0;frameCars=new Map();rowScroll=true;
       const p=pickedPeriod();period=FRAME_PERIODS.includes(p)?p:'sunset';
       dialog.classList.add('g-sf-open');$('.g-top').inert=$('.g-main').inert=true;$('.g-sf').hidden=false;$('.g-sf-leave').focus({preventScroll:true});
+      host.music?.sceneOpened();host.music?.sceneRunning(running);
     }else if(frameScene!==scene){frameCars.set(frameScene,selected);rowScroll=true;}
     frameScene=scene;selected=pickCar(scene)||selected;closeCars();resetView();
   }
@@ -235,6 +236,7 @@
   function keepFrameCar(){const row=rows.find(r=>r.id===selected);if(row&&!inFilter(row))filter='all';}
   function closeFrame(){
     if(!frameBack)return;
+    host.music?.sceneClosed();
     closeCars();mode=frameBack;frameBack='';frameScene='';auto=false;running=mode!=='model'&&!reduced.matches;period=pickedPeriod();resetView();last=0;
     dialog.classList.remove('g-sf-open');$('.g-sf').hidden=true;$('.g-top').inert=$('.g-main').inert=false;
     keepFrameCar();showGrid();$('[data-view="scene"]').focus({preventScroll:true});
@@ -700,7 +702,7 @@
     dialog.classList.remove('g-sf-open');
     dialog.lang=host.lang();
     dialog.classList.toggle('dark',host.dark());
-    dialog.innerHTML=`<header class="g-top"><span class="g-brand">${esc(tr('軌島・收藏'))}</span>${musicButton('g-music')}<button class="g-close" autofocus>${esc(tr('回到地圖'))} ↗</button></header>
+    dialog.innerHTML=`<header class="g-top"><span class="g-brand">${esc(tr('軌島・收藏'))}</span><button class="g-close" autofocus>${esc(tr('回到地圖'))} ↗</button></header>
       <main class="g-main"><div class="g-heading"><h1 id="garageTitle">${esc(tr('我的車庫'))}</h1>
       <div class="g-progress"><strong class="g-count">0</strong><span class="g-total"></span><progress max="1" value="0"></progress><span>${esc(tr('可收集車款'))}</span></div></div>
       <p class="mt-g-hint" data-mt-g="hint" hidden data-i18n-skip></p>
@@ -716,7 +718,7 @@
       <div class="g-detail"><span class="g-status"></span><h2 class="g-name"></h2><p class="g-system"></p><p class="g-reason"></p><p class="g-goal"></p><p class="g-date"></p><button class="g-cta"></button><button class="mt-g-plan" type="button" data-mt-g="schedule" hidden></button><p class="mt-g-note" data-mt-g="note" hidden></p><div class="mt-g-mine" hidden><p class="mt-g-status" data-mt-g="status" data-i18n-skip></p><button class="mt-g-view" type="button" data-mt-g="view"></button></div><details class="g-sources"><summary>${esc(tr('車型與來源'))} ↗</summary><div class="g-source-body"></div></details></div></section>
       <p class="g-result" role="status" aria-live="polite"></p><div class="g-grid"></div>
       <footer class="g-footer"><span class="g-catalog"></span> · ${esc(tr('模型製作：軌島（Q 版示意）'))}<br>${esc(tr('進度沿用旅程護照；62 款有收集條件、另 5 款用島民點數兌換，既有車種章自動帶入。'))}<br>${esc(tr('收藏的是紀念模型，不代表曾搭乘這個實際車型或車號。'))}</footer></main>
-      <section class="g-sf" hidden aria-labelledby="gSfTitle"><div class="g-sf-bar"><button class="g-sf-leave" type="button">${esc(tr('離開'))}</button><button class="g-sf-title" type="button" aria-expanded="false"><b id="gSfTitle"></b><small></small></button>${musicButton('g-sf-music g-sf-icon')}</div>
+      <section class="g-sf" hidden aria-labelledby="gSfTitle"><div class="g-sf-bar"><button class="g-sf-leave" type="button">${esc(tr('離開'))}</button><button class="g-sf-title" type="button" aria-expanded="false"><b id="gSfTitle"></b><small></small></button>${musicButton()}</div>
       <div class="g-sf-scenes" hidden><div class="g-sf-seg" role="group" aria-label="${esc(tr('選擇場景'))}"></div></div>
       <div class="g-sf-cars" hidden><p>${esc(tr('在這座跑的車'))}</p><div class="g-sf-car-list"></div></div>
       <div class="g-sf-stage"><div class="g-sf-wrap"><canvas class="g-sf-view" tabindex="0" role="img" aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown"></canvas><div class="g-sf-views" role="group" aria-label="${esc(tr('觀賞視角'))}"><button data-sf-view="world" type="button"></button><button data-sf-view="train" type="button">${esc(tr('陪它走走'))}</button></div>
@@ -731,7 +733,7 @@
     const top=$('.g-top');resize=new ResizeObserver(()=>{dialog.style.setProperty('--g-top-h',top.getBoundingClientRect().height+'px');requestDraw();});resize.observe($('.g-view'));resize.observe($('.g-sf-view'));resize.observe(top,{box:'border-box'});
     visibility=new IntersectionObserver(([entry])=>{inView=entry.isIntersecting;last=0;if(onScreen())requestDraw();else{cancelAnimationFrame(raf);raf=0;}},{root:dialog});visibility.observe($('.g-view'));
     $('.g-close').onclick=close;
-    for(const b of dialog.querySelectorAll('.g-music,.g-sf-music'))b.onclick=()=>host.music.toggle();
+    for(const b of dialog.querySelectorAll('.g-sf-music'))b.onclick=()=>host.music.toggle();
     showMusic();
     $('.g-retry').onclick=()=>{if(!renderer)rendererPromise=startRenderer();loadSelected();};
     $('.g-demo-off').onclick=()=>{demo=false;filter='owned';refresh();};
@@ -744,7 +746,7 @@
     const periodSelect=$('.g-period-select');periodSelect.value=periodChoice;
     periodSelect.onchange=()=>{periodChoice=periodSelect.value;try{localStorage.setItem(PERIOD_KEY,periodChoice);}catch{}period=pickedPeriod();showControls();requestDraw();};
     $('.g-reset-view').onclick=()=>{auto=false;resetView();showControls();requestDraw();};
-    $('.g-auto').onclick=()=>{if(mode!=='model')running=!running;else auto=!auto;last=0;showControls();requestDraw();};
+    $('.g-auto').onclick=()=>{if(mode!=='model')running=!running;else auto=!auto;last=0;showControls();requestDraw();if(frameBack)host.music?.sceneRunning(running);};
     $('.g-reverse').onclick=()=>{direction*=-1;showControls();requestDraw();};
     // 第 4 格：先畫這款車能進、已解鎖的第一座（照場景列的順序），不然田園小站。
     for(const b of dialog.querySelectorAll('[data-view]'))b.onclick=()=>{if(b.dataset.view==='scene'){const ctx=walletCtx(),row=rows.find(r=>r.id===selected);openFrame(sceneList(ctx).find(s=>s!==DEFAULT_SCENE&&sceneOpen(ctx,s)&&runsIn(row,s))||DEFAULT_SCENE);showDetail();return;}if(mode===b.dataset.view)return;mode=b.dataset.view;auto=false;running=mode!=='model'&&!reduced.matches;resetView();last=0;showDetail();};
