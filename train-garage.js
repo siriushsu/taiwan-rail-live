@@ -438,6 +438,16 @@
   let redeemScene='',redeemAction=null,redeemStored=false,redeemAck='',redeemResent='',redeemOpener=null;
   // 場景與車款的介紹（train-garage-intros.js，四語寫在同一份；韓文缺就用英文，同翻譯表）。沒有介紹的回空字串，畫面就不出那一段。
   const introOf=(kind,id)=>{const m=globalThis.RailGarageIntros?.[kind]?.[id];if(!m)return '';const lang=host.lang();return m[lang]||(lang==='ko'?m.en:'')||m['zh-TW']||'';};
+  // 介紹檔四語約 200 KB，只有打開車庫才載入（首頁不載）；載完 refresh() 補上詳情、場景頁「介紹」鈕與開著的兌換視窗。失敗就下次打開再試。
+  let introsLoading=false;
+  function loadIntros(){
+    if(globalThis.RailGarageIntros||introsLoading)return;
+    introsLoading=true;
+    const s=document.createElement('script');s.src='./train-garage-intros.js';
+    s.onload=()=>{if(dialog?.open)refresh();};
+    s.onerror=()=>{introsLoading=false;s.remove();};
+    document.head.append(s);
+  }
   // 場景頁的「介紹」：跟兌換視窗同一張卡的樣子，只有標題、介紹與關閉。aboutOpen 開著時 Esc／返回先關它。
   let aboutOpen=false,aboutOpener=null;
   function openAbout(opener){
@@ -843,6 +853,7 @@
     trainView=innerWidth<=800;frameScene=viewScene='';
     rendererPromise=renderer?Promise.resolve():startRenderer();
     showDialog();build();dialog.scrollTop=0;$('.g-close').focus({preventScroll:true});requestDraw();
+    loadIntros();
     reloadWallet(); // 「車庫場景」列出現時讀一次最新點數（同 App）；沒登入時什麼都不做
   }
   window.addEventListener('rail:native-back', e => {if(dialog?.open){e.preventDefault();e.stopImmediatePropagation();if(!backOut())close();}}, {capture:true});
