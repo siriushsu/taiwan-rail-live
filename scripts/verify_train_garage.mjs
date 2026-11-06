@@ -121,7 +121,9 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
    await page.tap('#tabMore');await page.locator('#moreSheet [data-act="garage"]').scrollIntoViewIfNeeded();await page.tap('#moreSheet [data-act="garage"]');await ready(page);
    const first=await page.evaluate(()=>{const c=document.querySelector('.g-view').getBoundingClientRect(),s=document.querySelector('.g-model-select').getBoundingClientRect(),d=document.getElementById('trainGarage');return {canvasTop:c.top,canvasBottom:c.bottom,selectorTop:s.top,selectorBottom:s.bottom,height:innerHeight,scroll:d.scrollTop};});
    check(engine+' '+width+' 第一屏同時看得到選單與完整車模',first.selectorTop>=0&&first.selectorBottom<=first.canvasTop&&first.canvasBottom<=first.height&&first.scroll===0,first);
-   await page.tap('.g-model-select');await page.selectOption('.g-model-select','700t');await page.tap('.g-view');await page.waitForFunction(()=>document.querySelector('.g-view').dataset.rendered==='700t');
+   // 點畫布要帶 position：不帶的話 Playwright 動手前會把整張畫布連 scroll-padding-bottom 捲進視窗，畫布離視窗底不到 16px 時，測試自己捲的量會被下面算成產品跳走。
+   // 帶了只保證落點在畫面內，跟手指一樣。畫布有沒有完整在第一屏由上面那條管。
+   await page.tap('.g-model-select');await page.selectOption('.g-model-select','700t');const canvas=await page.locator('.g-view').boundingBox();await page.tap('.g-view',{position:{x:canvas.width/2,y:canvas.height/2}});await page.waitForFunction(()=>document.querySelector('.g-view').dataset.rendered==='700t');
    check(engine+' '+width+' 觸控下拉換車不跳離展示台',await page.locator('.g-model-select').inputValue()==='700t'&&await page.evaluate(()=>document.getElementById('trainGarage').scrollTop===0));
    let audit=await auditControls(page);check(engine+' '+width+' 全畫面／公告／跟車／抽屜／護照組合',!audit.failures.length&&!audit.overflow,audit);
    await page.locator('.g-view').scrollIntoViewIfNeeded();const before=await pix(page);await page.locator('.g-view').press('ArrowRight');await settle(page);const after=await pix(page);check(engine+' '+width+' 方向鍵旋轉',before.hash!==after.hash);
