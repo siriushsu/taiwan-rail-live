@@ -112,6 +112,11 @@ try{
    await p.evaluate(()=>{document.documentElement.dataset.theme='dark';state.mapDark=true;TrainGarage.refresh();});await settle(p);
    await p.locator('.g-period').scrollIntoViewIfNeeded();await p.locator('.g-stage').screenshot({path:`${OUT}/375-track-dark.png`});
   }
+  // 場景頁時段鈕：字長放不下要在鈕內換行，三顆都留在畫面內、點得到。長字是塞的，不靠哪座場景的譯文剛好夠長。
+  await openScene(p);
+  const seg=await p.evaluate(()=>[...document.querySelectorAll('[data-sf-period]')].map(el=>(el.textContent='Sunset on the Maokong Gondola',el)).map(el=>{const r=el.getBoundingClientRect();return{left:r.left,right:r.right,edge:innerWidth,hit:el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))};}));
+  check(width+' 場景頁時段鈕字長也留在畫面內、點得到',seg.every(s=>s.left>=0&&s.right<=s.edge&&s.hit),seg);
+  await leaveScene(p);
   await pick(p,'auto');check(width+' 無 JS 例外',!errors.length,errors);await c.close();
  }
 }finally{await b.close();}

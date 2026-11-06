@@ -283,7 +283,8 @@ html[data-theme=dark] #trainGarage{--g-hdr:var(--paper-tr);--g-hdr-ink:var(--ink
 #trainGarage .g-sf-loading{position:absolute;inset:0;z-index:2;display:flex;align-items:center;justify-content:center;padding:0 16px;text-align:center;font-size:13px;font-weight:600;color:var(--sf-muted);background:color-mix(in srgb,var(--sf-pg) 80%,transparent)}
 #trainGarage .g-sf-loading button{margin-left:12px;padding:0 16px;border:1.5px solid var(--sf-btn-bd);border-radius:8px;background:var(--sf-card);color:var(--sf-strong);font-weight:800;box-shadow:var(--sf-shadow)}
 #trainGarage .g-sf-tools{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;padding-top:10px}
-#trainGarage .g-sf-tools .g-sf-seg button{padding:0 14px;font-size:13px}
+/* 時段鈕：外語字比中文長，放不下時在鈕內換行，不往螢幕兩側超出。場景鈕列（.g-sf-scenes）維持不換行、橫向捲動。 */
+#trainGarage .g-sf-tools .g-sf-seg button{padding:0 14px;font-size:13px;white-space:normal;text-wrap:balance}
 #trainGarage .g-sf-icons{display:flex;gap:8px}
 #trainGarage .g-sf-music{flex:none;display:flex;align-items:center;justify-content:center}
 #trainGarage .g-sf-icon{width:44px;min-width:44px;padding:0;border:1.5px solid var(--sf-btn-bd);border-radius:8px;background:var(--sf-card);color:var(--sf-strong);font-size:17px;font-weight:700;box-shadow:var(--sf-shadow)}
