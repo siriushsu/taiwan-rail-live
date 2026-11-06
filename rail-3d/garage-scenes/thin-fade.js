@@ -10,7 +10,7 @@ export function thinOpacity(width,ppu){const x=Math.max(0,Math.min(1,(width*ppu-
 const pos=new THREE.Vector3(),scl=new THREE.Vector3(),rot=new THREE.Quaternion(),world=new THREE.Matrix4(),one=new THREE.Matrix4(),size=new THREE.Vector3();
 // 線狀的回傳粗細（中間那邊），不是線回傳 Infinity。
 function widthOf(geometry,matrix){if(!geometry.boundingBox)geometry.computeBoundingBox();geometry.boundingBox.getSize(size);matrix.decompose(pos,rot,scl);
- const d=[Math.abs(size.x*scl.x),Math.abs(size.y*scl.y),Math.abs(size.z*scl.z)].sort((a,b)=>a-b);return d[2]>=LONG*d[1]&&d[0]>=FLAT*d[1]?d[1]:Infinity;}
+ const d=[Math.abs(size.x*scl.x),Math.abs(size.y*scl.y),Math.abs(size.z*scl.z)].sort((a,b)=>a-b);return d[1]>0&&d[2]>=LONG*d[1]&&d[0]>=FLAT*d[1]?d[1]:Infinity;}
 // 回傳 [{mesh, source, width}]：mesh 換成 source 的複本（transparent），width 是這批的中位數粗細。
 // 透明、多材質、隱藏的網格不動；樹葉（taiwan-trees）不是線，不動。
 export function splitThin(group,limit=LIMIT){
