@@ -168,7 +168,8 @@ const widths = [360, 375, 414, 768];
 // 11/06: custom train fleet and roundhouse depot adds one (581 -> 582).
 // 11/06: EMU3000 model and Q-style side view add two (582 -> 584).
 // 11/06: steam, coach add 2 (584 -> 586).
-const expectedHistoryCount = 586;
+// 11/06: fleet add 1 (586 -> 587).
+const expectedHistoryCount = 587;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
