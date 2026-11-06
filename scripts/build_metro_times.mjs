@@ -16,7 +16,7 @@
 //   --only=<字串>:只重建輸出檔名含該字串的系統(如 --only=sanying)。data/tdx 是未追蹤快照,
 //     工作樹裡常常是空的,這時整份重跑會在第一個吃 TDX 的系統就 ENOENT 中斷,連不吃 TDX 的
 //     合成線(三鶯線)都重建不了;要重跑全部就先 python3 scripts/fetch_tdx.py 補快照。
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { applySpecialOps } from './special_ops.mjs';
@@ -834,7 +834,7 @@ const SYSTEMS = [
     //   (2) 官方稱「視搭乘人潮狀況機動加班」→ 班距是公告值,不等於實際發車。
     //   注意反例:v0711j 把「正式營運後」的規劃當成現況寫死 06:00-23:30,每天生出 7.5 小時
     //   不存在的幽靈列車——公告的【現況】才能抄,規劃不能。
-    synth: [{ lineId: 'LB', cfg: (() => {
+    synth: [{ lineId: 'LB', flFile: 'data/tdx/NTMC_FirstLastTimetable.json', cfg: (() => {
       const OFF = 480, PEAK = 360;
       // 端點首末班取官方值:同 tdxSynthCfg 的取法(首班取兩端最早、末班取兩端最晚,跨午夜補一日)
       const fl = J('data/tdx/NTMC_FirstLastTimetable.json')
@@ -871,14 +871,26 @@ const SYSTEMS = [
 //    判準要盯的是「這次重建真正要讀的那份資料」,不是同一個上游的另一份。
 // 2026-09-18:StationTimeTable 已有 R01(6 筆,UpdateTime 09-16),本閘門已自動放行;同快照重建的
 //    淡水信義線對 data.taipei 平日/週六/週日站別時刻表逐站相符(週六廣慈 23:08 一班仍接不起來)。
-// src 的 FETCH_DATE 寫檔時才決定:班表變了換成當天(台北),沒變留上一份的日期。
+// src 的 FETCH_DATE 寫檔時才決定:班表變了換成快照的抓取日,沒變留上一份的日期和上一份的 bytes。
 // 寫死的話重抓也不會動,捷運頁的資料日期、頁面日期和附註到期全卡住(build_metro_pages.mjs 讀這個日期);
 // 沒變也換日期的話,每次巡檢都會改檔案雜湊,App 開機白抓一次。
-function fetchNote(src, lines, outFile) {
+// 同秒發車的班次先後跟著 TDX 回傳的筆序走,筆序每次抓都可能換,所以先排過再比;車種字串與同名 set 同序,要跟班次綁著排。
+// 抓取日取快照檔的修改時間、不取今天:一輪只抓一家時,其他系統也會重建,它們的資料並沒有重抓(fetch_tdx 每次抓都會重寫檔)。
+const linesKey = lines => JSON.stringify(Object.entries(lines).map(([id, l]) => [id, { ...l, kinds: undefined,
+  sets: Object.entries(l.sets).map(([k, ts]) => [k, ts.map((t, i) => `${t}|${l.kinds?.[k]?.[i] ?? ''}`).sort()]) }]));
+const snapshotDate = sys => {
+  const files = Object.values(sys.lines).flat().map(s => `data/tdx/${s.op}_StationTimeTable.json`);
+  for (const s of sys.synth || []) files.push(s.freqFile, s.flFile);
+  const newest = Math.max(...files.filter(Boolean).map(f => statSync(path.join(ROOT, f)).mtimeMs));
+  return new Date(newest + 8 * 3600e3).toISOString().slice(0, 10);
+};
+function settleLines(out, sys) {
   let prev = null;
-  try { prev = J(outFile); } catch { /* 第一次建置還沒有舊檔 */ }
-  const kept = prev && JSON.stringify(prev.lines) === JSON.stringify(lines) && /(\d{4}-\d{2}-\d{2}) 抓取/.exec(prev.source_notes)?.[1];
-  return src.replace('FETCH_DATE', kept || new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10));
+  try { prev = J(sys.out); } catch { /* 第一次建置還沒有舊檔 */ }
+  const same = prev && linesKey(prev.lines) === linesKey(out.lines);
+  if (same) out.lines = prev.lines;
+  const kept = same && /(\d{4}-\d{2}-\d{2}) 抓取/.exec(prev.source_notes)?.[1];
+  out.source_notes = sys.src.replace('FETCH_DATE', kept || snapshotDate(sys));
 }
 
 // 🔴 路線涵蓋閘門:TDX 多一條沒有 spec 接手的路線,那條路線的班次會整批消失、建置照樣成功
@@ -946,7 +958,7 @@ for (const sys of SYSTEMS) {
   for (const n of notes) console.log(`  ℹ ${n}`);
   applyGapFill(out, data);   // 站別記錄缺口造成的假折返:補回真端點(見 metro_times_gapfill.mjs)
   applySpecialOps(out, sys.out, ROOT);
-  out.source_notes = fetchNote(sys.src, out.lines, sys.out);
+  settleLines(out, sys);
   writeFileSync(path.join(ROOT, sys.out), JSON.stringify(out));
   console.log(`  → ${sys.out} ${(JSON.stringify(out).length / 1024).toFixed(0)}KB`);
 }
