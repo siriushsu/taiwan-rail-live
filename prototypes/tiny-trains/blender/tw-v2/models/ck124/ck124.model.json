@@ -1,0 +1,327 @@
+{
+  "modelId": "ck124",
+  "name": "CK124 蒸汽機車",
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "family": "steam",
+  "axes": {
+    "front": "+X",
+    "left": "+Y",
+    "up": "+Z",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ],
+    "units": "meters"
+  },
+  "gltfAxes": {
+    "front": "+X",
+    "left": "-Z",
+    "up": "+Y",
+    "toENU": "rotateX(+PI/2)"
+  },
+  "style": "Q-proportions-photo-informed",
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "numberIsLiveIdentity": false,
+  "identityMaterial": "可移除車型示意牌",
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -4.349999904632568,
+      -1.409999966621399,
+      -0.0010000000474974513
+    ],
+    "max": [
+      4.269999980926514,
+      1.409999966621399,
+      3.75
+    ]
+  },
+  "sizeM": [
+    8.619999885559082,
+    2.819999933242798,
+    3.750999927520752
+  ],
+  "mesh": {
+    "file": "ck124.mesh.bin",
+    "sha256": "df2795609727b781f13ed8e11f3ce4fc10db80627737547a7aaf12c7e2ecec4b",
+    "encoding": "float32-le",
+    "strideBytes": 24,
+    "vertexCount": 123888,
+    "triangleCount": 41296,
+    "drawGroups": [
+      {
+        "name": "stblack",
+        "start": 0,
+        "count": 17394,
+        "color": [
+          0.005181516520678997,
+          0.006512090563774109,
+          0.006995410192757845
+        ],
+        "metalness": 0.2800000011920929,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "stline",
+        "start": 17394,
+        "count": 1608,
+        "color": [
+          0.7758222222328186,
+          0.47353148460388184,
+          0.0423114113509655
+        ],
+        "metalness": 0.05000000074505806,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.10000000149011612
+      },
+      {
+        "name": "stcheck",
+        "start": 19002,
+        "count": 156,
+        "color": [
+          0.027320891618728638,
+          0.03310476616024971,
+          0.03688944876194
+        ],
+        "metalness": 0.4000000059604645,
+        "roughness": 0.550000011920929,
+        "clearcoat": 0.05000000074505806
+      },
+      {
+        "name": "stsoot",
+        "start": 19158,
+        "count": 7380,
+        "color": [
+          0.01032982300966978,
+          0.012286487966775894,
+          0.013702083379030228
+        ],
+        "metalness": 0.25,
+        "roughness": 0.6000000238418579,
+        "clearcoat": 0.05000000074505806
+      },
+      {
+        "name": "stgold",
+        "start": 26538,
+        "count": 6828,
+        "color": [
+          0.6444796919822693,
+          0.4125426113605499,
+          0.06480326503515244
+        ],
+        "metalness": 0.6000000238418579,
+        "roughness": 0.3499999940395355,
+        "clearcoat": 0.20000000298023224
+      },
+      {
+        "name": "stplate",
+        "start": 33366,
+        "count": 1104,
+        "color": [
+          0.5394794940948486,
+          0.023153366521000862,
+          0.019382361322641373
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3499999940395355,
+        "clearcoat": 0.25
+      },
+      {
+        "name": "可移除車型示意牌",
+        "start": 34470,
+        "count": 27744,
+        "color": [
+          0.8069522380828857,
+          0.5711248517036438,
+          0.1441284716129303
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.0
+      },
+      {
+        "name": "metal",
+        "start": 62214,
+        "count": 10176,
+        "color": [
+          0.30946892499923706,
+          0.38642942905426025,
+          0.4125426113605499
+        ],
+        "metalness": 0.6399999856948853,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "frame",
+        "start": 72390,
+        "count": 1488,
+        "color": [
+          0.008568125776946545,
+          0.016807375475764275,
+          0.022173885256052017
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "lamp",
+        "start": 73878,
+        "count": 1332,
+        "color": [
+          1.0,
+          0.8879231214523315,
+          0.5840784311294556
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "glass",
+        "start": 75210,
+        "count": 1944,
+        "color": [
+          0.009134058840572834,
+          0.03560131415724754,
+          0.05780543014407158
+        ],
+        "metalness": 0.25999999046325684,
+        "roughness": 0.1899999976158142,
+        "clearcoat": 0.41999998688697815
+      },
+      {
+        "name": "stcoal",
+        "start": 77154,
+        "count": 894,
+        "color": [
+          0.006512090563774109,
+          0.006995410192757845,
+          0.007499032188206911
+        ],
+        "metalness": 0.05000000074505806,
+        "roughness": 0.8799999952316284,
+        "clearcoat": 0.0
+      },
+      {
+        "name": "stlens",
+        "start": 78048,
+        "count": 228,
+        "color": [
+          0.8148465752601624,
+          0.7681511640548706,
+          0.577580451965332
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.30000001192092896,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "taillamp",
+        "start": 78276,
+        "count": 156,
+        "color": [
+          0.43415364623069763,
+          0.0382043719291687,
+          0.03310476616024971
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "rubber",
+        "start": 78432,
+        "count": 360,
+        "color": [
+          0.014443843625485897,
+          0.020288562402129173,
+          0.023153366521000862
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.7699999809265137,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "strod",
+        "start": 78792,
+        "count": 360,
+        "color": [
+          0.577580451965332,
+          0.019382361322641373,
+          0.023153366521000862
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3499999940395355,
+        "clearcoat": 0.25
+      },
+      {
+        "name": "ctblack",
+        "start": 79152,
+        "count": 33984,
+        "color": [
+          0.005181516520678997,
+          0.006512090563774109,
+          0.006995410192757845
+        ],
+        "metalness": 0.2800000011920929,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "white",
+        "start": 113136,
+        "count": 10752,
+        "color": [
+          0.8713670969009399,
+          0.838798999786377,
+          0.6938717365264893
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      }
+    ]
+  },
+  "nativeObjectCount": 549,
+  "features": {
+    "sideDoorGroups": 0,
+    "doorLeavesPerGroup": 2,
+    "pantographsOnThisAsset": 0,
+    "axlesPerBogie": 2,
+    "articulatedSections": 1,
+    "steamDriversPerSide": 3
+  },
+  "specification": {
+    "id": "ck124",
+    "family": "steam",
+    "L": 7.7,
+    "W": 2.8,
+    "H": 3.75,
+    "drivers": 3,
+    "driverRadius": 0.6,
+    "leading": 1,
+    "trailing": 1,
+    "tank": true,
+    "body": "101314",
+    "accent": "E4B73A",
+    "power": "steam",
+    "label": "CK 124"
+  },
+  "reference": {
+    "source": "https://blair-train.blogspot.com/2010/04/ck124.html",
+    "detail": "側水櫃 · 兩顆圓頂 · 黃飾線",
+    "photoUse": "visual-study-only-not-redistributed"
+  },
+  "formation": {
+    "default": "single-vehicle",
+    "illustrative": true,
+    "liveAssignment": false,
+    "shortFormation": null
+  }
+}

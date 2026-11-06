@@ -1,0 +1,327 @@
+{
+  "modelId": "dt668",
+  "name": "DT668 蒸汽機車",
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "family": "steam",
+  "axes": {
+    "front": "+X",
+    "left": "+Y",
+    "up": "+Z",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ],
+    "units": "meters"
+  },
+  "gltfAxes": {
+    "front": "+X",
+    "left": "-Z",
+    "up": "+Y",
+    "toENU": "rotateX(+PI/2)"
+  },
+  "style": "Q-proportions-photo-informed",
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "numberIsLiveIdentity": false,
+  "identityMaterial": "可移除車型示意牌",
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -6.730000019073486,
+      -1.4199999570846558,
+      -0.0010000000474974513
+    ],
+    "max": [
+      6.099999904632568,
+      1.4199999570846558,
+      4.019999980926514
+    ]
+  },
+  "sizeM": [
+    12.829999923706055,
+    2.8399999141693115,
+    4.020999908447266
+  ],
+  "mesh": {
+    "file": "dt668.mesh.bin",
+    "sha256": "79700f7c124c9e42c9b7d425fa16192cbe4b805d53a390b6572bcfb7fa81d6eb",
+    "encoding": "float32-le",
+    "strideBytes": 24,
+    "vertexCount": 185946,
+    "triangleCount": 61982,
+    "drawGroups": [
+      {
+        "name": "stblack",
+        "start": 0,
+        "count": 87210,
+        "color": [
+          0.005181516520678997,
+          0.006512090563774109,
+          0.006995410192757845
+        ],
+        "metalness": 0.2800000011920929,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "white",
+        "start": 87210,
+        "count": 24000,
+        "color": [
+          0.8713670969009399,
+          0.838798999786377,
+          0.6938717365264893
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "stcheck",
+        "start": 111210,
+        "count": 492,
+        "color": [
+          0.027320891618728638,
+          0.03310476616024971,
+          0.03688944876194
+        ],
+        "metalness": 0.4000000059604645,
+        "roughness": 0.550000011920929,
+        "clearcoat": 0.05000000074505806
+      },
+      {
+        "name": "stsoot",
+        "start": 111702,
+        "count": 8580,
+        "color": [
+          0.01032982300966978,
+          0.012286487966775894,
+          0.013702083379030228
+        ],
+        "metalness": 0.25,
+        "roughness": 0.6000000238418579,
+        "clearcoat": 0.05000000074505806
+      },
+      {
+        "name": "stband",
+        "start": 120282,
+        "count": 3192,
+        "color": [
+          0.20863686501979828,
+          0.08437620848417282,
+          0.03688944876194
+        ],
+        "metalness": 0.44999998807907104,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.15000000596046448
+      },
+      {
+        "name": "stgold",
+        "start": 123474,
+        "count": 828,
+        "color": [
+          0.6444796919822693,
+          0.4125426113605499,
+          0.06480326503515244
+        ],
+        "metalness": 0.6000000238418579,
+        "roughness": 0.3499999940395355,
+        "clearcoat": 0.20000000298023224
+      },
+      {
+        "name": "stplate",
+        "start": 124302,
+        "count": 1188,
+        "color": [
+          0.5394794940948486,
+          0.023153366521000862,
+          0.019382361322641373
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3499999940395355,
+        "clearcoat": 0.25
+      },
+      {
+        "name": "可移除車型示意牌",
+        "start": 125490,
+        "count": 38016,
+        "color": [
+          0.8069522380828857,
+          0.5711248517036438,
+          0.1441284716129303
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.0
+      },
+      {
+        "name": "metal",
+        "start": 163506,
+        "count": 13860,
+        "color": [
+          0.30946892499923706,
+          0.38642942905426025,
+          0.4125426113605499
+        ],
+        "metalness": 0.6399999856948853,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "rubber",
+        "start": 177366,
+        "count": 180,
+        "color": [
+          0.014443843625485897,
+          0.020288562402129173,
+          0.023153366521000862
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.7699999809265137,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "strod",
+        "start": 177546,
+        "count": 252,
+        "color": [
+          0.577580451965332,
+          0.019382361322641373,
+          0.023153366521000862
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3499999940395355,
+        "clearcoat": 0.25
+      },
+      {
+        "name": "frame",
+        "start": 177798,
+        "count": 2400,
+        "color": [
+          0.008568125776946545,
+          0.016807375475764275,
+          0.022173885256052017
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "lamp",
+        "start": 180198,
+        "count": 1332,
+        "color": [
+          1.0,
+          0.8879231214523315,
+          0.5840784311294556
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "glass",
+        "start": 181530,
+        "count": 1008,
+        "color": [
+          0.009134058840572834,
+          0.03560131415724754,
+          0.05780543014407158
+        ],
+        "metalness": 0.25999999046325684,
+        "roughness": 0.1899999976158142,
+        "clearcoat": 0.41999998688697815
+      },
+      {
+        "name": "stcoal",
+        "start": 182538,
+        "count": 2448,
+        "color": [
+          0.006512090563774109,
+          0.006995410192757845,
+          0.007499032188206911
+        ],
+        "metalness": 0.05000000074505806,
+        "roughness": 0.8799999952316284,
+        "clearcoat": 0.0
+      },
+      {
+        "name": "stvoid",
+        "start": 184986,
+        "count": 504,
+        "color": [
+          0.0018211619462817907,
+          0.002124688820913434,
+          0.002428215928375721
+        ],
+        "metalness": 0.0,
+        "roughness": 0.8999999761581421,
+        "clearcoat": 0.0
+      },
+      {
+        "name": "stlens",
+        "start": 185490,
+        "count": 276,
+        "color": [
+          0.8148465752601624,
+          0.7681511640548706,
+          0.577580451965332
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.30000001192092896,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "taillamp",
+        "start": 185766,
+        "count": 180,
+        "color": [
+          0.43415364623069763,
+          0.0382043719291687,
+          0.03310476616024971
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      }
+    ]
+  },
+  "nativeObjectCount": 543,
+  "features": {
+    "sideDoorGroups": 0,
+    "doorLeavesPerGroup": 2,
+    "pantographsOnThisAsset": 0,
+    "axlesPerBogie": 2,
+    "articulatedSections": 1,
+    "steamDriversPerSide": 4
+  },
+  "specification": {
+    "id": "dt668",
+    "family": "steam",
+    "L": 12.0,
+    "W": 2.8,
+    "H": 3.95,
+    "drivers": 4,
+    "driverRadius": 0.66,
+    "leading": 1,
+    "trailing": 1,
+    "tank": false,
+    "body": "101314",
+    "accent": "C8262A",
+    "power": "steam",
+    "label": "DT668"
+  },
+  "reference": {
+    "source": "https://blair-train.blogspot.com/2010/04/dt668.html",
+    "detail": "四組箱形動輪 · 煙箱頂給水溫水器 · 步道拱起",
+    "photoUse": "visual-study-only-not-redistributed"
+  },
+  "formation": {
+    "default": "single-vehicle",
+    "illustrative": true,
+    "liveAssignment": false,
+    "shortFormation": null
+  }
+}
