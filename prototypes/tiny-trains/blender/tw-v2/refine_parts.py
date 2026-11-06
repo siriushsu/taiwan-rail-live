@@ -14,10 +14,12 @@ def zoned_shell(s,profile,bow,zones,front_zones,name='分色主車殼',nose_zone
  zones／front_zones：[(z 上限, 材質), ...]，由下往上；z 列會插在每個分界上，色界不切過面。
  nose_zones：駕駛室肩部（neck 到車頭面那一段側面）另用的分區。
  s['bowPow']：車頭平面曲線的次方，預設 4（平頭圓角）；越小越接近 V 字尖頭。
+ s['bowKnee']：有給就是切面車頭：|y| 小於它是平的，外側直線退到車角（取代 bowPow）。
  surface_neck：neck 從實際車頭面（含 bow）最後退的點算，避免車頭頂角退到 neck 之後折出破面。
  double：兩端都是車頭（雙頭單車）：後端是前端曲面的鏡射，後端面與後肩部用跟前端一樣的分區。"""
  L,W,H=s['L'],s['W'],s['H'];z0=s.get('bottom',.83);rb=s.get('radiusBottom',.12);rt=s.get('radiusTop',.40);end=L/2;pw=s.get('bowPow',4)
- def f(y,z):return interp(profile,z)-bow*(abs(y)/(W/2))**pw
+ knee=s.get('bowKnee')
+ def f(y,z):return interp(profile,z)-bow*(max(0,(abs(y)-knee)/(W/2-knee)) if knee is not None else (abs(y)/(W/2))**pw)
  def half(z):
   if z<z0+rb:d=z0+rb-z;return W/2-rb+math.sqrt(max(0,rb*rb-d*d))
   if z>H-rt:d=z-(H-rt);return W/2-rt+math.sqrt(max(0,rt*rt-d*d))
@@ -108,6 +110,7 @@ def emu_body(s,profile,bow,zones,front_zones,nose_zones=None,leaf='body',gaps=No
  """台灣電聯車／捷運車殼與車側（world-v1 commuter 的台灣版）。
  bands／leafbands：[(中心 z, 高, 材質), ...] 車身與門扇上的水平色帶；deco(x, y, side, dw) 讓各款在每組門旁加自己的塗裝。
  規格鍵：doors、doorW、doorLeaves（每組門扇數，預設 2；城際列車的塞拉門是 1）、rearDoor、frontDoor、winH、winZ（窗中心，預設 H-1.10）、doorTop（門頂，預設 H-.62）、
+ winGap、winPad（窗距、窗與門的間隔）、doorWinW（門窗佔門扇寬的比例）、doorFrame（門框材質）、plugDoors（這幾組門位改成高窗，尺寸 plugZ／plugW／plugH）、
  crewDoor（駕駛室側門，捷運預設沒有）、acUnits [(x, 長), ...]、pantos（這節有沒有受電弓）、pantoX、shoes（第三軌集電靴）、winSplit（窗有上下分格的橫框）。
  double：雙頭單車，後端也是車頭（zoned_shell 的 double）；最後一段窗從後端駕駛室算起，後車鉤在後車頭下、沒有貫通道。"""
  L,W,H=s['L'],s['W'],s['H'];n=s['doors'];dw=s.get('doorW',.80)
@@ -126,19 +129,21 @@ def emu_body(s,profile,bow,zones,front_zones,nose_zones=None,leaf='body',gaps=No
   spans=list(zip([-front_end if double else -L/2+.38]+[d+dw/2+.12 for d in doors],[d-dw/2-.12 for d in doors]+[front_end]))
   for k,(u,v) in enumerate(spans):
    if v-u<.22:continue
-   m=gaps[k] if gaps else (2 if v-u>.7 else 1);gap=.06
+   m=gaps[k] if gaps else (2 if v-u>.7 else 1);gap=s.get('winGap',.06);u+=s.get('winPad',0);v-=s.get('winPad',0)
    for i in range(m):
     w=(v-u-gap*(m-1))/m;sidewindow(u+w/2+i*(w+gap),y,zc,w-.04,wh,r=s.get('winR',.06),split=s.get('winSplit',False))
   for i,x in enumerate(doors):
+   if i in s.get('plugDoors',()):sidewindow(x,y,s['plugZ'],s['plugW'],s['plugH'],r=s.get('winR',.06));continue
    use('02');basez=.92;h=top-basez;cz=basez+h/2
-   panel('側門門框',(x,y,cz),dw+.05,h+.03,'frame',r=.03)
+   panel('側門門框',(x,y,cz),dw+.05,h+.03,s.get('doorFrame','frame'),r=.03)
    nl=s.get('doorLeaves',2)
    for lf in range(nl):
     dx=(lf-(nl-1)/2)*dw/nl;lw=dw/nl-.022
     door=panel('獨立門扇',(x+dx,y+side*.023,cz),lw,h,leaf,r=.025,depth=.024)
     door['side_door']=True;door['door_group']=i+1;door['side']=side;door['leaf']=lf
-    panel('門窗嵌框',(x+dx,y+side*.043,dz),lw*.62+.04,dh+.06,'frame',r=.04)
-    panel('門窗玻璃',(x+dx,y+side*.057,dz),lw*.62,dh,'glass',r=.035,depth=.012)
+    dwf=s.get('doorWinW',.62)
+    panel('門窗嵌框',(x+dx,y+side*.043,dz),lw*dwf+.04,dh+.06,'frame',r=.04)
+    panel('門窗玻璃',(x+dx,y+side*.057,dz),lw*dwf,dh,'glass',r=.035,depth=.012)
     for z,hh,mm in leafbands:box('門扇色帶',(x+dx,y+side*.050,z),(lw,.011,hh),mm,.002)
    box('車門踏板',(x,y+side*.01,.90),(dw+.08,.11,.042),'metal',.008)
    if deco:deco(x,y,side,dw)

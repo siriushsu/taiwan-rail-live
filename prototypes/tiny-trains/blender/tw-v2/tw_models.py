@@ -104,7 +104,7 @@ def c381(s):
  粗藍帶從兩側燈座內緣斜下到中央成 V 字，下方一條細藍線；兩角各一個燈座（內白外紅）；黑帶上兩角琥珀燈、中央紅色標識燈；深灰防爬器。
  高度依正面照（Rsa）量：黑帶 H-.31 以上、窗 1.97–2.97、側面粗藍帶 1.58–1.76、細線 1.47–1.51、防爬器 1.19–1.31。"""
  L,W,H=s['L'],s['W'],s['H'];metro_colours()
- color('c381silver','D4D9DB',.42,.30,.25)
+ color('c381silver','D4D9DB',.42,.30,.25);color('c381deep','1F4E9E',.10,.30,.30)
  profile=[(.83,L/2-.30),(1.00,L/2-.12),(1.35,L/2),(2.10,L/2-.02),(2.80,L/2-.15),(H-.20,L/2-.34),(H,L/2-.62)]
  s['bowPow']=2.4;top=H-.31
  f,neck,doors=metro_body(s,profile,.30,[(top,'c381silver'),(H+1,'frame')],
@@ -116,12 +116,17 @@ def c381(s):
  for y in [-.53,.37]:front_patch('逃生門下半門縫',f,y-.010,y+.010,1.31,lo(y)-.05,'frame',.036,cols=1,rows=8)
  front_panel('目的地顯示器',f,-.89,H-.50,.44,.10,'dark',.02,.060);front_panel('目的地字幕',f,-.89,H-.50,.34,.05,'led',.01,.066)
  text_label(s['label'],(f(-.89,2.15)+.075,-.89,2.15),.07)
- yk=.62;e=W/2-.03
- t=lambda y:min(1,abs(y)/yk)
- front_patch('車頭藍色 V 帶',f,-e,e,lambda y:1.42+.16*t(y),lambda y:1.57+.19*t(y),'tblue',.034,cols=48,rows=3)
- front_patch('車頭細藍線',f,-e,e,1.47,1.51,'tblue',.033,cols=24,rows=1)
+ # V 帶：左右兩片飛翼在逃生門中線收成尖端（門略偏左，尖端跟著門），上緣先平後陡、下緣淺弧；細線在燈座內側往下彎、到中央前收尖。
+ e=W/2-.03;yc=-.08;yk=.62;t=lambda y:min(1,abs(y-yc)/yk);tip=1.42
+ front_patch('車頭藍色 V 帶',f,-e,e,lambda y:tip+.16*t(y)**.42,lambda y:tip+.34*t(y)**.45,'tblue',.034,cols=96,rows=3)
  for side in [-1,1]:
-  lamp_pair(f,side*.88,1.62,True,r=.056,gap=.24,hw=.52,hh=.22)
+  a,b=sorted([yc+side*.16,side*e]);q=lambda y:min(1,max(0,(abs(y-yc)-.16)/.46))
+  front_patch('車頭細藍線',f,a,b,lambda y:1.385+.085*q(y)**.8,lambda y:1.385+.125*q(y)**.8,'tblue',.033,cols=36,rows=1)
+ for side in [-1,1]:
+  front_panel('燈座細黑邊',f,side*.88,1.62,.55,.40,'frame',.08,.0345)
+  front_panel('燈座銀底',f,side*.88,1.62,.52,.37,'c381silver',.07,.0355)
+  a,b=sorted([side*.63,side*1.13]);front_patch('燈座內藍帶',f,a,b,1.58,1.76,'tblue',.0365,cols=8,rows=1);front_patch('燈座內細線',f,a,b,1.47,1.51,'tblue',.0365,cols=8,rows=1)
+  lamp_pair(f,side*.88,1.64,True,r=.056,gap=.24,housing='c381deep',hw=.40,hh=.17)
   lamp_color('上部琥珀標識燈',f,side*.80,H-.29,.032,'amber')
  lamp_color('上部中央紅色標識燈',f,-.08,H-.24,.034,'taillamp')
  for y in [-.89,.78]:wiper(f,y,2.05,.60)
@@ -141,7 +146,10 @@ def emu500_like(s,tour=False):
  官方示意圖「海風號及山嵐號列車外觀設計示意圖.png」（作者與授權見 catalog-source.json）。
  EMU500／EMU600：藍色車頭、貫通門外凸一圈門框、門窗下一塊白牌（不放標誌）；窗下兩條白細線，內端在內側頭燈上方往下彎；
  兩角是藏青圓燈座的紅燈（外）與鍍鉻圈白燈（內），下緣黃黑警戒斜紋；不鏽鋼車身下半部橫向壓紋、窗下兩道藍線。
- 海風號／山嵐號（tour）：門框拆掉、貫通門平貼車身，門窗跟兩側前窗同高；整車上色、下緣漸層到白，燈在白色燈座裡，黑色下裙。"""
+ 海風號／山嵐號（tour）：參考：Commons「TRA EMU573 HAIFENG Dali Station 20260718.jpg」「TR EMC573 at Platform 2A, Qidu Station 202508」「TR Haifeng head passing Platform 2B, Baifu Station」（作者與授權見 catalog-source.json）。
+ 門框拆掉、貫通門平貼車身，門窗跟兩側前窗同高、大圓角；整車上色、下緣淡出，深灰車頂、前後兩端灰白斜面冷氣罩（側面有深色格柵）；
+ 頭燈座是跟車身同色的矮盒、平貼車頭上緣，兩顆鍍鉻圈大燈；下方每側一個藥丸形淺色燈座（外側大白環尾燈、內側鍍鉻圈頭燈）；
+ 車側兩組對開門配細長窗、中間門位改成單一高窗、小圓角窗留間距，駕駛室側面一扇亮框小窗；黑色下裙繞過車角。"""
  L,W,H=s['L'],s['W'],s['H']
  color('e5stain','BAC4C7',.50,.32,.12);color('e5blue','2A5CB4',.08,.34,.30);color('e5frame','76695A',.35,.40,.10);color('e5navy','1F2C55',.10,.40,.20)
  profile=[(.83,L/2-.04),(1.00,L/2),(H-.30,L/2-.02),(H,L/2-.22)]
@@ -150,28 +158,45 @@ def emu500_like(s,tour=False):
   zones=[(H-.12,body),(H+1,'e5roof')];fz=[(H+1,front)];nz=[(H-.12,front),(H+1,'e5roof')]
   bands=leafbands=[(1.86,.06,'e5blue'),(1.725,.03,'e5blue')]
  else:
-  color('e5roof','C4C7C7',.30,.45,.06);front=leaf=color('e5tour',s['body'],.06,.36,.28)
-  grad=ramp('e5g',[(0,'F4F4F0'),(1,s['body'])],6);cuts=[.95+.65*(i+1)/6 for i in range(6)];zg=list(zip(cuts,grad))
+  color('e5roof','55595B',.30,.45,.06);color('e5hood','D9DCDC',.30,.45,.06);front=leaf=color('e5tour',s['body'],.06,.36,.28)
+  color('e5line',s['line'],.06,.36,.28);color('e5pale',s['pale'],.06,.36,.28)
+  grad=ramp('e5g',[(0,s['fade']),(1,s['body'])],6);cuts=[.95+.45*(i+1)/6 for i in range(6)];zg=list(zip(cuts,grad))
   zones=zg+[(H-.12,front),(H+1,'e5roof')];fz=zg+[(H+1,front)];nz=zones;bands=[]
   leafbands=[((a+b)/2,b-a,g) for a,b,g in zip([.92]+cuts[:-1],cuts,grad)]
- f,neck,doors=emu_body(s,profile,.06,zones,fz,nz,leaf=leaf,gaps=[1,2,2,1],bands=bands,leafbands=leafbands)
+ f,neck,doors=emu_body(s,profile,.06,zones,fz,nz,leaf=leaf,gaps=[1,2,2,0 if tour else 1],bands=bands,leafbands=leafbands)
  if not tour:
   use('01')
   for k in range(11):
    for side in [-1,1]:box('下半部橫向壓紋',((-L/2+.10+neck-.10)/2,side*(W/2+.006),1.04+k*.06),(neck-.20+L/2-.10,.010,.020),'e5stain',.003)
- wz0,wz1=(1.96,2.78) if not tour else (1.94,2.84);wz=(wz0+wz1)/2
+ else:
+  use('01')
+  for z in (1.17,1.44,1.74,3.02):
+   for side in [-1,1]:box('車側橫向壓紋',((-L/2+.10+neck-.10)/2,side*(W/2+.006),z),(neck-.20+L/2-.10,.010,.014),'e5line',.002)
+  use('02')
+  for side in [-1,1]:
+   y=side*(W/2+.018);panel('駕駛室側窗亮框',(3.54,y,2.47),.64,.52,'metal',r=.09)
+   panel('駕駛室側窗',(3.54,y+side*.014,2.47),.56,.44,'glass',r=.07,depth=.013);box('駕駛室側窗中框',(3.54,y+side*.026,2.47),(.03,.016,.44),'metal',.004)
+  for x0,x1 in [(1.35,L/2-.52),(-L/2+.52,-1.35)]:
+   roof_hood('冷氣斜面罩',s,x0,x1,2.30,.34,.30,'e5hood',1.50)
+   for side in [-1,1]:
+    a,b=x0+.45,x1-.45;c=lambda t:(side*(1.15+(.75-1.15)*t+.012),H-.03+.37*t);(y0,z0),(y1,z1)=c(.25),c(.80)
+    mesh('冷氣罩側面格柵',[(a,y0,z0),(b,y0,z0),(b,y1,z1),(a,y1,z1)],[(0,1,2,3)],'chassis',0,False)
+ wz0,wz1=(1.96,2.78) if not tour else (1.86,2.84);wz=(wz0+wz1)/2
  if not tour:
   front_panel('貫通門門框',f,0,(1.00+H-.12)/2,1.10,H-.12-1.00,'e5frame',.04,.030)
   front_panel('貫通門門扇',f,0,(1.05+H-.30)/2,.78,H-.30-1.05,front,.03,.044)
   front_panel('貫通門窗',f,0,2.33,.40,.75,'glass',.06,.056)
   front_panel('貫通門白牌',f,0,1.67,.56,.34,'white',.03,.052)
  else:
-  for y in (-.33,.33):front_patch('貫通門門縫',f,y-.006,y+.006,1.02,wz1+.10,'frame',.034,cols=1,rows=8)
-  front_patch('貫通門門縫',f,-.33,.33,wz1+.094,wz1+.106,'frame',.034,cols=8,rows=1)
-  front_panel('貫通門窗窗框',f,0,wz,.56,wz1-wz0+.06,'frame',.08,.036);front_panel('貫通門窗',f,0,wz,.50,wz1-wz0,'glass',.07,.048)
- for a,b,name in [(-1.26,-.62,'左前窗'),(.62,1.26,'司機前窗')]:
-  front_panel(name+'窗框',f,(a+b)/2,wz,b-a+.06,wz1-wz0+.06,'frame',.08,.036)
-  front_panel(name,f,(a+b)/2,wz,b-a,wz1-wz0,'glass',.07,.048)
+  for y in (-.40,.40):front_patch('貫通門門縫',f,y-.006,y+.006,1.02,wz1+.10,'e5line',.034,cols=1,rows=8)
+  front_patch('貫通門門縫',f,-.40,.40,wz1+.094,wz1+.106,'e5line',.034,cols=8,rows=1)
+  front_panel('貫通門窗窗框',f,0,wz,.64,wz1-wz0+.08,'frame',.15,.036,rows=56);front_panel('貫通門窗',f,0,wz,.56,wz1-wz0,'glass',.12,.048,rows=56)
+ pane=[(-1.26,-.62,'左前窗'),(.62,1.26,'司機前窗')] if not tour else [(-1.30,-.56,'左前窗'),(.56,1.30,'司機前窗')]
+ for a,b,name in pane:
+  fr,gr=(.08,.07) if not tour else (.15,.12);e=.06 if not tour else .08
+  n=16 if not tour else 56
+  front_panel(name+'窗框',f,(a+b)/2,wz,b-a+e,wz1-wz0+e,'frame',fr,.036,rows=n)
+  front_panel(name,f,(a+b)/2,wz,b-a,wz1-wz0,'glass',gr,.048,rows=n)
  for side in [-1,1]:
   wiper(f,side*.98,wz1-.05,-.50)
   if not tour:
@@ -180,16 +205,25 @@ def emu500_like(s,tour=False):
     y0,y1=sorted([side*yv,side*(yv+h)]);front_patch('白細線下彎',f,y0,y1,1.54,zc+h/2,'white',.034,cols=1,rows=4)
    front_panel('尾燈燈座',f,side*1.00,1.44,.24,.24,'e5navy',.12,.030)
    lamp('尾燈',f,side*1.00,1.44,.070,red=True);lamp('頭燈',f,side*.72,1.44,.058)
-  else:lamp_pair(f,side*.88,1.46,True,True,.060,.24,'white',.46,.22)
+  else:
+   front_panel('藥丸形燈座',f,side*.92,1.45,.76,.38,'e5pale',.19,.030,rows=32)
+   front_panel('尾燈白環',f,side*1.10,1.45,.32,.32,'white',.16,.034,rows=32);lamp('尾燈',f,side*1.10,1.45,.060,red=True)
+   lamp('頭燈',f,side*.76,1.45,.112)
  front_panel('目的地顯示器',f,.92,H-.22,.30,.12,'white',.03,.050);front_panel('目的地字幕',f,.92,H-.22,.20,.04,'dark',.01,.056)
  if s.get('label'):
   front_panel('車號牌',f,-.94,wz1-.10,.42,.10,'white',.02,.056)
   text_label(s['label'],(f(-.94,wz1-.10)+.070,-.94,wz1-.10),.060)
  # 車頂前緣中央的雙頭燈座：盒子坐在車頂上，兩顆圓燈朝前
- use('03');xf=L/2-.22;box('車頂頭燈座',(xf-.14,0,H+.07),(.30,.70,.24),'frame' if not tour else 'e5roof',.04)
- for y in [-.16,.16]:lamp('車頂頭燈',lambda yy,zz:xf-.07,y,H+.07,.080)
- if tour:box('黑色下裙',(L/2-.02,0,.74),(.10,W*.90,.30),'frame',.02)
- else:hazard(L/2+.03,W,.82,.34)
+ use('03');xf=L/2-.22
+ if not tour:
+  box('車頂頭燈座',(xf-.14,0,H+.07),(.30,.70,.24),'frame',.04)
+  for y in [-.16,.16]:lamp('車頂頭燈',lambda yy,zz:xf-.07,y,H+.07,.080)
+  hazard(L/2+.03,W,.82,.34)
+ else:
+  box('車頭上緣燈座',(xf+.03,0,H-.05),(.30,.90,.36),front,.07)
+  for y in [-.21,.21]:lamp('上方頭燈',lambda yy,zz:xf+.05,y,H-.05,.105)
+  box('黑色下裙',(L/2-.02,0,.60),(.12,W*.96,.48),'frame',.03)
+  for side in [-1,1]:box('下裙側包',(L/2-.34,side*(W*.48-.03),.60),(.56,.06,.48),'frame',.02)
  return f
 
 def emu500(s):return emu500_like(s)
@@ -207,14 +241,28 @@ def emu800_like(s,inverse=False):
  profile=[(.83,L/2-.30),(.95,L/2-.10),(1.15,L/2),(1.45,L/2-.03),(1.70,L/2-.14),(2.10,L/2-.40),(2.80,L/2-.78),(3.20,L/2-.98),(H,L/2-1.10)]
  s['bowPow']=2.2
  bands=[(1.95,.06,'e8yellow'),(1.89,.06,'e8blue')]
- nz=[(1.86,'e8silver'),(1.92,'e8blue'),(1.98,'e8yellow'),(H-.12,'e8silver'),(H+1,'e8roof')]
- f,neck,doors=emu_body(s,profile,.45,[(H-.12,'e8silver'),(H+1,'e8roof')],[(H+1,'e8silver')],nz,leaf='e8silver',gaps=[1,2,2,1],bands=bands,leafbands=bands)
- m=W/2-.28;slo=lambda y:1.48+.45*(abs(y)/m)**2.4;shi=lambda y:slo(y)+.30;zt=lambda y:face_zmax(s,y,.04)
- front_patch('車頭面罩',f,-m,m,lambda y:shi(y)-.01,zt,mask,.030,cols=40,rows=12)
- front_patch('微笑色帶',f,-(m+.22),m+.22,slo,shi,trim,.033,cols=48,rows=4)
+ zones=[(H-.12,'e8silver'),(H+1,'e8roof')]
+ f,neck,doors=emu_body(s,profile,.45,zones,[(H+1,'e8silver')],zones,leaf='e8silver',gaps=[1,2,2,0],leafbands=bands)
+ # 面罩繞過車角包到駕駛室側面：微笑色帶過車角變成斜帶，往後上到車頂邊、接成車側上緣細線；窗下兩線停在側窗下方
+ m=W/2-.004;k=W/2-.28;slo=lambda y:1.48+.45*(abs(y)/k)**2.4;shi=lambda y:slo(y)+.30;zt=lambda y:face_zmax(s,y,.04)
+ front_patch('車頭面罩',f,-m,m,lambda y:shi(y)-.01,zt,mask,.030,cols=48,rows=12)
+ front_patch('微笑色帶',f,-m,m,slo,shi,trim,.033,cols=64,rows=4)
+ xs=lambda z:f(half_width(s,z),z)-.004;xr=2.40;zl,zu=slo(m),shi(m);zr=3.03
+ lo_x=lambda z:xs(zl)+(xr-xs(zl))*min(1,(z-zl)/(zr-.03-zl));up_x=lambda z:xs(zu)+(xr-xs(zu))*min(1,(z-zu)/(zr+.03-zu))
  for side in [-1,1]:
-  a,b=sorted([side*(m-.01),side*(m+.22)])
-  front_patch('車頭側緣色帶',f,a,b,lambda y:slo(y)+.05,zt,trim,.033,cols=4,rows=14)
+  side_strip('駕駛室側面面罩',s,side,zu-.01,H-.12,lambda z:up_x(z)-.01,xs,mask,.022,rows=20)
+  side_strip('駕駛室側面斜帶',s,side,zl,zr+.03,lo_x,lambda z:min(xs(z),up_x(z)) if z>zu else xs(z),trim,.026,rows=20)
+  y=side*(W/2+.018);cx=1.90;use('02')
+  for z,h,mm in bands:box('側面色帶',((-L/2+.06+2.80)/2,side*(W/2+.012),z),(2.80+L/2-.06,.020,h),mm,.004)
+  box('車側上緣細線',((-L/2+.06+xr+.02)/2,side*(W/2+.012),zr),(xr+.02+L/2-.06,.020,.06),trim,.004)
+  panel('乘務員門框',(cx,y,1.92),.46,2.06,'frame',r=.03)
+  c=panel('乘務員門扇',(cx,y+side*.022,1.92),.40,2.00,'e8silver',r=.025,depth=.022);c['side_door']=True;c['crew_door']=True
+  panel('乘務員門窗嵌框',(cx,y+side*.043,2.42),.22,.76,'frame',r=.04)
+  panel('乘務員門窗',(cx,y+side*.057,2.42),.17,.70,'glass',r=.035,depth=.012)
+  for z,h,mm in bands:box('乘務員門色帶',(cx,y+side*.050,z),(.40,.011,h),mm,.002)
+  for dx in [-.27,.27]:rod('乘務員扶手',(cx+dx,y+side*.06,1.35),(cx+dx,y+side*.06,2.40),.016,'metal')
+  side_strip('駕駛室黑色側窗',s,side,2.06,2.84,lambda z:2.24,lambda z:3.16-(z-2.06)*.60/.78,'frame',.021,rows=4)
+  sidewindow(2.42,y,2.45,.30,.70,r=.06)
  gw=1.05;top=lambda y:3.04-.05*(abs(y)/gw)**4
  front_patch('前窗黑框',f,-gw-.05,gw+.05,2.35,lambda y:top(y)+.05,'frame',.038,cols=24,rows=6)
  front_patch('前窗玻璃',f,-gw,gw,2.40,top,'glass',.046,cols=24,rows=6)
@@ -227,7 +275,11 @@ def emu800_like(s,inverse=False):
   wiper(f,side*.45,2.46,.50)
   front_panel('下巴通風格柵',f,side*.55,1.12,.30,.13,'frame',.03,.030)
   for k in range(4):front_panel('格柵條',f,side*.55,1.07+k*.03,.26,.010,'chassis',.003,.036)
- front_patch('下巴中縫',f,-.006,.006,.90,1.40,'frame',.032,cols=1,rows=6)
+ front_patch('下巴中縫',f,-.006,.006,.90,1.47,'frame',.032,cols=1,rows=6)
+ # 車鼻蓋：色帶下方一片圓角 U 形蓋板，接縫從色帶兩端往下、在底部收圓
+ u=[(-1.02,slo(1.02)+.02)]+[(-1.02+.20*(1-math.cos(a/6*math.pi/2)),1.08-.20*math.sin(a/6*math.pi/2)) for a in range(7)]
+ u+=[(-y,z) for y,z in reversed(u)]
+ use('03');line('車鼻蓋接縫',[(f(y,z)+.032,y,z) for y,z in u],.006,'frame')
  return f
 
 def emu800(s):return emu800_like(s)
@@ -247,6 +299,15 @@ def side_patch(name,s,f,side,x0,lo,hi,material,offset=.023,cols=14,rows=4):
  faces=[(i*(cols+1)+j,i*(cols+1)+j+1,(i+1)*(cols+1)+j+1,(i+1)*(cols+1)+j) for i in range(rows) for j in range(cols)]
  return mesh(name,verts,faces,material,0,True)
 
+def side_strip(name,s,side,z0,z1,xa,xb,material,offset=.024,rows=16,cols=2):
+ """駕駛室側面的斜向色塊：z 從 z0 到 z1，每個高度 x 從 xa(z) 到 xb(z)，貼著 half_width（車頂圓角處跟著收）。"""
+ use('01');verts=[]
+ for i in range(rows+1):
+  z=z0+(z1-z0)*i/rows;a,b=xa(z),xb(z)
+  for j in range(cols+1):verts.append((a+(b-a)*j/cols,side*(half_width(s,z)+offset),z))
+ faces=[(i*(cols+1)+j,i*(cols+1)+j+1,(i+1)*(cols+1)+j+1,(i+1)*(cols+1)+j) for i in range(rows) for j in range(cols)]
+ return mesh(name,verts,faces,material,0,True)
+
 def face_label(value,f,y,z,offset,size=.06,tilt=False):
  """車頭弧面上的字牌：字面順著該處的水平切線轉，兩端才不會陷進後面的牌子或玻璃；tilt 再順著垂直斜度往後倒（前窗往後倒的車頭用）。"""
  o=text_label(value,(f(y,z)+offset,y,z),size);k=(f(y+.01,z)-f(y-.01,z))/.02
@@ -257,8 +318,8 @@ def emu900(s):
  """EMU900（現代 Rotem）。參考：Commons「TRA EMU900 running a local train service on the Western Line.jpg」（jason199567，CC BY-SA 4.0，正面）、
  「EMU900 Yingge Station 20260108.jpg」「EMU900 Yingge Station 20260108 (2).jpg」（Sinsyuan，CC BY-SA 4.0，斜側）、「臺鐵EMU900型電聯車於現代工廠.jpg」（側面）。
  車頭上半是一整片黑色面罩，前窗融在黑裡：頂端中央綠字目的地、上方兩角各一顆圓頭燈、左上車號牌；窗下黑面罩兩側斜放煙燻燈座（各兩顆圓燈），
- 下緣一條白色 LED 燈帶；燈座外側是嫩綠側頰，繞過車角接成車側窗下的綠帶，綠帶在駕駛室側面往前上揚；面罩以下銀色，中央開口露出車鉤。
- 駕駛室後面是長圓窗與乘務員門（門兩側扶手、門頂雨水槽）。高度依正面照量：面罩 1.52–3.38、前窗下緣 2.36、燈帶 1.60–1.71、側頰在車角 1.60–1.90。"""
+ 下緣一條白色 LED 燈帶；燈座外側是嫩綠側頰，繞過車角接成車側窗下的綠帶，綠帶在駕駛室側面往前變寬上揚、貼到面罩側緣；面罩以下銀色，中央開口露出車鉤。
+ 駕駛室後面是長圓窗與乘務員門（門兩側扶手、門頂雨水槽）。高度依正面照量：面罩 1.52–3.38、前窗下緣 2.36、燈帶 1.60–1.71、側頰在車角 1.48–2.12。"""
  L,W,H=s['L'],s['W'],s['H']
  color('e9silver','C3C9CC',.50,.30,.15);color('e9roof','B4BBBE',.40,.42,.08);color('e9black','14181B',.20,.22,.45)
  color('e9smoke','3A434A',.25,.18,.50);color('e9green','8DC63F',.05,.34,.30);color('e9led','5BE38F',.05,.30,.20)
@@ -269,7 +330,7 @@ def emu900(s):
  # 駕駛室側面：綠帶往前上揚接到車角；長圓窗、乘務員門、門頂雨水槽
  x0=neck-.35;xc=f(W/2,1.8)
  for side in [-1,1]:
-  side_patch('駕駛室側面綠帶',s,f,side,x0,1.48,lambda x:1.80+.12*min(1,max(0,(x-x0)/(xc-x0)))**2,'e9green')
+  side_patch('駕駛室側面綠帶',s,f,side,x0,1.48,lambda x:1.80+.32*min(1,max(0,(x-x0)/(xc-x0)))**2.2,'e9green')
   y=side*(W/2+.018);cx=neck-.62;use('02')
   sidewindow(neck-.25,y,2.45,.20,.70,r=.10)
   panel('乘務員門框',(cx,y,1.90),.46,1.94,'frame',r=.03)
@@ -287,7 +348,7 @@ def emu900(s):
   a,b=sorted([side*.62,side*1.10]);front_patch('煙燻燈座',f,a,b,lambda y:1.66+(abs(y)-.62)*.50,lambda y:1.96+(abs(y)-.62)*.36,'e9smoke',.036,cols=10,rows=6)
   lamp('頭燈',f,side*.95,1.98,.070);lamp('頭燈',f,side*.76,1.83,.070)
   a,b=sorted([side*1.08,side*(W/2-.004)]);t=lambda y:(abs(y)-1.08)/(W/2-1.084)
-  front_patch('嫩綠側頰',f,a,b,lambda y:1.74-.14*t(y),lambda y:2.12-.22*t(y)**.8,'e9green',.033,cols=10,rows=6)
+  front_patch('嫩綠側頰',f,a,b,lambda y:1.66-.18*t(y),lambda y:2.16-.04*t(y),'e9green',.033,cols=10,rows=6)
  for a,b in [((-.10,2.40),(-.86,2.47)),((.76,2.40),(0,2.47))]:
   use('03');line('雨刷',[(f(*a)+.055,*a),(f(*b)+.055,*b)],.013,'frame')
  front_patch('白色 LED 燈帶',f,-.58,.58,lambda y:1.60+max(0,abs(y)-.50)*.9,1.71,'lamp',.040,cols=24,rows=2)
@@ -382,7 +443,7 @@ def temu2000(s):
  高度依正面照量：頭燈座 3.13–3.32、前窗 2.57（中央下緣）–3.05、眼睛 2.07–2.42、U 形框 0.97–2.03；車側紅帶照新竹站南側側面照的比例。"""
  L,W,H=s['L'],s['W'],s['H']
  color('t2white','F0F1EF',.08,.32,.25);color('t2roof','C9CDCB',.40,.42,.08);color('t2red','D42A35',.05,.32,.30)
- color('t2black','15191C',.20,.22,.45);color('t2smoke','2A3036',.25,.18,.50);color('t2amber','F5A23C',.10,.25,.30)
+ color('t2black','15191C',.20,.22,.45);color('t2smoke','4A6A8C',.25,.18,.50);color('t2amber','F5A23C',.10,.25,.30);color('t2silver','B4B8BA',.55,.30,.15)
  profile=[(.83,L/2-.30),(1.00,L/2-.12),(1.25,L/2-.03),(1.50,L/2),(1.80,L/2-.03),(2.05,L/2-.10),(2.40,L/2-.22),(2.60,L/2-.32),(2.80,L/2-.46),(3.05,L/2-.64),(3.25,L/2-.78),(H,L/2-.90)]
  s['bowPow']=1.8;red=[(1.31,.30,'t2red'),(1.005,.09,'t2red')]
  f,neck,doors=emu_body(s,profile,.60,[(H-.12,'t2white'),(H+1,'t2roof')],[(H+1,'t2white')],[(H-.12,'t2white'),(H+1,'t2roof')],
@@ -396,7 +457,10 @@ def temu2000(s):
  # 紅色車頭：從車頂往下收窄，車角留白；下巴的紅色在 U 形框裡往下收窄，兩側白色臉頰
  top=lambda y:face_zmax(s,y,.03)
  front_patch('紅色車頭',f,-1.40,1.40,lambda y:min(top(y)-.02,2.03+max(0,(abs(y)-1.10)/.30)**1.1),top,'t2red',.028,cols=48,rows=18)
- front_patch('紅色下巴',f,-1.0,1.0,lambda y:.99+max(0,abs(y)-.62)/.38*1.04,2.03,'t2red',.028,cols=30,rows=10)
+ front_patch('紅色下巴',f,-1.0,1.0,lambda y:1.18+max(0,abs(y)-.37)/.60*.85,2.03,'t2red',.028,cols=30,rows=10)
+ # 下巴最底下一段銀灰：沿 U 形框底緣，中央到紅色下緣、往兩端變窄收尖
+ ub=[(0,.965),(.40,.97),(.80,.99),(1.0,1.06),(1.11,1.20),(1.15,1.45)];ulo=lambda y:interp(ub,abs(y))+.012
+ front_patch('銀灰下巴',f,-1.14,1.14,ulo,lambda y:max(ulo(y)+.004,1.18+.27*(abs(y)/1.14)**3),'t2silver',.030,cols=48,rows=3)
  # 黑框前窗（下緣中間往下彎）、左上車號
  lo,hi=pinch(lambda y:2.57+.19*(y/1.33)**2,lambda y:3.05,-1.33,1.33,.10)
  front_patch('黑色前窗框',f,-1.33,1.33,lo,hi,'t2black',.034,cols=40,rows=8)
@@ -407,15 +471,19 @@ def temu2000(s):
   use('03');line('雨刷',[(f(*a)+.055,*a),(f(*b)+.055,*b)],.013,'frame')
  # 頂端左右兩個圓頭燈座、中間目的地顯示
  for side in [-1,1]:
-  a,b=sorted([side*.57,side*1.03]);lo,hi=pinch(lambda y:3.13,lambda y:3.32,.57,1.03,.095)
-  front_patch('頂部頭燈座',f,a,b,lambda y:lo(abs(y)),lambda y:hi(abs(y)),'t2black',.036,cols=14,rows=5)
-  lamp('頂部頭燈',f,side*.80,3.225,.070)
+  a,b=sorted([side*.52,side*1.08]);lo,hi=pinch(lambda y:3.08,lambda y:3.36,.52,1.08,.13)
+  front_patch('頂部頭燈銀框',f,a,b,lambda y:lo(abs(y)),lambda y:hi(abs(y)),'t2silver',.034,cols=20,rows=6)
+  a,b=sorted([side*.55,side*1.05]);lo,hi=pinch(lambda y:3.105,lambda y:3.335,.55,1.05,.11)
+  front_patch('頂部頭燈座',f,a,b,lambda y:lo(abs(y)),lambda y:hi(abs(y)),'t2black',.036,cols=20,rows=6)
+  lamp('頂部頭燈',f,side*.80,3.22,.092)
  front_panel('目的地顯示器',f,0,3.225,.60,.16,'t2black',.03,.040);front_panel('目的地字幕',f,0,3.225,.42,.05,'t2amber',.01,.048)
  # 眼睛燈座：外高內低，外側白頭燈、內側紅尾燈
  for side in [-1,1]:
-  t=lambda y:(abs(y)-.28)/.76;lo,hi=pinch(lambda y:2.07+.06*t(y),lambda y:2.32+.10*t(y),.28,1.04,.09)
-  a,b=sorted([side*.28,side*1.04]);front_patch('眼睛燈座',f,a,b,lambda y:lo(abs(y)),lambda y:hi(abs(y)),'t2smoke',.036,cols=16,rows=6)
-  lamp('頭燈',f,side*.82,2.25,.060);lamp('尾燈',f,side*.50,2.20,.042,red=True)
+  t=lambda y:(abs(y)-.24)/.84;lo,hi=pinch(lambda y:2.03+.06*t(y),lambda y:2.34+.10*t(y),.24,1.08,.14)
+  a,b=sorted([side*.24,side*1.08]);front_patch('眼睛燈座銀框',f,a,b,lambda y:lo(abs(y)),lambda y:hi(abs(y)),'t2silver',.034,cols=24,rows=8)
+  t2=lambda y:(abs(y)-.27)/.78;lo2,hi2=pinch(lambda y:2.06+.06*t2(y),lambda y:2.31+.10*t2(y),.27,1.05,.12)
+  a,b=sorted([side*.27,side*1.05]);front_patch('眼睛燈座',f,a,b,lambda y:lo2(abs(y)),lambda y:hi2(abs(y)),'t2smoke',.036,cols=24,rows=8)
+  lamp('頭燈',f,side*.82,2.24,.092);lamp('尾燈',f,side*.48,2.18,.052,red=True)
  # 下巴 U 形分模線與中縫
  u=[(-1.0,2.03),(0,2.04),(1.0,2.03),(1.12,1.96),(1.15,1.80),(1.15,1.45),(1.11,1.20),(1.0,1.06),(.80,.99),(.40,.97),(0,.965),
   (-.40,.97),(-.80,.99),(-1.0,1.06),(-1.11,1.20),(-1.15,1.45),(-1.15,1.80),(-1.12,1.96),(-1.0,2.03)]
@@ -477,7 +545,7 @@ def t700(s):
  高度照正側面照量（車頂 3.25、裙邊 0.83 定比例），車鼻長度壓到約六成。地圖的中間車是鏡射 x<0 半車做的，所以只屬於車頭的東西全放 x>0。"""
  L,W,H=s['L'],s['W'],s['H'];tip=L/2-.12
  color('t7white','E9EAE4',.08,.30,.30);color('t7orange','EB7A26',.05,.30,.32);color('t7black','16191C',.20,.22,.45)
- color('t7skirt','4B5155',.30,.36,.15);color('t7canopy','1A2128',.12,.42,0);color('t7seam','9AA0A0',.20,.40,.10)
+ color('t7skirt','5F6569',.30,.36,.15);color('t7canopy','1A2128',.12,.42,0);color('t7seam','9AA0A0',.20,.40,.10)
  # (x, 寬, 底, 頂, 下圓角, 上圓角)：車頂與鼻底照正側面照的輪廓，寬度照斜上方照片估
  shape=hermite([(-L/2,W,.83,H,.16,.55),(0,W,.83,H,.16,.55),(.80,W,.83,3.235,.16,.55),(1.25,2.82,.83,3.214,.17,.56),(1.70,2.77,.84,3.154,.18,.57),
   (2.15,2.69,.851,3.078,.19,.58),(2.47,2.58,.875,2.988,.20,.59),(2.83,2.40,.90,2.732,.21,.60),(3.06,2.25,.911,2.582,.22,.60),(3.28,2.08,.935,2.431,.23,.58),
@@ -490,10 +558,14 @@ def t700(s):
  faces=[tuple(reversed(range(n))),tuple(range((k-1)*n,k*n))]+[(i*n+j,i*n+(j+1)%n,(i+1)*n+(j+1)%n,(i+1)*n+j) for i in range(k-1) for j in range(n)]
  use('01');body=mesh('700T 施工車殼',verts,faces,'t7white',0,True)
  # 同一張車殼照塗裝邊界切成四色（fleet-v1 的做法）：裙邊、客室段下半白、橘色（駕駛室段到裙邊、客室段窄帶）、橘帶上緣以上白；
- # 白色裡車鼻上方高過窗罩下緣 CAN（正側面照量）的那塊是黑色窗罩：包住車鼻兩肩、側面看得到一長條，後端幾乎直切、往前收到鼻上
+ # 白色裡車鼻上方的水滴形那塊是黑色窗罩：包住車鼻兩肩、側面看得到一長條，後端幾乎直切、往前收到鼻上
  TOP=[(3.06,1.92),(3.507,1.86),(3.733,1.83),(3.959,1.74),(4.094,1.65),(4.184,1.56),(4.23,1.48),(tip,1.40)]
- CAN=[(2.47,2.75),(2.52,2.74),(2.70,2.62),(2.91,2.51),(3.13,2.40),(3.345,2.29),(3.56,2.20),(3.717,2.13)]
- sk=lambda x:1.22+.05*min(1,max(0,(x-4.0)/.28))**2;top=lambda x:interp(TOP,x);canz=lambda x:interp(CAN,x)
+ sk=lambda x:1.22+.05*min(1,max(0,(x-4.0)/.28))**2;top=lambda x:interp(TOP,x)
+ # 窗罩平面是水滴形：canw 是每個 x 的半寬（側面照看到的下緣由它決定），canf 是前緣（中段平、兩角往後收）
+ CANW=[(2.47,1.06),(2.90,1.02),(3.13,.95),(3.345,.87),(3.56,.77),(3.72,.66)]
+ canw=lambda x:interp(CANW,x);canf=lambda y:3.72-.34*(abs(y)/.80)**3
+ # 鼻蓋白區：正面看是大片 U 形、橘色只包鴨嘴外緣；側面照的鼻翼還是橘到 TOP（白色只在鼻蓋上面）
+ oval=lambda x,z:0 if x<3 else .62*(1+.5*min(1,max(0,(z-1.45)/.40)))*math.sqrt(max(0,1-(max(0,x-3.6)/.66)**2));ovlo=lambda y:1.34+.26*(abs(y)/.62)**3
  crear=lambda y:2.47+.08*(1-math.sqrt(max(0,1-min(1,abs(y)/1.17)**2)))
  lo=lambda x:1.65 if x<=.26 else 1.65-(1.65-sk(x))*min(1,(x-.26)/.14)
  lerp=lambda a,b,t:(a[0].lerp(b[0],t),a[1].lerp(b[1],t));groups={}
@@ -506,8 +578,11 @@ def t700(s):
   poly=[(d.vertices[i].co.copy(),d.vertices[i].normal.copy()) for i in tri.vertices]
   put('t7skirt',clip_poly(poly,lambda v:sk(v[0].x)-v[0].z,lerp));rest=clip_poly(poly,lambda v:v[0].z-sk(v[0].x),lerp)
   put('t7white',clip_poly(rest,lambda v:lo(v[0].x)-v[0].z,lerp));rest=clip_poly(rest,lambda v:v[0].z-lo(v[0].x),lerp)
-  put('t7orange',clip_poly(rest,lambda v:top(v[0].x)-v[0].z,lerp));rest=clip_poly(rest,lambda v:v[0].z-top(v[0].x),lerp)
-  put('t7white',clip_poly(rest,lambda v:canz(v[0].x)-v[0].z,lerp));rest=clip_poly(rest,lambda v:v[0].z-canz(v[0].x),lerp)
+  below=clip_poly(rest,lambda v:top(v[0].x)-v[0].z,lerp);rest=clip_poly(rest,lambda v:v[0].z-top(v[0].x),lerp)
+  put('t7orange',clip_poly(below,lambda v:abs(v[0].y)-oval(v[0].x,v[0].z),lerp));nose=clip_poly(below,lambda v:oval(v[0].x,v[0].z)-abs(v[0].y),lerp)
+  put('t7orange',clip_poly(nose,lambda v:ovlo(v[0].y)-v[0].z,lerp));put('t7white',clip_poly(nose,lambda v:v[0].z-ovlo(v[0].y),lerp))
+  put('t7white',clip_poly(rest,lambda v:abs(v[0].y)-canw(v[0].x),lerp));rest=clip_poly(rest,lambda v:canw(v[0].x)-abs(v[0].y),lerp)
+  put('t7white',clip_poly(rest,lambda v:v[0].x-canf(v[0].y),lerp));rest=clip_poly(rest,lambda v:canf(v[0].y)-v[0].x,lerp)
   put('t7white',clip_poly(rest,lambda v:crear(v[0].y)-v[0].x,lerp));put('t7canopy',clip_poly(rest,lambda v:v[0].x-crear(v[0].y),lerp))
  p.MODEL.remove(body);bpy.data.objects.remove(body,do_unlink=True)
  for key,name in [('t7white','700T 白色車殼'),('t7orange','700T 橘色車鼻與橘帶'),('t7skirt','700T 深灰裙邊'),('t7canopy','黑色水滴形駕駛窗罩')]:
@@ -540,7 +615,7 @@ def t700(s):
   pts=[(xc,yc)]+[(xc+rx*math.cos(2*math.pi*k/20),yc+ry*math.sin(2*math.pi*k/20)) for k in range(20)]
   return mesh(name,[(x,y,top_z(x,y)+off) for x,y in pts],[(0,1+k,1+(k+1)%20) for k in range(20)],material,0,True)
  use('03')
- for side in [-1,1]:top_disc('頭燈',3.50,side*.22,.05,.09,'lamp',.006);top_disc('尾燈',3.50,side*.38,.04,.06,'taillamp',.006)
+ for side in [-1,1]:top_disc('頭燈',3.50,side*.30,.05,.11,'lamp',.006);top_disc('尾燈',3.50,side*.50,.04,.07,'taillamp',.006)
  # 鼻蓋分模線：x=4.0 那一圈斷面，橘色下緣以上
  pts=loaf(*shape(4.0),8,12);seam=[]
  for i,(y,z) in enumerate(pts):
@@ -749,9 +824,9 @@ def side_ribs(s,zs,x0,x1,material,h=.022):
   y=half_width(s,z)+.005
   for side in [-1,1]:box('車側縱向壓紋',((x0+x1)/2,side*y,z),(x1-x0,.010,h),material,.003)
 
-def roof_hood(name,s,x0,x1,w,h,slope,material):
- """車頂設備罩：兩端斜面的梯形罩（冷氣、中央高起段）。"""
- use('05');H=s['H'];t=w/2-.06
+def roof_hood(name,s,x0,x1,w,h,slope,material,top=None):
+ """車頂設備罩：兩端斜面的梯形罩（冷氣、中央高起段）。top：頂面寬，預設只比底面窄一點。"""
+ use('05');H=s['H'];t=top/2 if top else w/2-.06
  v=[(x0,-w/2,H-.03),(x1,-w/2,H-.03),(x1,w/2,H-.03),(x0,w/2,H-.03),(x0+slope,-t,H+h),(x1-slope,-t,H+h),(x1-slope,t,H+h),(x0+slope,t,H+h)]
  return mesh(name,v,[(0,3,2,1),(4,5,6,7),(0,1,5,4),(1,2,6,5),(2,3,7,6),(3,0,4,7)],material,.015)
 
@@ -1348,10 +1423,10 @@ def e500(s):
  """E500 電力機車（東芝，雙頭）。參考：Commons「TRA E501 Kita-Fuchū 20230820.jpg」「TRA E501 Kita-Fuchū side 20230820.jpg」（Rsa，CC BY-SA 3.0，斜前方與正側面）、
  「臺鐵E500型電力機車.jpg」（Mafalda4144，CC BY-SA 4.0，正面）。
  整車橘色、車側平滑沒有百葉（fleet-v1 的六片百葉不對）；車頭上半一整片深灰面罩包住大前窗，面罩往後包住駕駛室頂；面罩頂端中央兩顆頭燈；
- 前窗下方左右黑色燈座各一白一紅兩顆圓燈；面罩下緣在兩角往上收成圓弧；下巴以下是深灰端梁、兩角橘色側裙。車頂淺灰，中央兩段高起的設備罩、
- 每段五片格柵蓋，兩端各一組單臂受電弓。高度依正面照量（橫向 161 px/m）：橘色下巴 1.25–2.18、前窗 2.34–3.20（半寬 1.20）、燈座 1.52–1.85（|y| .62–1.24）。"""
+ 前窗下方左右黑色燈座各一白一紅兩顆圓燈；面罩下緣在兩角往上收成圓弧；下巴以下是深灰端梁、兩角橘色側裙。車頂藍灰，中段一高一低兩段設備罩、
+ 藍灰平板格柵蓋（高段六片、低段三片），兩端各一組單臂受電弓。高度依正面照量（橫向 161 px/m）：橘色下巴 1.25–2.18、前窗 2.34–3.20（半寬 1.20）、燈座 1.52–1.85（|y| .62–1.24）。"""
  L,W,H=s['L'],s['W'],s['H']
- color('e5orange','F06A2E',.05,.32,.30);color('e5dark','2E3236',.25,.30,.30);color('e5roof','BCC2C6',.40,.40,.08);color('e5grille','7E868B',.45,.40,.08)
+ color('e5orange','F06A2E',.05,.32,.30);color('e5dark','2E3236',.25,.30,.30);color('e5roof','9FAAB6',.40,.40,.08);color('e5grille','71849A',.40,.40,.08);color('e5slat','5E7186',.40,.40,.08)
  profile=[(.83,L/2-.02),(.95,L/2),(2.18,L/2),(2.30,L/2-.03),(3.20,L/2-.36),(3.38,L/2-.47),(H,L/2-.66)]
  s['bowPow']=4;zones=[(3.18,'e5orange'),(H+1,'e5roof')]
  f,neck=zoned_shell(s,profile,.12,zones,[(1.25,'e5dark'),(2.18,'e5orange'),(H+1,'e5dark')],nose_zones=zones,double=True)
@@ -1377,11 +1452,11 @@ def e500(s):
   cab_door(3.05,side,W/2,.48,1.00,3.05,(2.45,2.90),'e5dark')
  mirror_cab(list(p.MODEL[head:]))
  use('05')
- for x0,x1 in [(-2.0,-.10),(.10,2.0)]:
-  roof_hood('車頂設備罩',s,x0,x1,W*.62,.14,.10,'e5roof')
-  for k in range(5):
-   x=x0+.10+(k+.5)*(x1-x0-.20)/5;box('格柵蓋',(x,0,H+.15),(.32,1.20,.02),'e5grille',.004)
-   for d in range(5):box('格柵條',(x-.13+d*.065,0,H+.165),(.02,1.12,.012),'e5roof',.002)
+ for x0,x1,h,n in [(-2.10,.35,.20,6),(.55,2.00,.12,3)]:
+  roof_hood('車頂設備罩',s,x0,x1,W*.62,h,.10,'e5roof');w=(x1-x0-.20)/n
+  for k in range(n):
+   x=x0+.10+(k+.5)*w;box('格柵蓋',(x,0,H+h+.01),(w-.05,1.24,.02),'e5grille',.004)
+   for d in range(4):box('格柵條',(x+(d-1.5)*w*.22,0,H+h+.024),(.018,1.14,.010),'e5slat',.002)
  for x in [-2.55,2.55]:pantograph(x,H)
  loco_bogies(L,W,3,.42)
  return f
@@ -1391,27 +1466,30 @@ def r200(s):
  「TRA R201 at TRA Changhua Roundhouse 20231112.jpg」（Rsa，CC BY-SA 3.0）、「臺鐵局R200新柴電機車見面會活動照片 03.jpg」（臺灣鐵路管理局，正側面）、
  「TRA R200 203.jpg」（Qhlsohandsome，CC BY-SA 4.0，正面）、「TRA R200 locomotive front side view April 2026.jpg」「Houtong station February 2026 1.jpg」（4300streetcar，CC BY 4.0，車頂）。
  白色車身；機房側面一大片深藍板（駕駛室後方留一段白），板上一組大百葉、後段一組小百葉；藍板下白細線、深藍細帶、白細線，最下黑色裙板；
- 機房車頂深藍：中段高起的引擎罩與排氣消音器、後段兩座圓形散熱風扇；駕駛室頂白色。車頭：黑框環繞大前窗、窗上黑帶與頂部頭燈、窗下黑帶與扶手；
- 白色下巴兩角黑色燈座（白燈＋紅燈）、中央黑色格柵、下面黑色端梁。高度照正側面照量（車頂 3.70、車身下緣 .80 定比例）：黑裙 .83–1.30、白線 1.30–1.40、
+ 機房車頂深藍：中段高起的引擎罩與排氣消音器、後段兩座圓形散熱風扇；駕駛室頂白色。車頭有切面：六角形黑色面罩包住平頂大前窗，窗上黑帶與灰色頂部燈座、窗下黑帶與扶手；
+ 白色下巴兩角黑色方形燈座（LED 白燈＋紅燈）、中央黑色格柵、下面黑色端梁。高度照正側面照量（車頂 3.70、車身下緣 .80 定比例）：黑裙 .83–1.30、白線 1.30–1.40、
  藍帶 1.40–1.53、藍板 1.60–2.76、白帶 2.76–3.00；車頭照正面照（橫向 128 px/m）：前窗 2.52–3.36、窗下黑帶 2.09–2.48、燈座 1.38–1.75（|y| .90 起）。"""
  L,W,H=s['L'],s['W'],s['H']
  color('r2white','F2F3F1',.06,.32,.26);color('r2navy','173660',.10,.34,.30);color('r2black','121416',.20,.30,.30)
- color('r2grille','0E1E36',.20,.40,.10);color('r2slat','3A3F44',.30,.40,.10)
+ color('r2grille','0E1E36',.20,.40,.10);color('r2slat','3A3F44',.30,.40,.10);color('r2lamp','8A8F93',.40,.30,.10)
  # 後端白燈用不發光的鏡片：lamp 材質是車頭端的真值（verify_garage_facing、海岸行旅與 App 的車燈都看它），單頭車只放在駕駛室那端
  color('r2lens','EDE3C2',.10,.30,.30)
  profile=[(.83,L/2-.02),(.95,L/2),(2.09,L/2),(2.48,L/2-.05),(3.40,L/2-.44),(3.56,L/2-.58),(H,L/2-.80)]
- s['bowPow']=3;zones=[(1.30,'r2black'),(1.40,'r2white'),(1.53,'r2navy'),(3.00,'r2white'),(H+1,'r2navy')]
+ s['bowKnee']=.98;zones=[(1.30,'r2black'),(1.40,'r2white'),(1.53,'r2navy'),(3.00,'r2white'),(H+1,'r2navy')]
  nz=[(1.30,'r2black'),(1.40,'r2white'),(1.53,'r2navy'),(H+1,'r2white')]
- f,neck=zoned_shell(s,profile,.22,zones,[(2.09,'r2white'),(H+1,'r2black')],nose_zones=nz)
- # 車頭
- lo,hi=pinch(lambda y:2.52,lambda y:3.36,-1.40,1.40,.12)
- front_patch('環繞前窗',f,-1.40,1.40,lo,hi,'glass',.030,cols=40,rows=10)
- face_label(s['label'],f,-.85,3.22,.040,.075,tilt=True);lamp('頂部頭燈',f,0,3.55,.065)
+ f,neck=zoned_shell(s,profile,.34,zones,[(H+1,'r2white')],nose_zones=nz)
+ # 車頭：平的中段加兩側切面；黑色面罩是六角形（上方收窄成帽、窗下中央往下一小段），白色框在四周；前窗平頂、只在中段
+ crown=lambda y:3.60-max(0,abs(y)-.78)*.62;chin=lambda y:2.09+.11*min(1,max(0,(abs(y)-.32)/.05))
+ front_patch('黑色面罩',f,-1.12,1.12,chin,crown,'r2black',.024,cols=64,rows=10)
+ lo,hi=pinch(lambda y:2.52,lambda y:3.36,-1.06,1.06,.05)
+ front_patch('前窗',f,-1.06,1.06,lo,hi,'glass',.032,cols=40,rows=10)
+ front_panel('頂部燈座',f,0,3.49,.62,.17,'r2lamp',.03,.032);front_panel('頂部頭燈',f,0,3.49,.22,.09,'lamp',.02,.038)
+ face_label(s['label'],f,-.80,3.24,.040,.075,tilt=True)
  for sd in [-1,1]:
-  use('03');line('窗下扶手',[(f(sd*.45,2.30)+.07,sd*.45,2.30),(f(sd*1.0,2.30)+.07,sd*1.0,2.30)],.016,'metal')
-  a,b=sorted([sd*.90,sd*1.38]);lo,hi=pinch(lambda y:1.38,lambda y:1.75,.90,1.38,.05)
-  front_patch('頭燈燈座',f,a,b,lambda y:lo(abs(y)),lambda y:hi(abs(y)),'r2black',.016,cols=10,rows=4)
-  lamp('頭燈',f,sd*1.04,1.565,.075);lamp('尾燈',f,sd*1.25,1.565,.050,red=True);lamp('標識燈',f,sd*.57,1.38,.030)
+  use('03');line('窗下扶手',[(f(sd*.28,2.28)+.07,sd*.28,2.28),(f(sd*.66,2.28)+.07,sd*.66,2.28)],.016,'metal')
+  a,b=sorted([sd*.78,sd*1.34]);lo,hi=pinch(lambda y:1.40,lambda y:1.72,.78,1.34,.04)
+  front_patch('頭燈燈座',f,a,b,lambda y:lo(abs(y)),lambda y:hi(abs(y)),'r2black',.020,cols=12,rows=4)
+  front_panel('頭燈',f,sd*1.13,1.56,.26,.16,'lamp',.02,.028);front_panel('尾燈',f,sd*.90,1.56,.14,.10,'taillamp',.02,.028);lamp('標識燈',f,sd*.57,1.38,.030)
  front_patch('下方黑色格柵',f,-.75,.75,.86,1.30,'r2black',.012,cols=12,rows=4)
  for k in range(4):front_patch('格柵橫條',f,-.70,.70,.92+k*.10,.95+k*.10,'r2slat',.018,cols=8,rows=1)
  x0=f(0,.83);use('03');box('黑色端梁',(x0-.03,0,.60),(.10,W*.88,.46),'r2black',.02);coupler(x0-.12,W,1,z=.62)
@@ -1490,10 +1568,11 @@ def bar_grille(name,x,y,z,w,h,n,frame='hdblack',bar='hdslat'):
  side=1 if y>0 else -1;use('02');panel(name+'框',(x,y+side*.004,z),w,h,frame,r=.02)
  for k in range(n):box(name,(x-w*.42+w*.84*k/max(1,n-1),y+side*.016,z),(.022,.014,h-.06),bar,0)
 
-def wing(name,f,hw,z0,z1,tip):
- """短鼻正面的白色 V 字飛翼：兩角接車側腰帶（z0–z1），往中央下彎到 tip（V 尖下緣），中央寬度是腰帶的兩倍。"""
- t=z1-z0;lo=lambda y:tip+(z0-tip)*abs(y)/hw;hi=lambda y:tip+2*t+(z1-tip-2*t)*(abs(y)/hw)**1.2
- front_patch(name,f,-hw,hw,lo,hi,'hdwhite',.010,cols=48,rows=4)
+def wing(name,f,hw,z0,z1,tip,offset=.010):
+ """短鼻正面的白色 V 字飛翼：兩角水平接車側腰帶（z0–z1），往中央先平後陡彎下去，上緣在中線交成凹口、下緣收成尖端（tip）。
+ offset：疊在百葉格柵上的要浮高一點，才不會被格柵蓋掉。"""
+ d=z0-tip;n=tip+.42*d;c=lambda y:(1-abs(y)/hw)**2.3
+ front_patch(name,f,-hw,hw,lambda y:z0-d*c(y),lambda y:z1-(z1-n)*c(y),'hdwhite',offset,cols=64,rows=4)
 
 def loco_bogies(L,W,axles,r):
  """轉向架；拿掉 `bogies` 順手放的電聯車車下設備箱（機車沒有，圓筒油箱、短油箱包不住會露出來），車底主梁保留。"""
@@ -1892,7 +1971,7 @@ def afr_colours():
  hood_colours();color('afred','E43A36',.06,.36,.26)
 
 def vee(name,f,hw,z0,z1,tip,material='hdwhite',offset=.010):
- """V 字飛翼（同 wing，可指定材質與浮出距離：疊在百葉格柵上的要浮高一點，才不會被格柵蓋掉）。"""
+ """直線 V 字（林鐵客車端面用；機車的飛翼是 wing）。"""
  t=z1-z0;lo=lambda y:tip+(z0-tip)*abs(y)/hw;hi=lambda y:tip+2*t+(z1-tip-2*t)*(abs(y)/hw)**1.2
  front_patch(name,f,-hw,hw,lo,hi,material,offset,cols=48,rows=4)
 
@@ -1925,25 +2004,27 @@ def afr_loco(s,nose,cab,ntop,htop,eave,band,face,front_win,side_win,cab_side,dec
  block('駕駛室圓頂',[(x,chw+.03,eave-.03,z,.40) for x,z in rounded_ends(xc0-.04,xc1+.04,H,rf=.04,rb=.04)],'afred')
  block('長機房',[(x,hhw,deck,z,.10) for x,z in rounded_ends(xh0,xc0+.05,htop,rb=.06)],'afred')
  plan_band('白色腰帶',[(xh0,hhw),(xc0,hhw),(xc0,chw),(xc1,chw),(xc1,nhw),(xn1,nhw)],z0,z1,'hdwhite')
- # 短鼻正面：白色 V 字飛翼、上方車號牌、燈組、下方兩支直扶手
+ # 短鼻正面：白色 V 字飛翼、上方車號牌、燈組；DL25 系另有兩支直扶手
  fn=lambda y,z:xn1
  if face=='dl45':
-  gz0,gz1=deck+.16,ntop-.36;k=round((gz1-gz0)/.075)
-  front_panel('正面百葉框',fn,0,(gz0+gz1)/2,2*nhw-.40,gz1-gz0,'hdblack',.03,.020)
-  for i in range(k):front_panel('正面百葉',fn,0,gz0+.04+(gz1-gz0-.08)*i/(k-1),2*nhw-.46,.030,'afred',.004,.030)
- vee('白色 V 字飛翼',fn,nhw-.02,z0,z1,deck+.14,offset=.045 if face=='dl45' else .010)
+  gz0,gz1=deck+.14,ntop-.26;k=round((gz1-gz0)/.075)
+  for sd in [-1,1]:
+   front_panel('正面百葉框',fn,sd*.30,(gz0+gz1)/2,.44,gz1-gz0,'hdblack',.03,.020)
+   for i in range(k):front_panel('正面百葉',fn,sd*.30,gz0+.04+(gz1-gz0-.08)*i/(k-1),.38,.030,'afred',.004,.030)
+ wing('白色 V 字飛翼',fn,nhw-.02,z0,z1,deck+.14,offset=.045 if face=='dl45' else .010)
  front_panel('車號牌框',fn,0,ntop-.15,.42,.16,'hdblack',.03,.026);front_panel('車號牌',fn,0,ntop-.15,.38,.12,'hdwhite',.02,.032)
  for sd in [-1,1]:
   if big:
-   use('03');cyl('外凸頭燈筒',(xn1+.06,sd*(nhw-.21),ntop-.17),.16,.14,'afred','X',28)
-   lamp('頭燈',lambda y,z:xn1+.03,sd*(nhw-.21),ntop-.17,.115)
+   use('03');cyl('外凸頭燈筒',(xn1+.06,sd*(nhw-.21),ntop-.17),.19,.14,'metal','X',32)
+   lamp('頭燈',lambda y,z:xn1+.03,sd*(nhw-.21),ntop-.17,.135)
    lamp('紅色標識燈',fn,sd*(nhw-.16),deck+.30,.045,red=True)
   elif face=='dl38':
    lamp('短鼻頭燈',fn,sd*(nhw-.20),ntop-.11,.075);lamp('紅色標識燈',fn,sd*(nhw-.10),z1+.02,.05,red=True)
   else:
    lamp('短鼻標識燈',fn,sd*(nhw-.18),ntop-.14,.05);lamp('紅色標識燈',fn,sd*(nhw-.16),deck+.42,.05,red=True)
-  use('07');rod('正面直扶手',(xn1+.07,sd*.26,deck+.18),(xn1+.07,sd*.26,deck+.62),.014,'hdblack')
-  for z in [deck+.18,deck+.62]:rod('扶手座',(xn1,sd*.26,z),(xn1+.07,sd*.26,z),.010,'hdblack')
+  if face=='dl25':
+   use('07');rod('正面直扶手',(xn1+.07,sd*.26,deck+.18),(xn1+.07,sd*.26,deck+.62),.014,'hdblack')
+   for z in [deck+.18,deck+.62]:rod('扶手座',(xn1,sd*.26,z),(xn1+.07,sd*.26,z),.010,'hdblack')
  if face=='dl38':line('短鼻頂扶手',[(xn1-.06,-.62,ntop-.01),(xn1-.06,-.62,ntop+.13),(xn1-.06,.62,ntop+.13),(xn1-.06,.62,ntop-.01)],.016,'hdblack')
  if big:
   w=(nose-.12)/2-.06
@@ -1995,7 +2076,7 @@ def afr_loco(s,nose,cab,ntop,htop,eave,band,face,front_win,side_win,cab_side,dec
  head=len(p.MODEL);g=lambda y,z:xe-plat;gz0,gz1=deck+.14,htop-.30;k=round((gz1-gz0)/.075)
  front_panel('散熱器格柵框',g,0,(gz0+gz1)/2,2*hhw-.24,gz1-gz0,'hdblack',.04,.020)
  for i in range(k):front_panel('散熱器百葉',g,0,gz0+.04+(gz1-gz0-.08)*i/(k-1),2*hhw-.32,.030,rear_slat,.004,.030)
- if rear_v:vee('白色 V 字飛翼',g,hhw-.02,z0,z1,deck+.14,offset=.045)
+ if rear_v:wing('白色 V 字飛翼',g,hhw-.02,z0,z1,deck+.14,offset=.045)
  front_panel('後端車號牌框',g,0,htop-.15,.42,.16,'hdblack',.03,.026);front_panel('後端車號牌',g,0,htop-.15,.38,.12,'hdwhite',.02,.032)
  for sd in [-1,1]:
   if big:
