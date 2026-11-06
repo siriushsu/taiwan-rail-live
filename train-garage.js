@@ -220,7 +220,7 @@
     b.querySelector('path').setAttribute('d',fs?FS_PATH.on:FS_PATH.off);requestDraw();
   }
   // Esc／返回手勢：兌換視窗開著先關它，再來是車款選單、場景頁；全畫面時先退全畫面、不關車庫。瀏覽器自己退出全畫面時同一下可能再送一次 cancel，那一下也不關。
-  const backOut=()=>{if(redeemScene){closeRedeem();return true;}if(closeCars(true)||closeStageCars(true))return true;if(frameBack){closeFrame();return true;}if(fs){setFullscreen(false);return true;}return performance.now()-fsLeftAt<400;};
+  const backOut=()=>{if(redeemScene){closeRedeem();return true;}if(closeStageCars(true))return true;if(frameBack){closeFrame();return true;}if(fs){setFullscreen(false);return true;}return performance.now()-fsLeftAt<400;};
   // 開場景頁到 scene（開著就就地換座，先記下離開那座最後看的車），車照 pickCar。時段從記著的天色選擇起（自動＝台灣時間；日出併進黃昏那顆），
   // 開著時手動選的留到離開；呼叫的人接著 showDetail 載入這座。
   function openFrame(scene){
@@ -230,14 +230,14 @@
       dialog.classList.add('g-sf-open');$('.g-top').inert=$('.g-main').inert=true;$('.g-sf').hidden=false;$('.g-sf-leave').focus({preventScroll:true});
       host.music?.sceneOpened();host.music?.sceneRunning(running);
     }else if(frameScene!==scene){frameCars.set(frameScene,selected);rowScroll=true;}
-    frameScene=scene;selected=pickCar(scene)||selected;closeCars();resetView();
+    frameScene=scene;selected=pickCar(scene)||selected;resetView();
   }
   // 場景頁最後看的車不在目前的篩選裡（例如篩選「已入庫」、車是待收集）才切回全部車款，首頁的選擇跟著它。
   function keepFrameCar(){const row=rows.find(r=>r.id===selected);if(row&&!inFilter(row))filter='all';}
   function closeFrame(){
     if(!frameBack)return;
     host.music?.sceneClosed();
-    closeCars();mode=frameBack;frameBack='';frameScene='';auto=false;running=mode!=='model'&&!reduced.matches;period=pickedPeriod();resetView();last=0;
+    mode=frameBack;frameBack='';frameScene='';auto=false;running=mode!=='model'&&!reduced.matches;period=pickedPeriod();resetView();last=0;
     dialog.classList.remove('g-sf-open');$('.g-sf').hidden=true;$('.g-top').inert=$('.g-main').inert=false;
     keepFrameCar();showGrid();$('[data-view="scene"]').focus({preventScroll:true});
   }
@@ -251,18 +251,6 @@
   function focusCar(list){
     const on=list.querySelector('[aria-pressed="true"]')||list.firstElementChild;
     if(on){list.scrollTop=Math.max(0,on.offsetTop-(list.clientHeight-on.offsetHeight)/2);on.focus({preventScroll:true});}
-  }
-  // 車款選單：場景頁標題那塊或換車鈕點了打開，只列這座跑的車，選了就地換車、場景不變。點外面、Esc、選了、換座、離開都會關。
-  function openCars(){
-    const list=$('.g-sf-cars .g-sf-car-list'),menu=$('.g-sf-cars'),title=$('.g-sf-title');
-    fillCars(list,roster(frameScene),row=>{closeCars(true);if(row.id!==selected){selected=row.id;showDetail();}});
-    menu.style.top=(title.getBoundingClientRect().bottom-$('.g-sf').getBoundingClientRect().top+4)+'px';
-    menu.hidden=false;title.setAttribute('aria-expanded','true');$('.g-sf-swap').setAttribute('aria-expanded','true');
-    focusCar(list);
-  }
-  function closeCars(refocus=false){
-    const menu=dialog&&$('.g-sf-cars');if(!menu||menu.hidden)return false;
-    menu.hidden=true;$('.g-sf-title').setAttribute('aria-expanded','false');$('.g-sf-swap').setAttribute('aria-expanded','false');if(refocus)$('.g-sf-title').focus({preventScroll:true});return true;
   }
   // 舞台的換車鈕：名單同「選擇車款」（目前篩選）。選單放在舞台裡，全畫面時也點得到，浮在鈕的上方。
   function openStageCars(){
@@ -315,15 +303,23 @@
     $('.g-view-hint').textContent=at==='track'?tr('頭城海岸・龜山島')+' · '+sky:at==='loop'?tr('環形試跑 · 拖曳移動，右鍵拖曳或雙指扭轉換角度'):tr('拖曳移動，右鍵拖曳或雙指扭轉看每一面');
     if(frameBack)showFrame(row);
   }
-  // 場景頁：標題那塊是這座的地名＋車名・狀態，這座跑的車不只一款時整塊是車款選單的按鈕（加 ▾）。
+  // 場景頁：標題那塊是這座的地名＋車名・狀態；場景鈕列下面一排車款鈕（這座跑的車不只一款才出現），點了就地換車。
   // 有錢包時標題下一排場景鈕：能進的就地換座，鎖著的帶鎖、點了開兌換視窗（疊在場景頁上）。
   function showFrame(row){
-    const [world,periods,,caption]=FRAME_TEXT[frameScene],f=$('.g-sf'),many=roster(frameScene).length>1,title=$('.g-sf-title');
+    const [world,periods,,caption]=FRAME_TEXT[frameScene],f=$('.g-sf'),cars=roster(frameScene),many=cars.length>1;
     f.dataset.period=period;
     $('.g-sf-title b').textContent=keepDot(tr(frameScene===DEFAULT_SCENE?'田園小站':scenePlace(frameScene)));
-    $('.g-sf-title small').innerHTML=row?esc(keepDot(tr(row.model.name)+' · '+status(row)))+(many?'<span aria-hidden="true"> ▾</span>':''):'';
-    title.disabled=!many;$('.g-sf-swap').hidden=!many;
-    if(many&&row)title.setAttribute('aria-label',tr('換車：{name}',{name:tr(row.model.name)}));else title.removeAttribute('aria-label');
+    $('.g-sf-title small').innerHTML=row?esc(keepDot(tr(row.model.name)+' · '+status(row))):'';
+    const cbox=$('.g-sf-carrow'),cseg=cbox.firstElementChild;
+    cbox.hidden=!many;
+    if(many){
+      if(cseg.dataset.key!==frameScene+'|'+cars.map(r=>r.id).join()){cseg.dataset.key=frameScene+'|'+cars.map(r=>r.id).join();cseg.replaceChildren(...cars.map(r=>{
+        const b=document.createElement('button');b.type='button';b.dataset.sfCar=r.id;b.textContent=keepDot(tr(r.model.name));
+        b.onclick=()=>{if(r.id!==selected){selected=r.id;showDetail();}};return b;}));}
+      for(const b of cseg.children)b.setAttribute('aria-pressed',String(b.dataset.sfCar===selected));
+      const on=cseg.querySelector('[aria-pressed="true"]');
+      if(on){const l=on.offsetLeft,r2=l+on.offsetWidth;if(l<cbox.scrollLeft+12)cbox.scrollLeft=l-12;else if(r2>cbox.scrollLeft+cbox.clientWidth-12)cbox.scrollLeft=r2-cbox.clientWidth+12;}
+    }
     const ctx=walletCtx(),box=$('.g-sf-scenes'),seg=box.firstElementChild;
     box.hidden=!ctx||!ctx.scenes.length;
     if(!box.hidden){
@@ -718,13 +714,13 @@
       <div class="g-detail"><span class="g-status"></span><h2 class="g-name"></h2><p class="g-system"></p><p class="g-reason"></p><p class="g-goal"></p><p class="g-date"></p><button class="g-cta"></button><button class="mt-g-plan" type="button" data-mt-g="schedule" hidden></button><p class="mt-g-note" data-mt-g="note" hidden></p><div class="mt-g-mine" hidden><p class="mt-g-status" data-mt-g="status" data-i18n-skip></p><button class="mt-g-view" type="button" data-mt-g="view"></button></div><details class="g-sources"><summary>${esc(tr('車型與來源'))} ↗</summary><div class="g-source-body"></div></details></div></section>
       <p class="g-result" role="status" aria-live="polite"></p><div class="g-grid"></div>
       <footer class="g-footer"><span class="g-catalog"></span> · ${esc(tr('模型製作：軌島（Q 版示意）'))}<br>${esc(tr('進度沿用旅程護照；62 款有收集條件、另 5 款用島民點數兌換，既有車種章自動帶入。'))}<br>${esc(tr('收藏的是紀念模型，不代表曾搭乘這個實際車型或車號。'))}</footer></main>
-      <section class="g-sf" hidden aria-labelledby="gSfTitle"><div class="g-sf-bar"><button class="g-sf-leave" type="button">${esc(tr('離開'))}</button><button class="g-sf-title" type="button" aria-expanded="false"><b id="gSfTitle"></b><small></small></button>${musicButton()}</div>
+      <section class="g-sf" hidden aria-labelledby="gSfTitle"><div class="g-sf-bar"><button class="g-sf-leave" type="button">${esc(tr('離開'))}</button><div class="g-sf-title"><b id="gSfTitle"></b><small></small></div>${musicButton()}</div>
       <div class="g-sf-scenes" hidden><div class="g-sf-seg" role="group" aria-label="${esc(tr('選擇場景'))}"></div></div>
-      <div class="g-sf-cars" hidden><p>${esc(tr('在這座跑的車'))}</p><div class="g-sf-car-list"></div></div>
+      <div class="g-sf-carrow" hidden><div class="g-sf-seg" role="group" aria-label="${esc(tr('在這座跑的車'))}"></div></div>
       <div class="g-sf-stage"><div class="g-sf-wrap"><canvas class="g-sf-view" tabindex="0" role="img" aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown"></canvas><div class="g-sf-views" role="group" aria-label="${esc(tr('觀賞視角'))}"><button data-sf-view="world" type="button"></button><button data-sf-view="train" type="button">${esc(tr('陪它走走'))}</button></div>
       <p class="g-sf-hint">${esc(tr('拖曳移動 · 右鍵拖曳或雙指扭轉換角度 · 滾動或雙指縮放'))}</p><div class="g-sf-loading" role="status"><span></span><button class="g-sf-retry" type="button" hidden>${esc(tr('重新載入小車'))}</button></div></div>
       <div class="g-sf-tools"><div class="g-sf-seg" role="group" aria-label="${esc(tr('時間'))}">${FRAME_PERIODS.map(p=>`<button data-sf-period="${p}" type="button"></button>`).join('')}</div>
-      <div class="g-sf-icons" role="group" aria-label="${esc(tr('列車與視角控制'))}"><button class="g-sf-play g-sf-icon" type="button"></button><button class="g-sf-out g-sf-icon" type="button" aria-label="${esc(tr('縮小場景'))}">−</button><button class="g-sf-in g-sf-icon" type="button" aria-label="${esc(tr('放大場景'))}">＋</button><button class="g-sf-reset g-sf-icon" type="button" aria-label="${esc(tr('重設視角'))}">⌂</button><button class="g-sf-swap g-sf-icon" type="button" hidden aria-haspopup="true" aria-expanded="false">${esc(tr('換列車'))}</button></div></div>
+      <div class="g-sf-icons" role="group" aria-label="${esc(tr('列車與視角控制'))}"><button class="g-sf-play g-sf-icon" type="button"></button><button class="g-sf-out g-sf-icon" type="button" aria-label="${esc(tr('縮小場景'))}">−</button><button class="g-sf-in g-sf-icon" type="button" aria-label="${esc(tr('放大場景'))}">＋</button><button class="g-sf-reset g-sf-icon" type="button" aria-label="${esc(tr('重設視角'))}">⌂</button></div></div>
       <p class="g-sf-caption"></p></div></section>
       <div class="g-redeem" hidden><div class="g-redeem-card" role="dialog" aria-modal="true" aria-labelledby="gRedeemTitle" tabindex="-1"><h2 id="gRedeemTitle"></h2><p class="g-redeem-desc"></p><div class="g-redeem-acct"></div><p class="g-redeem-msg" role="status"></p><button class="g-redeem-go" type="button"></button><button class="g-redeem-close" type="button">${esc(tr('關閉'))}</button></div></div>`;
 
@@ -751,14 +747,11 @@
     // 第 4 格：先畫這款車能進、已解鎖的第一座（照場景列的順序），不然田園小站。
     for(const b of dialog.querySelectorAll('[data-view]'))b.onclick=()=>{if(b.dataset.view==='scene'){const ctx=walletCtx(),row=rows.find(r=>r.id===selected);openFrame(sceneList(ctx).find(s=>s!==DEFAULT_SCENE&&sceneOpen(ctx,s)&&runsIn(row,s))||DEFAULT_SCENE);showDetail();return;}if(mode===b.dataset.view)return;mode=b.dataset.view;auto=false;running=mode!=='model'&&!reduced.matches;resetView();last=0;showDetail();};
     $('.g-sf-leave').onclick=closeFrame;
-    $('.g-sf-title').onclick=$('.g-sf-swap').onclick=()=>{if(!closeCars(true))openCars();};
-    $('.g-sf').addEventListener('pointerdown',e=>{if(!e.target.closest('.g-sf-cars,.g-sf-title,.g-sf-swap'))closeCars();});
-    $('.g-sf-cars').addEventListener('focusout',e=>{const to=e.relatedTarget;if(to&&!e.currentTarget.contains(to)&&!to.closest('.g-sf-title,.g-sf-swap'))closeCars();});
     $('.g-swap').onclick=()=>{if(!closeStageCars(true))openStageCars();};
     $('.g-main').addEventListener('pointerdown',e=>{if(!e.target.closest('.g-swap-menu,.g-swap'))closeStageCars();});
     $('.g-swap-menu').addEventListener('focusout',e=>{const to=e.relatedTarget;if(to&&!e.currentTarget.contains(to)&&!to.closest('.g-swap'))closeStageCars();});
     // 按在車款選單裡不搬動焦點：Safari 不把焦點給按鈕，會跳到 dialog，上面的 focusout 當成離開，選單先關、點擊落空。
-    for(const el of dialog.querySelectorAll('.g-sf-cars,.g-swap-menu'))el.addEventListener('mousedown',e=>e.preventDefault());
+    for(const el of dialog.querySelectorAll('.g-swap-menu'))el.addEventListener('mousedown',e=>e.preventDefault());
     for(const b of dialog.querySelectorAll('[data-sf-view]'))b.onclick=()=>{trainView=b.dataset.sfView==='train';resetView();showControls();requestDraw();};
     for(const b of dialog.querySelectorAll('[data-sf-period]'))b.onclick=()=>{period=b.dataset.sfPeriod;showControls();requestDraw();};
     $('.g-redeem-go').onclick=e=>redeemDo(e.currentTarget.dataset.do);$('.g-redeem-close').onclick=closeRedeem;
