@@ -12,6 +12,7 @@ import {createTerrainFollower} from './garage-scenes/consist-3d.js';
 import {createJourney} from './garage-scenes/alishan-route.js';
 import {createCallingPass,createStopTimetable} from './garage-scenes/stop-timetable.js';
 import {separateCoplanar} from './garage-scenes/separate-coplanar.js';
+import {splitThin,applyThinFade} from './garage-scenes/thin-fade.js';
 
 // drive：0 平面環線（garage-model.js follow）、1 車身跟坡度（consist-3d.js）、2 阿里山六段折返（機關車在下山端）、
 // 3 穿越：一端開進、另一端開出，車身在 x＝±clip 被裁掉，整列開出去才繞回來；pass＝[一趟的弧長, 時間 0 的車心位置]。
@@ -76,6 +77,7 @@ export async function createDiorama(renderer,sceneId,carId,primary,{family,signa
  let world;
  try{world=mod.createScene(...(SCENE_ARGS[sceneId]?.(kits)??[]));}catch(e){kits.forEach(k=>k.dispose());throw e;}
  const planes=separateCoplanar(world.group); // 同平面的面分開，鏡頭動時才不會閃（App 由 bake.mjs 跑同一支）。
+ const thin=splitThin(world.group); // 鐵軌、電線這類細線照畫面上的粗細淡出，細到一兩個像素時才不會忽隱忽現（App 由 bake.mjs 跑同一支）。
  const themes=mod.THEMES,consists=[];
  try{
   consists.push(await createConsist(carId,primary,signal,{locoAtTail:!!m.locoAtTail,doors:!!m.doors}));
@@ -203,6 +205,7 @@ export async function createDiorama(renderer,sceneId,carId,primary,{family,signa
    const span=(trainView?(passAt?Math.max(8,consist.length*.7/aspect):Math.max(9,consist.length*.65/aspect)):Math.max(m.span[0],m.span[1]/aspect))/zoom;
    Object.assign(camera,{left:-span*aspect,right:span*aspect,top:span,bottom:-span});
    camera.position.set(target.x+100*Math.cos(elevation)*Math.cos(yaw),target.y+100*Math.cos(elevation)*Math.sin(yaw),target.z+100*Math.sin(elevation));camera.lookAt(target);camera.updateProjectionMatrix();camera.updateMatrixWorld();
+   applyThinFade(thin,h/(2*span));
    // 阿里山：鏡頭和車身之間的樹淡出；要在鏡頭擺好之後算，焦點取車身中段（車廂原點在車底，＋車高一半）。
    if(world.updateTreeFade){center.z+=.625;world.updateTreeFade(camera.position,center);}
    if(world.setCanopyOpacity&&stop){
@@ -229,7 +232,7 @@ export async function createDiorama(renderer,sceneId,carId,primary,{family,signa
   dispose(){
    gone=true;for(const x of clipped){x.clippingPlanes=null;x.clipShadows=false;x.needsUpdate=true;}
    people?.dispose();lanterns?.dispose();vegetation?.dispose();visitors?.dispose();attendant?.traverse(o=>{if(o.isMesh)[].concat(o.material).forEach(x=>x.dispose());});
-   lamps.forEach(l=>l.dispose());consists.forEach(c=>c.dispose());world.dispose();planes.clones.forEach(g=>g.dispose());extras.forEach(a=>a.dispose());kits.forEach(k=>k.dispose());for(const by of xrayMaterials.values())for(const list of Object.values(by))list.forEach(x=>x.dispose());clearDepth.geometry.dispose();clearDepth.material.dispose();environment.dispose();groundGeo.dispose();groundMat.dispose();sun.shadow.map?.dispose();sun.dispose();
+   lamps.forEach(l=>l.dispose());consists.forEach(c=>c.dispose());world.dispose();planes.clones.forEach(g=>g.dispose());thin.forEach(t=>t.mesh.material.dispose());extras.forEach(a=>a.dispose());kits.forEach(k=>k.dispose());for(const by of xrayMaterials.values())for(const list of Object.values(by))list.forEach(x=>x.dispose());clearDepth.geometry.dispose();clearDepth.material.dispose();environment.dispose();groundGeo.dispose();groundMat.dispose();sun.shadow.map?.dispose();sun.dispose();
   }
  };
 }
