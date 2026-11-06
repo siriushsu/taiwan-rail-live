@@ -1,8 +1,8 @@
 // 車庫舞台：旋轉、視角高低沒有按鈕之後靠手勢（照主地圖 rail-3d/map-gestures.js，逐模式的數值在 verify_garage_map_gestures.mjs）：
 // 左鍵與觸控拖曳平移（觸控不捲頁面）、右鍵拖曳轉向與仰角、滾輪縮放、畫布方向鍵照舊；
 // 時段選擇（天色）只在有天色的海岸行旅出現，選了舞台與提示列跟著換、記在這台裝置、全畫面也能選；場景頁用記著的天色當起點，頁上的時段鈕只管開著的這段。
-// 用法：GARAGE_URL=http://127.0.0.1:5297/ node scripts/verify_garage_stage_controls.mjs（Chrome 無視窗；截圖在 .superpowers/garage-stage-controls）
-import {chromium} from 'playwright';
+// 用法：GARAGE_URL=http://127.0.0.1:5297/ node scripts/verify_garage_stage_controls.mjs（Chrome 無視窗，車款選單另用 WebKit 實點；截圖在 .superpowers/garage-stage-controls）
+import {chromium,webkit} from 'playwright';
 import {mkdirSync} from 'node:fs';
 const BASE=process.env.GARAGE_URL||'http://127.0.0.1:5198/',OUT='.superpowers/garage-stage-controls';mkdirSync(OUT,{recursive:true});
 const results=[],check=(name,pass,detail)=>{results.push({name,pass:!!pass});console.log(pass?'PASS':'FAIL',name,detail===undefined?'':JSON.stringify(detail));};
@@ -130,4 +130,21 @@ try{
  const dot=await en.p.evaluate(()=>{const q=s=>document.querySelector(s);q('.g-swap').click();const names=[...document.querySelectorAll('.g-swap-menu .g-sf-car-list b')].map(n=>n.textContent);q('.g-swap').click();return{keep:names.filter(n=>n.includes('\u00a0· ')).length,plain:names.filter(n=>n.includes(' · ')).length};});
  check('英文車款選單的「·」留在行尾',dot.keep>0&&!dot.plain,dot);await en.c.close();
 }finally{await b.close();}
+// 車款選單要真的換得到車：Safari 按鈕不吃焦點，按下去焦點跳到 dialog，Chrome 上看不出來，要在 WebKit 實點。
+const wk=await webkit.launch({headless:true});
+try{
+ const {c,p,errors}=await boot(wk,375,812);
+ const swap=async(menu,opener,label)=>{
+  const shown=()=>p.waitForFunction(m=>!document.querySelector(m).hidden,menu),on=()=>p.evaluate(m=>document.querySelector(m+' [aria-pressed="true"]')?.dataset.car,menu);
+  await p.tap(opener);await shown();
+  const from=await on(),to=await p.evaluate(m=>document.querySelector(m+' .g-sf-car-list button:not([aria-pressed="true"])').dataset.car,menu);
+  const row=p.locator(`${menu} [data-car="${to}"]`);await row.scrollIntoViewIfNeeded();await row.tap();
+  await p.waitForFunction(m=>document.querySelector(m).hidden,menu);await settle(p);
+  await p.tap(opener);await shown();const now=await on();await p.tap(opener);
+  check('WebKit '+label+'點一列換得到車',now===to,{from,to,now});
+ };
+ await p.locator('.g-swap').scrollIntoViewIfNeeded();await swap('.g-swap-menu','.g-swap','展示台選單');
+ await openScene(p);await swap('.g-sf-cars','.g-sf-title','場景頁選單');await leaveScene(p);
+ check('WebKit 無 JS 例外',!errors.length,errors);await c.close();
+}finally{await wk.close();}
 const failed=results.filter(r=>!r.pass);console.log(`\n${results.length-failed.length}/${results.length} PASS`);process.exit(failed.length?1:0);

@@ -755,6 +755,8 @@
     $('.g-swap').onclick=()=>{if(!closeStageCars(true))openStageCars();};
     $('.g-main').addEventListener('pointerdown',e=>{if(!e.target.closest('.g-swap-menu,.g-swap'))closeStageCars();});
     $('.g-swap-menu').addEventListener('focusout',e=>{const to=e.relatedTarget;if(to&&!e.currentTarget.contains(to)&&!to.closest('.g-swap'))closeStageCars();});
+    // 按在車款選單裡不搬動焦點：Safari 不把焦點給按鈕，會跳到 dialog，上面的 focusout 當成離開，選單先關、點擊落空。
+    for(const el of dialog.querySelectorAll('.g-sf-cars,.g-swap-menu'))el.addEventListener('mousedown',e=>e.preventDefault());
     for(const b of dialog.querySelectorAll('[data-sf-view]'))b.onclick=()=>{trainView=b.dataset.sfView==='train';resetView();showControls();requestDraw();};
     for(const b of dialog.querySelectorAll('[data-sf-period]'))b.onclick=()=>{period=b.dataset.sfPeriod;showControls();requestDraw();};
     $('.g-redeem-go').onclick=e=>redeemDo(e.currentTarget.dataset.do);$('.g-redeem-close').onclick=closeRedeem;
