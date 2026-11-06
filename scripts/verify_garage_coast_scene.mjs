@@ -42,7 +42,7 @@ for(const [engine,type]of Object.entries({chromium,webkit})){
   await p.unroute('**/garage-blender-v1/juguang.bin.gz');await p.click('.g-retry');await ready(p);await settled(p);
   check(engine+' 重試後恢復完整三節編組',await p.locator('.g-view').getAttribute('data-car-count')==='3');
   if(await p.locator('.g-auto').getAttribute('aria-pressed')==='true')await p.click('.g-auto');
-  for(const [id,expected]of [['emu3000',['emu3000','emu3000-mid','emu3000']],['e1000',['e1000','ppcoach','e1000']],['blue',['blue','bluecoach','bluecoach']],['700t',['700t','700t-mid','700t']],['ck124',['ck124','bluecoach','bluecoach']],['c381',['c381','c381-mid','c381']],['danhai',['danhai-section-0','danhai-section-2','danhai-section-4']],['alicoach',['alicoach','alicoach','alicoach']]]){
+  for(const [id,expected]of [['emu3000',['emu3000','emu3000-mid','emu3000']],['e1000',['e1000','ppcoach','e1000']],['blue',['blue','bluecoach','bluecoach']],['700t',['700t','700t-mid','700t']],['ck124',['ck124','bluecoach','bluecoach']],['c381',['c381','c381-mid','c381']],['danhai',['danhai-section-0','danhai-section-2','danhai-section-4']],['alicoach',['dl39','alicoach','alicoach']],['juguang',['e200','juguang','juguang']],['ppcoach',['e500','ppcoach','e500']],['fushen',['fushen','fushen','fushen']]]){
    await p.selectOption('.g-model-select',id);await ready(p);await settled(p);let s=await sample(p);
    check(engine+' '+id+' 使用正確車頭與中間車／客車／分節',JSON.stringify(s.cars.map(c=>c.model))===JSON.stringify(expected)&&s.cars.every(c=>c.left>1&&c.right<s.width-1),s.cars.map(c=>c.model));
    await p.click('.g-reverse');await settled(p);s=await sample(p);check(engine+' '+id+' 反向三節仍完整',s.cars.length===3&&s.cars.every(c=>c.left>1&&c.right<s.width-1&&c.top>1&&c.bottom<s.height-1));
