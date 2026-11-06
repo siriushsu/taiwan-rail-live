@@ -1,16 +1,17 @@
 // 細構件淡出：鐵軌、枕木、電線、桿子、欄杆在畫面上只有一兩個像素寬，4 倍多重取樣也蓋不住，鏡頭一動就一閃一閃。
 // 場景建好、separateCoplanar 之後跑一次 splitThin：依世界座標的粗細挑出線狀的網格（包圍盒三邊排序後，中間那邊小於 LIMIT、
-// 最長邊至少是它的 LONG 倍、最短邊至少是它的 FLAT 倍；牆和地板中間那邊大，人和小擺設不夠長，地上的標線、貼片太扁），換成自己的一份材質。每幀照「這個寬度在畫面上幾個像素」調不透明度：
+// 最長邊至少是它的 LONG 倍；牆和地板中間那邊大，人和小擺設不夠長），換成自己的一份材質。電車線、道路標線、月台黃線這種扁帶也算：
+// 全景時它們一樣不到一個像素寬、一樣會閃。每幀照「這個寬度在畫面上幾個像素」調不透明度：
 // 寬到 FULL 像素以上照舊，越細越淡，最淡留 FLOOR，全景時細線還看得到、只是不再忽隱忽現。
 // 網頁 garage-diorama.js 與 native scripts/garage-scenes/bake.mjs 都呼叫，三端拿到同一份分法；淡出公式原生照抄 thinOpacity。
 import * as THREE from '../vendor/three.module.js';
-export const LIMIT=.2,LONG=3,FLAT=.3,FADE=1,FULL=3.5,FLOOR=.3;
+export const LIMIT=.2,LONG=3,FADE=1,FULL=3.5,FLOOR=.3;
 // width：世界單位；ppu：畫面每單位幾個裝置像素（正交鏡頭全畫面一樣）。
 export function thinOpacity(width,ppu){const x=Math.max(0,Math.min(1,(width*ppu-FADE)/(FULL-FADE)));return FLOOR+(1-FLOOR)*x*x*(3-2*x);}
 const pos=new THREE.Vector3(),scl=new THREE.Vector3(),rot=new THREE.Quaternion(),world=new THREE.Matrix4(),one=new THREE.Matrix4(),size=new THREE.Vector3();
 // 線狀的回傳粗細（中間那邊），不是線回傳 Infinity。
 function widthOf(geometry,matrix){if(!geometry.boundingBox)geometry.computeBoundingBox();geometry.boundingBox.getSize(size);matrix.decompose(pos,rot,scl);
- const d=[Math.abs(size.x*scl.x),Math.abs(size.y*scl.y),Math.abs(size.z*scl.z)].sort((a,b)=>a-b);return d[1]>0&&d[2]>=LONG*d[1]&&d[0]>=FLAT*d[1]?d[1]:Infinity;}
+ const d=[Math.abs(size.x*scl.x),Math.abs(size.y*scl.y),Math.abs(size.z*scl.z)].sort((a,b)=>a-b);return d[1]>0&&d[2]>=LONG*d[1]?d[1]:Infinity;}
 // 回傳 [{mesh, source, width}]：mesh 換成 source 的複本（transparent），width 是這批的中位數粗細。
 // 透明、多材質、隱藏的網格不動；樹葉（taiwan-trees）不是線，不動。
 export function splitThin(group,limit=LIMIT){
