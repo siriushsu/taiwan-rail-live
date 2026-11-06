@@ -158,6 +158,9 @@ def decimate(V, M, budget):
     # 同一片連續表面上的色彩交界（不同材質共用的頂點）不參與減面，色帶邊緣不會被拉成鋸齒。
     pairs = np.unique(np.stack([F[ok].ravel(), np.repeat(M[ok], 3)], 1), axis=0)
     paint = np.bincount(pairs[:, 0], minlength=len(first)) > 1
+    # 輪底的最低點也不減：同一列的頭車與中間車要踩在同一軌面上。
+    z = V.reshape(-1, 3)[first, 2]
+    paint |= z < z.min()+1e-4
     if paint.any():
         if len(mesh.vertices) != len(first):
             raise ValueError('validate 改了頂點數，色彩交界頂點對不上')

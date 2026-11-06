@@ -403,7 +403,7 @@ def clip_to_shell(obj):
 def build_ring_frame(door_id, cx, side):
     """關門時蓋住縫的門框環：用四根長條組成畫框，取代舊的實心側門門框。"""
     p.use('02')
-    y = side * 1.440
+    y = side * 1.433
     depth = .012
     half_out_w, half_out_h = RING_OUTER_W / 2, RING_OUTER_H / 2
     half_in_w, half_in_h = HOLE_W / 2, HOLE_H / 2
@@ -412,13 +412,13 @@ def build_ring_frame(door_id, cx, side):
     objs = []
     # 三角形預算：純結構用的細長條不用倒角（bevel=0），面中心位置不受影響、只省三角形
     objs.append(p.box(f'側門門框環 上 {door_id}', (cx, y, DOOR_CZ + half_in_h + top_h / 2),
-                       (RING_OUTER_W, depth, top_h), 'frame', 0))
+                       (RING_OUTER_W, depth, top_h), 'emu3seam', 0))
     objs.append(p.box(f'側門門框環 下 {door_id}', (cx, y, DOOR_CZ - half_in_h - top_h / 2),
-                       (RING_OUTER_W, depth, top_h), 'frame', 0))
+                       (RING_OUTER_W, depth, top_h), 'emu3seam', 0))
     objs.append(p.box(f'側門門框環 左 {door_id}', (cx - half_in_w - side_w / 2, y, DOOR_CZ),
-                       (side_w, depth, HOLE_H), 'frame', 0))
+                       (side_w, depth, HOLE_H), 'emu3seam', 0))
     objs.append(p.box(f'側門門框環 右 {door_id}', (cx + half_in_w + side_w / 2, y, DOOR_CZ),
-                       (side_w, depth, HOLE_H), 'frame', 0))
+                       (side_w, depth, HOLE_H), 'emu3seam', 0))
     # round 1 這裡原本還加了一個「固定把手座」複製件，理由是 D2 需要車寬 bounds 與 BASE 逐分量差
     # ≤1e-4，而原車寬邊界正是由門把凹槽（凸到 1.5155）撐出來的、round 1 把門把壓進可動薄片後車寬
     # 會內縮，所以另外複製一個不動的假把手撐住邊界。round 2 已改成門把凹槽直接原封不動整個列入
@@ -651,7 +651,7 @@ for d in doors_info:
     doors_meta_items.append({
         'id': door_id,
         'side': side,
-        'center': [d['cx'], side * 1.466, DOOR_CZ],
+        'center': [d['cx'], side * 1.441, DOOR_CZ],
         'width': LEAF_W,
         'height': LEAF_H,
         'inward': [0, -side * .14, 0],
@@ -675,6 +675,7 @@ meta = {
     'sizeM': list(bounds[1] - bounds[0]),
     'drawGroups': draw_groups,
     'doors': doors_payload,
+    'headFront': head_tail_points.get('headFront', []),
 }
 
 (BUILD_OUT / 'emu3000-doors.raw.bin').write_bytes(bytes(raw))
