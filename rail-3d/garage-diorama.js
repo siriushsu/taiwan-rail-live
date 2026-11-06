@@ -128,6 +128,7 @@ export async function createDiorama(renderer,sceneId,carId,primary,{family,signa
  const tt=m.stop===undefined?null:createStopTimetable({pathLength:world.path.length,speed:m.speed});
  const passAt=m.pass&&(t=>{const [L,phase]=m.pass;return(((t*m.speed+phase+L/2)%L)+L)%L-L/2;});
  // 進站的場景：每股輪著跑這座的幾款車。tracks 一股一筆，list 是這股備好的編組（第 0 款是使用者選的車）；另一股晚半個週期。
+ // 開場還在場上的那一趟（n<0）固定跑選的車：鄰款載好時不會整列換掉。
  const calling=m.pass&&m.call!==undefined?createCallingPass({length:m.pass[0],speed:m.speed,at:m.call}):null;
  const delay=calling?calling.cycle/2:m.opposing,tracks=[{path:world.path,list:[{c:consist,follow:null}]}];
  if(opposing)tracks.push({path:world.opposingPath,list:[{c:opposing,follow:null}]});
@@ -178,7 +179,7 @@ export async function createDiorama(renderer,sceneId,carId,primary,{family,signa
    if(journey){pose=journey.at(now);route=pose.route;s=pose.s;travel=pose.sign;follow3D(world.routes[route],s);consist.updateParts();}
    else if(passAt){
     tracks[0].list[0].follow=follow3D;if(opposing)tracks[1].list[0].follow=followOpposing;
-    tracks.forEach((track,i)=>{const at=calling?calling.state(now-(i?delay:0)):{n:0,s:passAt(now-(i?delay:0))},count=track.list.length,pick=track.list[(((at.n*tracks.length+i)%count)+count)%count];
+    tracks.forEach((track,i)=>{const at=calling?calling.state(now-(i?delay:0)):{n:0,s:passAt(now-(i?delay:0))},pick=track.list[at.n<0?0:(at.n*tracks.length+i)%track.list.length];
      for(const x of track.list)if(x!==pick)x.c.root.visible=false;track.s=at.s;track.now=pick.c;pass(pick.c,pick.follow,track.path,at.s);});
     s=tracks[0].s;
    }
