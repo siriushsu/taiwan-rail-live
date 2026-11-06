@@ -8,7 +8,7 @@ import {createRailClearance} from './rail-clearance.js';
 import {routeWidth,readableScale,stationNames,vehicleMarkers} from './readability.js';
 import {formationFor,assembleFormation} from './formations.js';
 import {makePath,shapeKey,makeHeightProfile,formationPoses} from './train-path.js';
-import {qScale,qFormation,qParts,clampAnchor,laneSide,createLane,stepLane,laneOffsetM,shiftCoordinate,yieldTargets,depthLiftM,depthScale,qUndergroundFloorM,Q_REACH_M,Q_STILL_S} from './q-trains.js';
+import {qScale,qFormation,qParts,clampAnchor,laneSide,createLane,stepLane,laneOffsetM,shiftCoordinate,yieldTargets,depthLiftM,depthLifts,depthScale,qUndergroundFloorM,qMaxPushM,Q_BASE_HEIGHT_M,Q_REACH_M,Q_STILL_S} from './q-trains.js';
 import {profileLines} from './profile-lines.js';
 import {createRailStructures,VIADUCT_LIFT_M} from './rail-structures.js';
 import {createTrainHalo} from './train-halo.js';
@@ -306,7 +306,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     const lane=m.lane||=createLane(),back=(v.formationFacing||1)<0?Math.PI:0,dt=(now-(m.laneAt??now))/1000;m.laneAt=now;m.followed=!!v.followed;
     stepLane(lane,{heading:poses[poses.length>>1].angle+back,side:laneSide(v.systemId),dt,lon:coord[0],lat:coord[1]});
     const offset=laneOffsetM(lane,S,m.model.widthM);if(offset)for(const pose of poses)pose.coordinate=shiftCoordinate(pose.coordinate,pose.angle+back+Math.PI/2,offset);
-    const above=h-(terrainHeights()?terrainAt(coord):0);m.depthLiftM=Number.isFinite(above)?depthLiftM(above,S):0;
+    const above=h-(terrainHeights()?terrainAt(coord):0);m.baseLiftM=Number.isFinite(above)?depthLiftM(above,S):0;
   }
   function updateYields(){
     const list=[],S=qScale(map.getZoom()),kx=Math.cos(map.getCenter().lat*Math.PI/180)*111320;
@@ -431,13 +431,22 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   }
   // 世界轉裁切矩陣把鏡頭中心送到 w＝0，所以 (0,0,1,0) 的反推就是鏡頭位置。
   function cameraCenter(){eyeM.copy(camera.projectionMatrix).invert();eyeV.set(0,0,1,0).applyMatrix4(eyeM);return Math.abs(eyeV.w)>1e-12?eyeC.set(eyeV.x/eyeV.w,eyeV.y/eyeV.w,eyeV.z/eyeV.w):null;}
+  // 這一幀畫得出來的 Q 版車，換成 depthLifts 要的盒子；彎道上車身比頭尾連線外凸，半寬要加上去。r 全部共用，不然遠離原點的座標會差幾公尺。
+  function layerBox(id,m,r){const first=m.cars[0].userData.qBase,last=m.cars.at(-1).userData.qBase,mid=m.cars[m.cars.length>>1],c=mid.userData.qBase;
+    const dx=first.x-last.x,dy=first.y-last.y,len=Math.hypot(dx,dy)||1,tx=dx/len,ty=dy/len,bow=Math.abs((c.x-(first.x+last.x)/2)*-ty+(c.y-(first.y+last.y)/2)*tx)/r,halfH=Q_BASE_HEIGHT_M*m.qS/2,under=m.cars.every(car=>car.userData.qUnder);
+    return {id,x:c.x/r,y:c.y/r,z:c.z/r+halfH,tx,ty,halfL:m.model.lengthM*m.qS/2,halfW:m.model.widthM*m.qS/2+bow,halfH,under,lift:under?m.baseLiftM:Math.max(0,m.baseLiftM)};}
+  function updateDepthLayers(eye){
+    const drawn=[...models].filter(([,m])=>m.group?.visible&&m.model?.q&&m.screenPose);if(!drawn.length)return;
+    const r=drawn[0][1].cars[0].userData.qRatio,boxes=drawn.map(([id,m])=>layerBox(id,m,r)),lifts=depthLifts(boxes,{x:eye.x/r,y:eye.y/r,z:eye.z/r},qMaxPushM(qScale(map.getZoom())));
+    drawn.forEach(([id,m],i)=>{const lift=lifts.get(id);m.depthLiftM=lift===boxes[i].lift?m.baseLiftM:lift;});
+  }
   function liftCars(m,eye){m.screenPose.sample.displayScale=m.qS;
     // 地表那一趟的遠裁切面只比地面深約 1%，只有畫在地下那一趟的車才能往遠處推。
     for(const car of m.cars){const base=car.userData.qBase,r=car.userData.qRatio,lift=car.userData.qUnder?m.depthLiftM:Math.max(0,m.depthLiftM),f=eye&&lift?depthScale(lift,base.distanceTo(eye)/r):1;
       if(eye)car.position.copy(base).sub(eye).multiplyScalar(f).add(eye);else car.position.copy(base);car.scale.setScalar(r*m.qS*f);}
   }
   function updateModelScales(){
-    const eye=qMode()?cameraCenter():null;
+    const eye=qMode()?cameraCenter():null;if(eye)updateDepthLayers(eye);
     // MapLibre 已給出本幀縮放／旋轉矩陣後才求螢幕寬度；所有車輛共用這個時點。
     for(const m of models.values())if(m.group?.visible&&m.screenPose){if(m.model.q){liftCars(m,eye);continue;}const {p,angle,ratio,sample}=m.screenPose;
       const scale=readableScale(m.model,p,angle,ratio,map.getZoom(),project,trainSizeMode);
