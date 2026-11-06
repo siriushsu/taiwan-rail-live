@@ -169,7 +169,8 @@ const widths = [360, 375, 414, 768];
 // 11/06: EMU3000 model and Q-style side view add two (582 -> 584).
 // 11/06: steam, coach add 2 (584 -> 586).
 // 11/06: fleet add 1 (586 -> 587).
-const expectedHistoryCount = 587;
+// 11/06: fit, short add 2 (587 -> 589).
+const expectedHistoryCount = 589;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
