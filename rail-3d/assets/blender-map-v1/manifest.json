@@ -1000,7 +1000,7 @@
       "appearance": "blender-map-lod",
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/emu3000.json",
-        "rawSha256": "6e0131efdeb3de2e98edd54d4c337df75550db59aa9b83017ce0f1d5abf0de96",
+        "rawSha256": "b98bc1c81dff50b1688e70fa31d98283fae76ebdb7b22213e9ac06a949944cae",
         "engineeringDimensionsM": null
       },
       "sources": [
@@ -3496,44 +3496,44 @@
     },
     "emu3000": {
       "file": "emu3000.bin",
-      "sha256": "cbd90337c7a4eb30a7f97d8eac458b68715f0f745017a863cd99b4876dbd13f5",
-      "byteLength": 959280,
-      "vertexCount": 23982,
+      "sha256": "3cc55b06228e7dc44a07adbfdf7652d137f5873ad10b8387ed59443480eaf8ca",
+      "byteLength": 959160,
+      "vertexCount": 23979,
       "min": [
-        -5.199000358581543,
-        -1.5145492553710938,
-        0.001103037502616644
+        -5.1964287757873535,
+        -1.5129648447036743,
+        0.0
       ],
       "max": [
-        4.87346887588501,
-        1.5145492553710938,
-        3.6500003337860107
+        4.849876880645752,
+        1.5129649639129639,
+        3.63246488571167
       ],
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/emu3000.json",
-        "rawSha256": "6e0131efdeb3de2e98edd54d4c337df75550db59aa9b83017ce0f1d5abf0de96",
+        "rawSha256": "b98bc1c81dff50b1688e70fa31d98283fae76ebdb7b22213e9ac06a949944cae",
         "engineeringDimensionsM": null
       },
       "appearance": "blender-map-lod"
     },
     "emu3000-mid": {
       "file": "emu3000-mid.bin",
-      "sha256": "ad14a0a0467925607c699a4f316c8f6be18305af8fb8e719a10eac03e1731768",
-      "byteLength": 955680,
-      "vertexCount": 23892,
+      "sha256": "c776a50f1619c772f953717457ae739bfa99ce1ae6aaeed68579e00985431744",
+      "byteLength": 953040,
+      "vertexCount": 23826,
       "min": [
         -5.199000358581543,
-        -1.5145492553710938,
-        0.0011030322639271617
+        -1.5129648447036743,
+        0.0
       ],
       "max": [
         5.199000358581543,
-        1.5145492553710938,
-        3.6341683864593506
+        1.5129649639129639,
+        3.63246488571167
       ],
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/emu3000.json",
-        "rawSha256": "6e0131efdeb3de2e98edd54d4c337df75550db59aa9b83017ce0f1d5abf0de96",
+        "rawSha256": "b98bc1c81dff50b1688e70fa31d98283fae76ebdb7b22213e9ac06a949944cae",
         "engineeringDimensionsM": null
       },
       "appearance": "blender-map-lod"

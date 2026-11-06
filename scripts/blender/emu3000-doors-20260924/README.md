@@ -8,6 +8,20 @@ scene 03）使用。本輪只做「資產本身可開闔」，不含場景／App
 再疊加車門結構；快照本身完全不動，不修改其原檔。本輪未新增外部照片考據，車門內部機構是合理簡化
 （見下方「與快照的差異」第 4 點），不是逐車號查證的結果。
 
+## 2026-11-06 車殼重做
+
+頭車外型改成照公開實車照片量的比例：長流線鼻端、黑面罩包到車頂與側面、斜四邊形燈座、
+鼻端黑色上蓋與白色 U 形蓋、白色齊平車門、車頂邊紅色短條、乘務員門、駕駛室側窗、車側顯示器。
+車殼在 `head_v3.py`，用斷面放樣加場函數切塗裝，不貼片。車門機構、中間車鏡射、集電弓管線沿用。
+
+- 下面「與快照的差異」談的鼻端、窗帶、腰帶是舊車殼的事。門洞機構的說明仍然適用。
+- 舊流程把門口以外的外觀改回 BASE（`restore_base_*`）已經拿掉，`install_assets.py` 改以 build 輸出為準。
+  端牆是平面，布林切門後法向量會被抹平，所以 `flat_end_wall` 整面改回朝後。
+- 依序：`build_doors.py` → `install_assets.py` → `build_mid.py` → `install_assets.py mid` →
+  `scripts/import_blender_map.py -- --models emu3000`（必加 `-t 1`）→ `render_thumbnail.py` →
+  `node scripts/build_head_marks.mjs`。小工具與等車卡的透明底母圖用 `render_widget_art.py`。
+- Blender 用 5.2.1。紅條依實車是編組別色，這裡固定紅色；不放營運商標。
+
 ## 重跑方式
 
 ```sh
