@@ -11,6 +11,7 @@ import {createTrainLamps} from './garage-coast.js';
 import {createTerrainFollower} from './garage-scenes/consist-3d.js';
 import {createJourney} from './garage-scenes/alishan-route.js';
 import {createStopTimetable} from './garage-scenes/stop-timetable.js';
+import {separateCoplanar} from './garage-scenes/separate-coplanar.js';
 
 // drive：0 平面環線（garage-model.js follow）、1 車身跟坡度（consist-3d.js）、2 阿里山六段折返（機關車在下山端）、
 // 3 穿越：一端開進、另一端開出，車身在 x＝±clip 被裁掉，整列開出去才繞回來；pass＝[一趟的弧長, 時間 0 的車心位置]。
@@ -72,6 +73,7 @@ export async function createDiorama(renderer,sceneId,carId,primary,{family,signa
  if(signal?.aborted){kits.forEach(k=>k.dispose());throw new DOMException('aborted','AbortError');}
  let world;
  try{world=mod.createScene(...(SCENE_ARGS[sceneId]?.(kits)??[]));}catch(e){kits.forEach(k=>k.dispose());throw e;}
+ const planes=separateCoplanar(world.group); // 同平面的面分開，鏡頭動時才不會閃（App 由 bake.mjs 跑同一支）。
  const themes=mod.THEMES,consists=[];
  try{
   consists.push(await createConsist(carId,primary,signal,{locoAtTail:!!m.locoAtTail,doors:!!m.doors}));
@@ -197,7 +199,7 @@ export async function createDiorama(renderer,sceneId,carId,primary,{family,signa
   dispose(){
    for(const x of clipped){x.clippingPlanes=null;x.clipShadows=false;x.needsUpdate=true;}
    people?.dispose();lanterns?.dispose();vegetation?.dispose();visitors?.dispose();attendant?.traverse(o=>{if(o.isMesh)[].concat(o.material).forEach(x=>x.dispose());});
-   lamps.forEach(l=>l.dispose());consists.forEach(c=>c.dispose());world.dispose();kits.forEach(k=>k.dispose());for(const by of xrayMaterials.values())for(const list of Object.values(by))list.forEach(x=>x.dispose());clearDepth.geometry.dispose();clearDepth.material.dispose();environment.dispose();groundGeo.dispose();groundMat.dispose();sun.shadow.map?.dispose();sun.dispose();
+   lamps.forEach(l=>l.dispose());consists.forEach(c=>c.dispose());world.dispose();planes.clones.forEach(g=>g.dispose());kits.forEach(k=>k.dispose());for(const by of xrayMaterials.values())for(const list of Object.values(by))list.forEach(x=>x.dispose());clearDepth.geometry.dispose();clearDepth.material.dispose();environment.dispose();groundGeo.dispose();groundMat.dispose();sun.shadow.map?.dispose();sun.dispose();
   }
  };
 }
