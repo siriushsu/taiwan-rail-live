@@ -263,6 +263,11 @@ await group('W', async () => {
     amb > strip && amb < upload
       && /const amb = rawSpawnSync\('node', \[path\.join\(wt, 'scripts', 'build_ambience_web\.mjs'\), ambOut\][^]*?if \(amb\.status !== 0\) fail\(/.test(src),
     `ambience@${amb}、strip@${strip}、upload@${upload}`);
+  const trainGarage = at("'verify_train_garage.mjs'");
+  ok('W11 車庫展示台守門人經帳本執行、洗掉繼承的 GARAGE_URL／GARAGE_MOBILE_ONLY、且失敗會在 strip 前擋下出貨',
+    trainGarage > firstGate && trainGarage < strip
+      && /const trainGarage = spawnSync\('node', \[path\.join\(wt, 'scripts', 'verify_train_garage\.mjs'\)\],\s*\{[^}]*GARAGE_URL: '', GARAGE_MOBILE_ONLY: ''[^]*?if \(trainGarage\.status !== 0\) fail\(/.test(src),
+    `train-garage@${trainGarage}、strip@${strip}`);
 });
 
 // ── WB 組:路段懸賞總閘門的接線(靜態)。各支驗收只在分支上手動跑了一個月,拔掉這一段不會有任何別的東西變紅 ──

@@ -1,7 +1,20 @@
 // 真實引擎驗收：精修網格、進度、觸控、切換與失敗復原；不連外寫資料。
 import {chromium,webkit} from 'playwright';
-import {mkdirSync,writeFileSync} from 'node:fs';
-const BASE=process.env.GARAGE_URL||'http://127.0.0.1:5198/';
+import {createServer} from 'node:http';
+import {existsSync,mkdirSync,readFileSync,statSync,writeFileSync} from 'node:fs';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const MIME={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.json':'application/json','.css':'text/css','.png':'image/png','.jpg':'image/jpeg','.svg':'image/svg+xml','.webp':'image/webp','.wasm':'application/wasm'};
+// 沒給 GARAGE_URL 就自己開伺服器驗這棵樹，出貨鏈走這條。別換成 python3 -m http.server：它的連線佇列只有 5，頁面開機的請求會被重置，畫面停在載入失敗。
+const server=process.env.GARAGE_URL?null:createServer((req,res)=>{
+ let fp=path.join(ROOT,decodeURIComponent(new URL(req.url,'http://x').pathname));
+ if(existsSync(fp)&&statSync(fp).isDirectory())fp=path.join(fp,'index.html');
+ if(!path.resolve(fp).startsWith(ROOT)||!existsSync(fp)){res.statusCode=404;return res.end('nf');}
+ res.setHeader('content-type',MIME[path.extname(fp)]||'application/octet-stream');res.setHeader('cache-control','no-store');res.end(readFileSync(fp));
+});
+if(server)await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});
+const BASE=process.env.GARAGE_URL||`http://127.0.0.1:${server.address().port}/`;
 const OUT='.superpowers/garage-blender'+(process.env.GARAGE_MOBILE_ONLY?'-mobile':'');mkdirSync(OUT,{recursive:true});
 const results=[];
 function check(name,pass,detail){results.push({name,pass:!!pass,detail});console.log(pass?'PASS':'FAIL',name,detail===undefined?'':JSON.stringify(detail));}
@@ -145,5 +158,6 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
   }
  }catch(e){check(engine+' 測試執行',false,e.stack);}finally{await browser.close();}
 }
+server?.close();
 writeFileSync(OUT+'/verification.json',JSON.stringify({date:new Date().toISOString(),results},null,2));
 console.log(`${results.filter(r=>r.pass).length}/${results.length} 通過`);if(results.some(r=>!r.pass))process.exitCode=1;
