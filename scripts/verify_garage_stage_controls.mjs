@@ -37,7 +37,7 @@ const touchDrag=async(p,dx,dy)=>{const {x,y}=await center(p),s=await p.context()
 const pick=async(p,value)=>{await p.selectOption('.g-period-select',value);await settle(p);};
 const hits=p=>p.locator('.g-period').evaluate(el=>{const r=el.getBoundingClientRect();return{height:r.height,hit:el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)),overflow:document.documentElement.scrollWidth>innerWidth||document.getElementById('trainGarage').scrollWidth>document.getElementById('trainGarage').clientWidth};});
 
-const b=await chromium.launch({channel:'chrome',headless:true});
+const b=await chromium.launch({channel:'chrome',headless:true,args:['--use-angle=metal','--ignore-gpu-blocklist']});
 try{
  {const {c,p,errors}=await boot(b);
   check('四顆旋轉／視角鈕拿掉了，自轉與重設還在',await p.locator('.g-left,.g-right,.g-up,.g-down').count()===0&&await p.locator('.g-auto').isVisible()&&await p.locator('.g-reset-view').isVisible());
@@ -114,6 +114,12 @@ try{
   }
   // 場景頁時段鈕：字長放不下要在鈕內換行，三顆都留在畫面內、點得到。長字是塞的，不靠哪座場景的譯文剛好夠長。
   await openScene(p);
+  await p.waitForFunction(()=>!document.querySelector('.g-sf-carrow').hidden&&document.querySelector('.g-sf-view').getBoundingClientRect().height>0);await p.waitForTimeout(800);
+  // 場景頁車款鈕列：在場景鈕列下面、看得到、點得到、選中的是目前這款；3D 畫布沒被吃到。點一顆別款，副標跟著換。
+  const row=await p.evaluate(()=>{const r=document.querySelector('.g-sf-carrow'),sc=document.querySelector('.g-sf-scenes'),cv=document.querySelector('.g-sf-view').getBoundingClientRect(),rb=r.getBoundingClientRect(),sb=sc.getBoundingClientRect(),on=r.querySelector('[aria-pressed="true"]'),ob=on?.getBoundingClientRect();return{hidden:r.hidden,n:r.querySelectorAll('button').length,below:sc.hidden||rb.top>=sb.bottom-1,sceneOk:sc.hidden||sb.height>20,onIn:!!ob&&ob.left>=-1&&ob.right<=innerWidth+1,hit:!!on&&on.contains(document.elementFromPoint(ob.left+ob.width/2,ob.top+ob.height/2)),canvasH:Math.round(cv.height),scrolls:r.scrollWidth>r.clientWidth};});
+  check(width+' 場景頁車款鈕列在場景鈕列下、選中的看得到點得到、畫布高度 '+row.canvasH+'px',!row.hidden&&row.n>1&&row.below&&row.sceneOk&&row.onIn&&row.hit&&row.canvasH>=180,row);
+  const sub0=await p.textContent('.g-sf-title small');await p.locator('.g-sf-carrow button:not([aria-pressed="true"])').first().scrollIntoViewIfNeeded();await p.locator('.g-sf-carrow button:not([aria-pressed="true"])').first().click();await settle(p);
+  const sub1=await p.textContent('.g-sf-title small');check(width+' 點車款鈕副標換成那款',sub0!==sub1&&(await p.locator('.g-sf-carrow button[aria-pressed="true"]').count())===1,{sub0,sub1});
   const seg=await p.evaluate(()=>[...document.querySelectorAll('[data-sf-period]')].map(el=>(el.textContent='Sunset on the Maokong Gondola',el)).map(el=>{const r=el.getBoundingClientRect();return{left:r.left,right:r.right,edge:innerWidth,hit:el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))};}));
   check(width+' 場景頁時段鈕字長也留在畫面內、點得到',seg.every(s=>s.left>=0&&s.right<=s.edge&&s.hit),seg);
   // 場景頁標題：地名、車名字長放不下要換行看得全，不裁成省略號，也不壓到旁邊的鈕；長字是塞的。「·」前要是不斷行空白，換行才不會掉到行首。
@@ -144,7 +150,9 @@ try{
   check('WebKit '+label+'點一列換得到車',now===to,{from,to,now});
  };
  await p.locator('.g-swap').scrollIntoViewIfNeeded();await swap('.g-swap-menu','.g-swap','展示台選單');
- await openScene(p);await swap('.g-sf-cars','.g-sf-title','場景頁選單');await leaveScene(p);
+ await openScene(p);
+ {const sub0=await p.textContent('.g-sf-title small'),btn=p.locator('.g-sf-carrow button:not([aria-pressed="true"])').first();await btn.scrollIntoViewIfNeeded();await btn.tap();await settle(p);const sub1=await p.textContent('.g-sf-title small');check('WebKit 場景頁車款鈕列點一顆換得到車',sub0!==sub1,{sub0,sub1});}
+ await leaveScene(p);
  check('WebKit 無 JS 例外',!errors.length,errors);await c.close();
 }finally{await wk.close();}
 const failed=results.filter(r=>!r.pass);console.log(`\n${results.length-failed.length}/${results.length} PASS`);process.exit(failed.length?1:0);
