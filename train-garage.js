@@ -127,6 +127,8 @@
   const tr = (key, values) => host.t(key, values);
   const $ = sel => dialog.querySelector(sel);
   // 兌換車款沒換到：第二行寫兌換狀態（「用 150 點兌換」「還差 N 點」，同 App GarageRedeemCopy）；沒有錢包（沒登入、展示模式）照「待收集」。
+  // 標題、車款選單放不下會換行；「·」前接不斷行空白，留在上一行尾，不掉到下一行開頭。
+  const keepDot=text=>text.replace(/ · /g,'\u00a0· ');
   const status = row => row.owned ? tr('已入庫') : redeemable(row) ? redeemView(walletCtx(),row.rule.id).status : tr('待收集');
   const redeemable = row => row.rule.category==='redeem' && !row.owned && !!walletCtx();
   function data() {
@@ -241,7 +243,7 @@
   function fillCars(list,cars,pick){
     list.replaceChildren(...cars.map(row=>{
       const b=document.createElement('button');b.type='button';b.dataset.car=row.id;b.setAttribute('aria-pressed',String(row.id===selected));
-      b.innerHTML=`<b>${esc(tr(row.model.name))}</b><small>${esc(status(row))}</small>`;
+      b.innerHTML=`<b>${esc(keepDot(tr(row.model.name)))}</b><small>${esc(status(row))}</small>`;
       b.onclick=()=>pick(row);return b;}));
   }
   function focusCar(list){
@@ -316,8 +318,8 @@
   function showFrame(row){
     const [world,periods,,caption]=FRAME_TEXT[frameScene],f=$('.g-sf'),many=roster(frameScene).length>1,title=$('.g-sf-title');
     f.dataset.period=period;
-    $('.g-sf-title b').textContent=tr(frameScene===DEFAULT_SCENE?'田園小站':scenePlace(frameScene));
-    $('.g-sf-title small').innerHTML=row?esc(tr(row.model.name)+' · '+status(row))+(many?'<span aria-hidden="true"> ▾</span>':''):'';
+    $('.g-sf-title b').textContent=keepDot(tr(frameScene===DEFAULT_SCENE?'田園小站':scenePlace(frameScene)));
+    $('.g-sf-title small').innerHTML=row?esc(keepDot(tr(row.model.name)+' · '+status(row)))+(many?'<span aria-hidden="true"> ▾</span>':''):'';
     title.disabled=!many;$('.g-sf-swap').hidden=!many;
     if(many&&row)title.setAttribute('aria-label',tr('換車：{name}',{name:tr(row.model.name)}));else title.removeAttribute('aria-label');
     const ctx=walletCtx(),box=$('.g-sf-scenes'),seg=box.firstElementChild;
@@ -753,6 +755,8 @@
     $('.g-swap').onclick=()=>{if(!closeStageCars(true))openStageCars();};
     $('.g-main').addEventListener('pointerdown',e=>{if(!e.target.closest('.g-swap-menu,.g-swap'))closeStageCars();});
     $('.g-swap-menu').addEventListener('focusout',e=>{const to=e.relatedTarget;if(to&&!e.currentTarget.contains(to)&&!to.closest('.g-swap'))closeStageCars();});
+    // 按在車款選單裡不搬動焦點：Safari 不把焦點給按鈕，會跳到 dialog，上面的 focusout 當成離開，選單先關、點擊落空。
+    for(const el of dialog.querySelectorAll('.g-sf-cars,.g-swap-menu'))el.addEventListener('mousedown',e=>e.preventDefault());
     for(const b of dialog.querySelectorAll('[data-sf-view]'))b.onclick=()=>{trainView=b.dataset.sfView==='train';resetView();showControls();requestDraw();};
     for(const b of dialog.querySelectorAll('[data-sf-period]'))b.onclick=()=>{period=b.dataset.sfPeriod;showControls();requestDraw();};
     $('.g-redeem-go').onclick=e=>redeemDo(e.currentTarget.dataset.do);$('.g-redeem-close').onclick=closeRedeem;

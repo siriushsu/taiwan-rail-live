@@ -1,8 +1,8 @@
 // 車庫舞台：旋轉、視角高低沒有按鈕之後靠手勢（照主地圖 rail-3d/map-gestures.js，逐模式的數值在 verify_garage_map_gestures.mjs）：
 // 左鍵與觸控拖曳平移（觸控不捲頁面）、右鍵拖曳轉向與仰角、滾輪縮放、畫布方向鍵照舊；
 // 時段選擇（天色）只在有天色的海岸行旅出現，選了舞台與提示列跟著換、記在這台裝置、全畫面也能選；場景頁用記著的天色當起點，頁上的時段鈕只管開著的這段。
-// 用法：GARAGE_URL=http://127.0.0.1:5297/ node scripts/verify_garage_stage_controls.mjs（Chrome 無視窗；截圖在 .superpowers/garage-stage-controls）
-import {chromium} from 'playwright';
+// 用法：GARAGE_URL=http://127.0.0.1:5297/ node scripts/verify_garage_stage_controls.mjs（Chrome 無視窗，車款選單另用 WebKit 實點；截圖在 .superpowers/garage-stage-controls）
+import {chromium,webkit} from 'playwright';
 import {mkdirSync} from 'node:fs';
 const BASE=process.env.GARAGE_URL||'http://127.0.0.1:5198/',OUT='.superpowers/garage-stage-controls';mkdirSync(OUT,{recursive:true});
 const results=[],check=(name,pass,detail)=>{results.push({name,pass:!!pass});console.log(pass?'PASS':'FAIL',name,detail===undefined?'':JSON.stringify(detail));};
@@ -112,7 +112,39 @@ try{
    await p.evaluate(()=>{document.documentElement.dataset.theme='dark';state.mapDark=true;TrainGarage.refresh();});await settle(p);
    await p.locator('.g-period').scrollIntoViewIfNeeded();await p.locator('.g-stage').screenshot({path:`${OUT}/375-track-dark.png`});
   }
+  // 場景頁時段鈕：字長放不下要在鈕內換行，三顆都留在畫面內、點得到。長字是塞的，不靠哪座場景的譯文剛好夠長。
+  await openScene(p);
+  const seg=await p.evaluate(()=>[...document.querySelectorAll('[data-sf-period]')].map(el=>(el.textContent='Sunset on the Maokong Gondola',el)).map(el=>{const r=el.getBoundingClientRect();return{left:r.left,right:r.right,edge:innerWidth,hit:el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))};}));
+  check(width+' 場景頁時段鈕字長也留在畫面內、點得到',seg.every(s=>s.left>=0&&s.right<=s.edge&&s.hit),seg);
+  // 場景頁標題：地名、車名字長放不下要換行看得全，不裁成省略號，也不壓到旁邊的鈕；長字是塞的。「·」前要是不斷行空白，換行才不會掉到行首。
+  const head=await p.evaluate(()=>{const q=s=>document.querySelector(s),b=q('.g-sf-title b'),s=q('.g-sf-title small'),nb=s.textContent.includes('\u00a0· ');b.textContent='Taichung Metro Green Line · Wenxin Forest Park Station';s.textContent='Push–pull Tze-Chiang · 40PPD2500 passenger-baggage car · To collect';const t=q('.g-sf-title').getBoundingClientRect();return{nb,cut:[b,s].filter(e=>e.scrollWidth>e.clientWidth+1).length,left:t.left-q('.g-sf-leave').getBoundingClientRect().right,right:q('.g-sf-music').hidden?innerWidth-t.right:q('.g-sf-music').getBoundingClientRect().left-t.right};});
+  check(width+' 場景頁標題字長也看得全，「·」留在行尾',head.nb&&!head.cut&&head.left>=0&&head.right>=0,head);
+  await leaveScene(p);
+  // 車款選單：車名字長放不下要換行看得全；長字是塞的。
+  const car=await p.evaluate(()=>{const q=s=>document.querySelector(s);q('.g-swap').click();const n=q('.g-swap-menu .g-sf-car-list b');n.textContent='Push–pull Tze-Chiang · 40PPD2500 passenger-baggage car';const r={cut:n.scrollWidth>n.clientWidth+1,h:n.parentElement.getBoundingClientRect().height};q('.g-swap').click();return r;});
+  check(width+' 車款選單車名字長也看得全',!car.cut&&car.h>44,car);
   await pick(p,'auto');check(width+' 無 JS 例外',!errors.length,errors);await c.close();
  }
+ // 車款選單的「·」：英文車名才有，前面要是不斷行空白，換行才不會掉到行首。
+ const en=await boot(b,360,780,'en');
+ const dot=await en.p.evaluate(()=>{const q=s=>document.querySelector(s);q('.g-swap').click();const names=[...document.querySelectorAll('.g-swap-menu .g-sf-car-list b')].map(n=>n.textContent);q('.g-swap').click();return{keep:names.filter(n=>n.includes('\u00a0· ')).length,plain:names.filter(n=>n.includes(' · ')).length};});
+ check('英文車款選單的「·」留在行尾',dot.keep>0&&!dot.plain,dot);await en.c.close();
 }finally{await b.close();}
+// 車款選單要真的換得到車：Safari 按鈕不吃焦點，按下去焦點跳到 dialog，Chrome 上看不出來，要在 WebKit 實點。
+const wk=await webkit.launch({headless:true});
+try{
+ const {c,p,errors}=await boot(wk,375,812);
+ const swap=async(menu,opener,label)=>{
+  const shown=()=>p.waitForFunction(m=>!document.querySelector(m).hidden,menu),on=()=>p.evaluate(m=>document.querySelector(m+' [aria-pressed="true"]')?.dataset.car,menu);
+  await p.tap(opener);await shown();
+  const from=await on(),to=await p.evaluate(m=>document.querySelector(m+' .g-sf-car-list button:not([aria-pressed="true"])').dataset.car,menu);
+  const row=p.locator(`${menu} [data-car="${to}"]`);await row.scrollIntoViewIfNeeded();await row.tap();
+  await p.waitForFunction(m=>document.querySelector(m).hidden,menu);await settle(p);
+  await p.tap(opener);await shown();const now=await on();await p.tap(opener);
+  check('WebKit '+label+'點一列換得到車',now===to,{from,to,now});
+ };
+ await p.locator('.g-swap').scrollIntoViewIfNeeded();await swap('.g-swap-menu','.g-swap','展示台選單');
+ await openScene(p);await swap('.g-sf-cars','.g-sf-title','場景頁選單');await leaveScene(p);
+ check('WebKit 無 JS 例外',!errors.length,errors);await c.close();
+}finally{await wk.close();}
 const failed=results.filter(r=>!r.pass);console.log(`\n${results.length-failed.length}/${results.length} PASS`);process.exit(failed.length?1:0);
