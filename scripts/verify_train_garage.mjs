@@ -1,7 +1,20 @@
 // 真實引擎驗收：精修網格、進度、觸控、切換與失敗復原；不連外寫資料。
 import {chromium,webkit} from 'playwright';
-import {mkdirSync,writeFileSync} from 'node:fs';
-const BASE=process.env.GARAGE_URL||'http://127.0.0.1:5198/';
+import {createServer} from 'node:http';
+import {existsSync,mkdirSync,readFileSync,statSync,writeFileSync} from 'node:fs';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const MIME={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.json':'application/json','.css':'text/css','.png':'image/png','.jpg':'image/jpeg','.svg':'image/svg+xml','.webp':'image/webp','.wasm':'application/wasm'};
+// 沒給 GARAGE_URL 就自己開伺服器驗這棵樹，出貨鏈走這條。別換成 python3 -m http.server：它的連線佇列只有 5，頁面開機的請求會被重置，畫面停在載入失敗。
+const server=process.env.GARAGE_URL?null:createServer((req,res)=>{
+ let fp=path.join(ROOT,decodeURIComponent(new URL(req.url,'http://x').pathname));
+ if(existsSync(fp)&&statSync(fp).isDirectory())fp=path.join(fp,'index.html');
+ if(!path.resolve(fp).startsWith(ROOT)||!existsSync(fp)){res.statusCode=404;return res.end('nf');}
+ res.setHeader('content-type',MIME[path.extname(fp)]||'application/octet-stream');res.setHeader('cache-control','no-store');res.end(readFileSync(fp));
+});
+if(server)await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});
+const BASE=process.env.GARAGE_URL||`http://127.0.0.1:${server.address().port}/`;
 const OUT='.superpowers/garage-blender'+(process.env.GARAGE_MOBILE_ONLY?'-mobile':'');mkdirSync(OUT,{recursive:true});
 const results=[];
 function check(name,pass,detail){results.push({name,pass:!!pass,detail});console.log(pass?'PASS':'FAIL',name,detail===undefined?'':JSON.stringify(detail));}
@@ -121,7 +134,9 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
    await page.tap('#tabMore');await page.locator('#moreSheet [data-act="garage"]').scrollIntoViewIfNeeded();await page.tap('#moreSheet [data-act="garage"]');await ready(page);
    const first=await page.evaluate(()=>{const c=document.querySelector('.g-view').getBoundingClientRect(),s=document.querySelector('.g-model-select').getBoundingClientRect(),d=document.getElementById('trainGarage');return {canvasTop:c.top,canvasBottom:c.bottom,selectorTop:s.top,selectorBottom:s.bottom,height:innerHeight,scroll:d.scrollTop};});
    check(engine+' '+width+' 第一屏同時看得到選單與完整車模',first.selectorTop>=0&&first.selectorBottom<=first.canvasTop&&first.canvasBottom<=first.height&&first.scroll===0,first);
-   await page.tap('.g-model-select');await page.selectOption('.g-model-select','700t');await page.tap('.g-view');await page.waitForFunction(()=>document.querySelector('.g-view').dataset.rendered==='700t');
+   // 點畫布要帶 position：不帶的話 Playwright 動手前會把整張畫布連 scroll-padding-bottom 捲進視窗，畫布離視窗底不到 16px 時，測試自己捲的量會被下面算成產品跳走。
+   // 帶了只保證落點在畫面內，跟手指一樣。畫布有沒有完整在第一屏由上面那條管。
+   await page.tap('.g-model-select');await page.selectOption('.g-model-select','700t');const canvas=await page.locator('.g-view').boundingBox();await page.tap('.g-view',{position:{x:canvas.width/2,y:canvas.height/2}});await page.waitForFunction(()=>document.querySelector('.g-view').dataset.rendered==='700t');
    check(engine+' '+width+' 觸控下拉換車不跳離展示台',await page.locator('.g-model-select').inputValue()==='700t'&&await page.evaluate(()=>document.getElementById('trainGarage').scrollTop===0));
    let audit=await auditControls(page);check(engine+' '+width+' 全畫面／公告／跟車／抽屜／護照組合',!audit.failures.length&&!audit.overflow,audit);
    await page.locator('.g-view').scrollIntoViewIfNeeded();const before=await pix(page);await page.locator('.g-view').press('ArrowRight');await settle(page);const after=await pix(page);check(engine+' '+width+' 方向鍵旋轉',before.hash!==after.hash);
@@ -143,5 +158,6 @@ for(const [engine,type] of Object.entries({chromium,webkit})){
   }
  }catch(e){check(engine+' 測試執行',false,e.stack);}finally{await browser.close();}
 }
+server?.close();
 writeFileSync(OUT+'/verification.json',JSON.stringify({date:new Date().toISOString(),results},null,2));
 console.log(`${results.filter(r=>r.pass).length}/${results.length} 通過`);if(results.some(r=>!r.pass))process.exitCode=1;

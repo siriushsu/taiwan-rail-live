@@ -942,6 +942,16 @@ try {
   process.stdout.write(metroPlus.stdout || ''); process.stderr.write(metroPlus.stderr || '');
   if (metroPlus.status !== 0) fail('捷運小工具免費守門人未過——方案面板、條款、說明中心或原生小工具有一處把多站／自動寫回付費'
     + '（單獨重跑：node app/scripts/verify_metro_plus_gate.mjs）');
+  // ── 2.30 車庫展示台守門人(2026-11-06) ──────────────────────────────────────
+  // 為什麼值得進出貨鏈(2.8 那把尺):(a) 它守的缺陷對真人 100% 復現——短橫向手機第一屏看不到完整車模、換車後畫面跳離展示台;
+  // (b) 別的閘門量不到——verify_garage_assets／facing 不開瀏覽器,verify_my_train_depot 守機務段的按鈕,不量展示台;
+  // (c) 寫回去不會有任何錯誤訊息——車庫頁多一塊入口就把車模推出第一屏,b5b460c7 就這樣上線。
+  // 自帶伺服器。GARAGE_URL／GARAGE_MOBILE_ONLY 是本機診斷用的,ship 必須洗掉,不然會驗到別棵樹或略過桌面段。
+  const trainGarage = spawnSync('node', [path.join(wt, 'scripts', 'verify_train_garage.mjs')],
+    { cwd: wt, encoding: 'utf8', env: { ...process.env, GARAGE_URL: '', GARAGE_MOBILE_ONLY: '' } });
+  process.stdout.write(trainGarage.stdout || ''); process.stderr.write(trainGarage.stderr || '');
+  if (trainGarage.status !== 0) fail('車庫展示台守門人未過——精修網格、載入進度、觸控、切換、手機第一屏或失敗復原有一項不符'
+    + '（單獨重跑：node scripts/verify_train_garage.mjs）');
 
   const gateSummary = gateRunner.summary();
   console.log(`閘門帳本總結：實跑 ${gateSummary.ran}／複用 ${gateSummary.skipped}`);
