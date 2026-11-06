@@ -3273,5 +3273,186 @@
    }
   ],
   "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "ck124",
+  "name": "CK124 蒸汽機車",
+  "label": "CK124",
+  "detail": "側水櫃 · 兩顆圓頂 · 黃飾線",
+  "color": "#2a2f31",
+  "source": "https://blair-train.blogspot.com/2010/04/ck124.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/04/ck124.html"
+   },
+   {
+    "label": "Wikimedia Commons／Ckbubutp（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:20110702%E4%B8%89%E7%BE%A9%E7%AB%99%E5%85%A7%E7%9A%84CK124%E5%BE%8C%E5%81%B4.jpg"
+   },
+   {
+    "label": "Wikimedia Commons／Alika113（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_CK124_at_Hsinchu_Station.jpg"
+   }
+  ],
+  "features": [
+   "日本 C12 形水櫃車：一軸先輪、三組輻條動輪、一軸從輪，輪箍外緣白線，紅色主連桿與連結桿。",
+   "鍋爐上前後兩顆圓頂、高直筒煙囪、煙箱上方前燈；煙箱門上方紅底金字車號牌，中央銅色手輪；導煙板與步道邊緣、駕駛室窗框與下緣都有黃飾線。",
+   "兩側長方水櫃接到駕駛室；駕駛室前後牆銅框拱形窗與圓窗；後方煤櫃下寬上窄，後牆有前燈、紅色車號牌與梯子，前後端都有排障器與車鉤軟管。"
+  ],
+  "photos": [
+   {
+    "file": "File:20211020TRA CK124 at Changhua Roundhouse.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:20211020TRA_CK124_at_Changhua_Roundhouse.jpg",
+    "author": "彰化縣政府",
+    "licence": "Attribution",
+    "use": "正面（煙箱門、車號牌、導煙板高度）"
+   },
+   {
+    "file": "File:20170308TRA CK124.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:20170308TRA_CK124.jpg",
+    "author": "中華民國交通部",
+    "licence": "Attribution",
+    "use": "斜前方（煙囪、兩顆圓頂、甲板）"
+   },
+   {
+    "file": "File:20191208TRA CK124 at Coast line(cropped).jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:20191208TRA_CK124_at_Coast_line(cropped).jpg",
+    "author": "鐵路1",
+    "licence": "CC BY-SA 4.0",
+    "use": "側面（軸距、水櫃、駕駛室與煤櫃比例、黃飾線走向）"
+   },
+   {
+    "file": "File:20110702三義站內的CK124後側.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:20110702%E4%B8%89%E7%BE%A9%E7%AB%99%E5%85%A7%E7%9A%84CK124%E5%BE%8C%E5%81%B4.jpg",
+    "author": "Ckbubutp",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜後方（後牆圓窗、拱形窗、後端燈、紅牌、梯子、後排障器）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "ct273",
+  "name": "CT273・蒸汽女王",
+  "label": "CT273",
+  "detail": "箱形動輪 · 甲板給水溫水器 · 大型導煙板",
+  "color": "#2a2f31",
+  "source": "https://blair-train.blogspot.com/2010/04/ct273.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/04/ct273.html"
+   },
+   {
+    "label": "Wikimedia Commons／Wert4859（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:CT273.jpg"
+   },
+   {
+    "label": "Wikimedia Commons／ChS&Rh（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:CT273_at_TRA_Changhua_Roundhouse.jpg"
+   }
+  ],
+  "features": [
+   "日本 C57 形，台鐵編 CT270 型：前方兩軸先輪、三組 1,750 mm 箱形動輪、一軸從輪，輪箍外緣白線，紅色主連桿與連結桿。",
+   "前端甲板橫放給水溫水器，兩側導煙板下緣跟著步道往下彎到甲板；煙箱上方前燈、煙箱門上方紅底金字車號牌；汽包與砂箱同一個長圓罩，鍋爐一側有放熱管。",
+   "駕駛室圓拱頂、下緣白帶；煤水車平側板、底架白線、前段煤堆、後段注水口，兩組鑄鋼轉向架加疊板彈簧。"
+  ],
+  "photos": [
+   {
+    "file": "File:CT273.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:CT273.jpg",
+    "author": "Wert4859",
+    "licence": "CC BY-SA 4.0",
+    "use": "側前方（全長比例、導煙板高度、步道白線、汽包罩）"
+   },
+   {
+    "file": "File:CT273 at TRA Changhua Roundhouse.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:CT273_at_TRA_Changhua_Roundhouse.jpg",
+    "author": "ChS&Rh",
+    "licence": "CC BY-SA 4.0",
+    "use": "正面（煙箱門、車號牌、溫水器、排障器）"
+   },
+   {
+    "file": "File:Side view of a TRA CT270 locomotive.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Side_view_of_a_TRA_CT270_locomotive.jpg",
+    "author": "中國農村復興聯合委員會",
+    "licence": "Public domain",
+    "use": "動輪與閥動裝置特寫"
+   },
+   {
+    "file": "File:Bogie under the tender of TRA CT273 2010-02-02.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Bogie_under_the_tender_of_TRA_CT273_2010-02-02.jpg",
+    "author": "Cheng-en Cheng",
+    "licence": "CC BY-SA 2.0",
+    "use": "煤水車轉向架與底架白線"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "dt668",
+  "name": "DT668 蒸汽機車",
+  "label": "DT668",
+  "detail": "四組箱形動輪 · 煙箱頂給水溫水器 · 步道拱起",
+  "color": "#2a2f31",
+  "source": "https://blair-train.blogspot.com/2010/04/dt668.html",
+  "sources": [
+   {
+    "label": "Blair Yu／原始攝影文章",
+    "url": "https://blair-train.blogspot.com/2010/04/dt668.html"
+   },
+   {
+    "label": "Wikimedia Commons／Kazehayashi（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:DT668_in_Xinying.jpg"
+   },
+   {
+    "label": "Wikimedia Commons／ChS&Rh（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:DT668_at_TRA_Changhua_Roundhouse.jpg"
+   }
+  ],
+  "features": [
+   "日本 D51 形，台鐵編 DT650 型：一軸先輪、四組 1,400 mm 箱形動輪、一軸從輪，紅色主連桿與連結桿。",
+   "給水溫水器橫放在煙箱頂，前燈在它前面、短煙囪在它後面；導煙板上緣切角、前緣白線；步道在後段動輪上方拱起，鋪花紋鋼板，步道下三條長管；鍋爐箍帶銅色。",
+   "甲板中央方箱有兩顆紅色標識燈；煤水車前端上緣彎下來接駕駛室、沿邊白線，側面八角格柵，兩組鑄鋼轉向架加疊板彈簧。"
+  ],
+  "photos": [
+   {
+    "file": "File:DT668 in Xinying.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:DT668_in_Xinying.jpg",
+    "author": "Kazehayashi",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜前方（鍋爐、導煙板白線、溫水器位置）"
+   },
+   {
+    "file": "File:TRA DT668 at Shanhua Station.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_DT668_at_Shanhua_Station.jpg",
+    "author": "夢夢狐",
+    "licence": "CC BY-SA 2.0",
+    "use": "側面（步道拱起、駕駛室、煤水車上緣與格柵）"
+   },
+   {
+    "file": "File:DT668 at TRA Changhua Roundhouse.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:DT668_at_TRA_Changhua_Roundhouse.jpg",
+    "author": "ChS&Rh",
+    "licence": "CC BY-SA 4.0",
+    "use": "正面（煙箱門、溫水器寬度、紅色標識燈）"
+   },
+   {
+    "file": "File:Detail of TRA DT668 2012-08-11.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Detail_of_TRA_DT668_2012-08-11.jpg",
+    "author": "Cheng-en Cheng",
+    "licence": "CC BY-SA 2.0",
+    "use": "箱形動輪與步道拱起特寫"
+   },
+   {
+    "file": "File:Tender of TRA DT668 and the bogie 2012-08-11.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Tender_of_TRA_DT668_and_the_bogie_2012-08-11.jpg",
+    "author": "Cheng-en Cheng",
+    "licence": "CC BY-SA 2.0",
+    "use": "煤水車與轉向架"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
  }
 ]
