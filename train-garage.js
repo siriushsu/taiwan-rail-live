@@ -127,6 +127,8 @@
   const tr = (key, values) => host.t(key, values);
   const $ = sel => dialog.querySelector(sel);
   // 兌換車款沒換到：第二行寫兌換狀態（「用 150 點兌換」「還差 N 點」，同 App GarageRedeemCopy）；沒有錢包（沒登入、展示模式）照「待收集」。
+  // 標題、車款選單放不下會換行；「·」前接不斷行空白，留在上一行尾，不掉到下一行開頭。
+  const keepDot=text=>text.replace(/ · /g,'\u00a0· ');
   const status = row => row.owned ? tr('已入庫') : redeemable(row) ? redeemView(walletCtx(),row.rule.id).status : tr('待收集');
   const redeemable = row => row.rule.category==='redeem' && !row.owned && !!walletCtx();
   function data() {
@@ -241,7 +243,7 @@
   function fillCars(list,cars,pick){
     list.replaceChildren(...cars.map(row=>{
       const b=document.createElement('button');b.type='button';b.dataset.car=row.id;b.setAttribute('aria-pressed',String(row.id===selected));
-      b.innerHTML=`<b>${esc(tr(row.model.name))}</b><small>${esc(status(row))}</small>`;
+      b.innerHTML=`<b>${esc(keepDot(tr(row.model.name)))}</b><small>${esc(status(row))}</small>`;
       b.onclick=()=>pick(row);return b;}));
   }
   function focusCar(list){
@@ -316,8 +318,6 @@
   function showFrame(row){
     const [world,periods,,caption]=FRAME_TEXT[frameScene],f=$('.g-sf'),many=roster(frameScene).length>1,title=$('.g-sf-title');
     f.dataset.period=period;
-    // 標題放不下會換行；「·」前接不斷行空白，留在上一行尾，不掉到下一行開頭。
-    const keepDot=text=>text.replace(/ · /g,'\u00a0· ');
     $('.g-sf-title b').textContent=keepDot(tr(frameScene===DEFAULT_SCENE?'田園小站':scenePlace(frameScene)));
     $('.g-sf-title small').innerHTML=row?esc(keepDot(tr(row.model.name)+' · '+status(row)))+(many?'<span aria-hidden="true"> ▾</span>':''):'';
     title.disabled=!many;$('.g-sf-swap').hidden=!many;

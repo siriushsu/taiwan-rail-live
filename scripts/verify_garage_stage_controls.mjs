@@ -120,7 +120,14 @@ try{
   const head=await p.evaluate(()=>{const q=s=>document.querySelector(s),b=q('.g-sf-title b'),s=q('.g-sf-title small'),nb=s.textContent.includes('\u00a0· ');b.textContent='Taichung Metro Green Line · Wenxin Forest Park Station';s.textContent='Push–pull Tze-Chiang · 40PPD2500 passenger-baggage car · To collect';const t=q('.g-sf-title').getBoundingClientRect();return{nb,cut:[b,s].filter(e=>e.scrollWidth>e.clientWidth+1).length,left:t.left-q('.g-sf-leave').getBoundingClientRect().right,right:q('.g-sf-music').hidden?innerWidth-t.right:q('.g-sf-music').getBoundingClientRect().left-t.right};});
   check(width+' 場景頁標題字長也看得全，「·」留在行尾',head.nb&&!head.cut&&head.left>=0&&head.right>=0,head);
   await leaveScene(p);
+  // 車款選單：車名字長放不下要換行看得全；長字是塞的。
+  const car=await p.evaluate(()=>{const q=s=>document.querySelector(s);q('.g-swap').click();const n=q('.g-swap-menu .g-sf-car-list b');n.textContent='Push–pull Tze-Chiang · 40PPD2500 passenger-baggage car';const r={cut:n.scrollWidth>n.clientWidth+1,h:n.parentElement.getBoundingClientRect().height};q('.g-swap').click();return r;});
+  check(width+' 車款選單車名字長也看得全',!car.cut&&car.h>44,car);
   await pick(p,'auto');check(width+' 無 JS 例外',!errors.length,errors);await c.close();
  }
+ // 車款選單的「·」：英文車名才有，前面要是不斷行空白，換行才不會掉到行首。
+ const en=await boot(b,360,780,'en');
+ const dot=await en.p.evaluate(()=>{const q=s=>document.querySelector(s);q('.g-swap').click();const names=[...document.querySelectorAll('.g-swap-menu .g-sf-car-list b')].map(n=>n.textContent);q('.g-swap').click();return{keep:names.filter(n=>n.includes('\u00a0· ')).length,plain:names.filter(n=>n.includes(' · ')).length};});
+ check('英文車款選單的「·」留在行尾',dot.keep>0&&!dot.plain,dot);await en.c.close();
 }finally{await b.close();}
 const failed=results.filter(r=>!r.pass);console.log(`\n${results.length-failed.length}/${results.length} PASS`);process.exit(failed.length?1:0);

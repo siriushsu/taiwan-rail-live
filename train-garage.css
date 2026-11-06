@@ -266,8 +266,8 @@ html[data-theme=dark] #trainGarage{--g-hdr:var(--paper-tr);--g-hdr-ink:var(--ink
 #trainGarage .g-swap-menu>p{margin:0;padding:10px 14px 6px;font-size:12px;font-weight:800;letter-spacing:1px;line-height:1.4;color:var(--sf-muted)}
 #trainGarage .g-sf-cars>p{margin:0;padding:10px 14px 6px;font-size:12px;font-weight:800;letter-spacing:1px;line-height:1.4;color:var(--sf-muted)}
 #trainGarage .g-sf-car-list{position:relative;min-height:0;overflow:auto;overscroll-behavior:contain}
-#trainGarage .g-sf-car-list button{display:flex;align-items:center;gap:10px;width:100%;padding:0 14px;border:0;border-top:1px solid var(--sf-faint);border-radius:0;background:none;color:var(--sf-ink);text-align:left}
-#trainGarage .g-sf-car-list b{flex:1;min-width:0;font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#trainGarage .g-sf-car-list button{display:flex;align-items:center;gap:10px;width:100%;padding:6px 14px;border:0;border-top:1px solid var(--sf-faint);border-radius:0;background:none;color:var(--sf-ink);text-align:left}
+#trainGarage .g-sf-car-list b{flex:1;min-width:0;font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:normal;text-wrap:balance}
 #trainGarage .g-sf-car-list small{flex:none;font-size:12px;font-weight:600;color:var(--sf-muted)}
 #trainGarage .g-sf-car-list button[aria-pressed=true]{background:var(--sf-min-bg);box-shadow:inset 3px 0 0 var(--sf-navy)}
 #trainGarage .g-sf-car-list button[aria-pressed=true] b{color:var(--sf-navy);font-weight:800}
