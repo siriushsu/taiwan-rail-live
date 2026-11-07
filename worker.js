@@ -6353,7 +6353,7 @@ async function busStopLive(request, env) {
     const cacheKey = new Request(new URL(`/api/bus-stop-live?stop=${encodeURIComponent(stationUid)}`, request.url).toString(), { method: 'GET' });
     return await jsonResCached(edge, cacheKey, {
       ...head,
-      source: { kind: 'tdx-per-stop', attribution: '交通部 TDX 運輸資料流通服務', license: '政府資料開放授權條款－第1版', fetchedAt: snapshot.fetchedAt, cache: snapshot.cacheState },
+      source: { kind: 'tdx-per-stop', attribution: '交通部運輸資料流通服務平臺（TDX）', license: 'TDX《資料授權利用條款》', fetchedAt: snapshot.fetchedAt, cache: snapshot.cacheState },
       routes: nextTwoByRoute(arrivals),
       arrivals,
       totals: { arrivals: arrivals.length, providerStopIds: stop.providerStopIds.length },
