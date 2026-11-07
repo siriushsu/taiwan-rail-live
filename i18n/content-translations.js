@@ -292,7 +292,7 @@
     '資料來源與授權': 'Data sources and licences',
     '北捷': 'Taipei Metro', '新北捷': 'New Taipei Metro', 'Ko-fi（信用卡 / PayPal）': 'Ko-fi（credit card / PayPal）',
     '台鐵官方 OpenData（ods.railway.gov.tw）——每日時刻表、車站基本資料、車種代碼表，依「政府資料開放授權條款」使用': 'TRA OpenData (ods.railway.gov.tw): daily timetables, station information and train-class codes, used under Taiwan’s Open Government Data Licence.',
-    '交通部 TDX 運輸資料流通服務——北捷／機捷／新北捷（淡海・安坑・三鶯）／中捷／高捷（含輕軌）的路線幾何、站序、逐班時刻表與班距資料，依政府資料開放授權條款第1版使用': 'Ministry of Transportation TDX: route geometry, station order, timetables and headways for Taipei, Taoyuan, New Taipei, Taichung and Kaohsiung metro and light rail systems, used under Taiwan’s Open Government Data License 1.0.',
+    '交通部運輸資料流通服務平臺（TDX）——高鐵、北捷／機捷／新北捷（淡海・安坑・三鶯）／中捷／高捷（含輕軌）的路線幾何、站序、逐班時刻表與班距資料，依 TDX《資料授權利用條款》使用': 'Transport Data eXchange (TDX) of the Ministry of Transportation and Communications: route geometry, station order, timetables and headways for Taiwan High Speed Rail and for Taipei, Taoyuan, New Taipei, Taichung and Kaohsiung metro and light rail systems, used under the TDX data licensing terms.',
     '台鐵即時誤點與車站地址介接交通部 TDX 平臺（TrainLiveBoard／Station，每分鐘更新）': 'TRA live delays and station addresses from the Ministry of Transportation TDX TrainLiveBoard and Station APIs, refreshed every minute.',
     '臺北捷運各線與環狀線的秒級到站倒數取自臺北大眾捷運股份有限公司「臺北捷運 API」（會員申請制），依「政府資料開放授權條款」使用': 'Second-by-second arrivals for Taipei Metro and the Circular Line come from Taipei Rapid Transit Corporation’s member API under the Open Government Data Licence.',
     '淡海輕軌・安坑輕軌的即時列車動態引用自新北大眾捷運股份有限公司官網「列車動態」公開頁面，著作權屬該公司所有': 'Live train movements for Danhai and Ankeng light rail come from New Taipei Metro’s public train-status pages; copyright remains with the operator.',
@@ -681,7 +681,7 @@
     '資料來源與授權': 'データ出典とライセンス',
     '北捷': '台北メトロ', '新北捷': '新北メトロ', 'Ko-fi（信用卡 / PayPal）': 'Ko-fi（クレジットカード／PayPal）',
     '台鐵官方 OpenData（ods.railway.gov.tw）——每日時刻表、車站基本資料、車種代碼表，依「政府資料開放授權條款」使用': '台湾鉄路公式 OpenData（ods.railway.gov.tw）の毎日時刻表・駅基本情報・列車種別コードを、政府資料開放授権条款に基づき利用しています。',
-    '交通部 TDX 運輸資料流通服務——北捷／機捷／新北捷（淡海・安坑・三鶯）／中捷／高捷（含輕軌）的路線幾何、站序、逐班時刻表與班距資料，依政府資料開放授權條款第1版使用': '交通部 TDX の路線形状、駅順、列車別時刻表、運転間隔データを台北・桃園・新北・台中・高雄のメトロ／LRTに、台湾政府資料開放ライセンス第1版に基づき利用しています。',
+    '交通部運輸資料流通服務平臺（TDX）——高鐵、北捷／機捷／新北捷（淡海・安坑・三鶯）／中捷／高捷（含輕軌）的路線幾何、站序、逐班時刻表與班距資料，依 TDX《資料授權利用條款》使用': '交通部運輸資料流通服務平臺（TDX）の路線形状、駅順、列車別時刻表、運転間隔データを台湾高速鉄道および台北・桃園・新北・台中・高雄のメトロ／LRTに、TDX の《資料授權利用條款》に基づき利用しています。',
     '台鐵即時誤點與車站地址介接交通部 TDX 平臺（TrainLiveBoard／Station，每分鐘更新）': '台湾鉄路のリアルタイム遅延と駅住所は交通部 TDX の TrainLiveBoard／Station API から毎分更新しています。',
     '臺北捷運各線與環狀線的秒級到站倒數取自臺北大眾捷運股份有限公司「臺北捷運 API」（會員申請制），依「政府資料開放授權條款」使用': '台北メトロ各線と環状線の秒単位到着情報は台北大衆捷運公司の会員制 API を利用し、政府資料開放授権条款に従っています。',
     '淡海輕軌・安坑輕軌的即時列車動態引用自新北大眾捷運股份有限公司官網「列車動態」公開頁面，著作權屬該公司所有': '淡海LRT・安坑LRTの列車位置は新北大衆捷運公司の公開ページを参照し、著作権は同社に帰属します。',
@@ -1120,12 +1120,12 @@
   });
   // 頁尾「資料來源與授權」的兩條公車來源(9/11 公車站牌資料層上線時加的,當時沒有 en/ja)。署名與授權名照原文保留。
   Object.assign(messages.en, {
-    '全臺公車站牌名冊與非臺北市的到站預估介接交通部 TDX 運輸資料流通服務（Bus/Station、Bus/EstimatedTimeOfArrival），依政府資料開放授權條款第1版使用': 'The island-wide bus stop list and arrival estimates outside Taipei City come from the Ministry of Transportation TDX Transport Data eXchange (Bus/Station, Bus/EstimatedTimeOfArrival), used under Taiwan’s Open Government Data Licence, version 1.0.',
+    '全臺公車站牌名冊與非臺北市的到站預估介接交通部運輸資料流通服務平臺（TDX；Bus/Station、Bus/EstimatedTimeOfArrival），依 TDX《資料授權利用條款》使用': 'The island-wide bus stop list and arrival estimates outside Taipei City come from the Transport Data eXchange (TDX) of the Ministry of Transportation and Communications (Bus/Station, Bus/EstimatedTimeOfArrival), used under the TDX data licensing terms.',
     '北市公車': 'Taipei buses',
     '臺北市公車的站牌、路線與到站預估取自臺北市政府交通局公共運輸處「臺北市公車動態資訊」（tcgbusfs.blob.core.windows.net/blobbus 之 GetEstimateTime／GetStop／GetRoute），依「政府資料開放授權條款－第1版」使用': 'Taipei City bus stops, routes and arrival estimates come from the Public Transportation Office, Department of Transportation, Taipei City Government (Taipei City Bus Dynamic Information: GetEstimateTime, GetStop and GetRoute at tcgbusfs.blob.core.windows.net/blobbus), used under Taiwan’s Open Government Data Licence, version 1.0.',
   });
   Object.assign(messages.ja, {
-    '全臺公車站牌名冊與非臺北市的到站預估介接交通部 TDX 運輸資料流通服務（Bus/Station、Bus/EstimatedTimeOfArrival），依政府資料開放授權條款第1版使用': '全国のバス停一覧と台北市以外の到着予測は交通部 TDX 運輸資料流通サービス（Bus/Station、Bus/EstimatedTimeOfArrival）から取得し、台湾政府資料開放ライセンス第1版に基づき利用しています。',
+    '全臺公車站牌名冊與非臺北市的到站預估介接交通部運輸資料流通服務平臺（TDX；Bus/Station、Bus/EstimatedTimeOfArrival），依 TDX《資料授權利用條款》使用': '全国のバス停一覧と台北市以外の到着予測は交通部運輸資料流通服務平臺（TDX；Bus/Station、Bus/EstimatedTimeOfArrival）から取得し、TDX の《資料授權利用條款》に基づき利用しています。',
     '北市公車': '台北市バス',
     '臺北市公車的站牌、路線與到站預估取自臺北市政府交通局公共運輸處「臺北市公車動態資訊」（tcgbusfs.blob.core.windows.net/blobbus 之 GetEstimateTime／GetStop／GetRoute），依「政府資料開放授權條款－第1版」使用': '台北市バスのバス停・路線・到着予測は台北市政府交通局公共運輸処「臺北市公車動態資訊」（tcgbusfs.blob.core.windows.net/blobbus の GetEstimateTime／GetStop／GetRoute）から取得し、台湾政府資料開放ライセンス第1版に基づき利用しています。',
   });

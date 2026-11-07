@@ -800,7 +800,7 @@ writeGuide({
   schema: pageSchema({ title: '軌島資料來源：台鐵、TDX、捷運與 OpenStreetMap', description: sourcesDescription, pathname: '/data-sources/' }),
   content: `<section class="content-section"><h2>主要來源與用途</h2><div class="fact-table">
     <div class="fact-row"><div class="fact-label">台鐵 OpenData</div><div class="fact-value">每日時刻表、車站基本資料與車種代碼等穩定資料。</div></div>
-    <div class="fact-row"><div class="fact-label">交通部 TDX</div><div class="fact-value">台鐵即時誤點與車站資訊，以及高鐵、捷運、輕軌等系統的路線、站序、時刻表或班距資料，依政府資料開放授權條款第1版使用。<a href="https://motc-ptx.gitbook.io/tdx-xin-shou-zhi-yin/api-shi-yong-shuo-ming/zi-liao-shi-yong-chang-jian-wen-ti"><img src="/assets/tdx-logo.svg" alt="TDX 運輸資料流通服務標章 / Transport Data eXchange" width="184" height="34" style="display:block;max-width:100%;height:auto;margin-top:8px"></a></div></div>
+    <div class="fact-row"><div class="fact-label">交通部運輸資料流通服務平臺（TDX）</div><div class="fact-value">台鐵即時誤點與車站資訊，以及高鐵、捷運、輕軌等系統的路線、站序、時刻表或班距資料，依 TDX《資料授權利用條款》使用。<a href="https://tdx.transportdata.tw/term"><img src="/assets/tdx-logo.svg" alt="TDX 運輸資料流通服務標章 / Transport Data eXchange" width="184" height="34" style="display:block;max-width:100%;height:auto;margin-top:8px"></a></div></div>
     <div class="fact-row"><div class="fact-label">營運機構資料</div><div class="fact-value">在授權與技術條件允許時，使用各營運機構的到站倒數、列車動態或營運公告校正畫面。</div></div>
     <div class="fact-row"><div class="fact-label">OpenStreetMap</div><div class="fact-value">補足部分軌道幾何；資料來自 OpenStreetMap 貢獻者並依 ODbL 使用。</div></div>
     <div class="fact-row"><div class="fact-label">臺灣鐵道維基館</div><div class="fact-value">區間車車型推估改編自社群整理的編組運用表（CC BY-SA 4.0）；官方班表不分世代，僅供參考。</div></div>
@@ -1532,7 +1532,7 @@ const landings = {
       ] },
       { h: 'Where the data comes from', type: 'facts', rows: [
         ['Taiwan Railway OpenData', 'Daily timetables, station information and train type codes.'],
-        ['Ministry of Transportation TDX', 'TRA real-time delays and station information, plus routes, stop sequences, timetables or headways for high speed rail, metro and light rail, used under the Open Government Data License, version 1.'],
+        ['Transport Data eXchange (TDX), Ministry of Transportation and Communications', 'TRA real-time delays and station information, plus routes, stop sequences, timetables or headways for high speed rail, metro and light rail, used under the TDX data licensing terms.'],
         ['Operator public data', 'Arrival countdowns, train movements or service notices, used where licensing and technical conditions allow.'],
         ['OpenStreetMap', 'Fills in some track geometry. Data by OpenStreetMap contributors under the ODbL.'],
         ['Taiwan Railway Wiki', 'Estimated models for local trains are adapted from a community-compiled rolling-stock roster (CC BY-SA 4.0). Official timetables do not separate these series, so treat them as estimates.'],
@@ -1574,7 +1574,7 @@ const landings = {
       ] },
       { h: 'データの出典', type: 'facts', rows: [
         ['台鉄 OpenData', '毎日の時刻表、駅の基本情報、列車種別コードなど。'],
-        ['交通部 TDX', '台鉄のリアルタイム遅延と駅情報、高鉄・メトロ・ライトレールの路線、停車駅順、時刻表または運転間隔。政府資料オープンライセンス第1版にもとづいて利用しています。'],
+        ['交通部運輸資料流通服務平臺（TDX）', '台鉄のリアルタイム遅延と駅情報、高鉄・メトロ・ライトレールの路線、停車駅順、時刻表または運転間隔。TDX の《資料授權利用條款》に基づき利用しています。'],
         ['運行会社の公開データ', '許諾と技術的な条件が許す範囲で、到着カウントダウン、列車の動き、運行のお知らせを使います。'],
         ['OpenStreetMap', '一部の線路形状を補います。OpenStreetMap の貢献者によるデータで、ODbL にもとづいて利用しています。'],
         ['臺灣鐵道維基館', '区間車の車種推定は、有志がまとめた編成運用表（CC BY-SA 4.0）を改変して使っています。公式時刻表は世代を区別しないため、参考情報です。'],
@@ -1616,7 +1616,7 @@ const landings = {
       ] },
       { h: K('主要來源與用途'), type: 'facts', rows: [
         [K('台鐵 OpenData'), K('每日時刻表、車站基本資料與車種代碼等穩定資料。')],
-        [K('交通部 TDX'), K('台鐵即時誤點與車站資訊，以及高鐵、捷運、輕軌等系統的路線、站序、時刻表或班距資料，依政府資料開放授權條款第1版使用。')],
+        [K('交通部運輸資料流通服務平臺（TDX）'), K('台鐵即時誤點與車站資訊，以及高鐵、捷運、輕軌等系統的路線、站序、時刻表或班距資料，依 TDX《資料授權利用條款》使用。')],
         [K('營運機構資料'), K('在授權與技術條件允許時，使用各營運機構的到站倒數、列車動態或營運公告校正畫面。')],
         ['OpenStreetMap', K('補足部分軌道幾何；資料來自 OpenStreetMap 貢獻者並依 ODbL 使用。')],
         [K('臺灣鐵道維基館'), K('區間車車型推估改編自社群整理的編組運用表（CC BY-SA 4.0）；官方班表不分世代，僅供參考。')],

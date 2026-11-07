@@ -145,11 +145,12 @@ check('本批用到的 i18n 鍵沒有被後載入的字典遮蔽（看得到的�
   assert(caught, '正向對照失敗：偵測器連合成的後載入遮蔽都抓不到，上面的 0 是假綠');
 });
 
-check('資料來源與授權清單補上了公車兩條（署名是政府資料開放授權的生效要件）', () => {
+check('資料來源與授權清單補上了公車兩條（署名是授權的生效要件）', () => {
   const start = index.indexOf('資料來源與授權');
   const end = index.indexOf('</details>', index.indexOf('foot-note', start));
   const block = index.slice(start, end);
-  assert(block.includes('TDX 運輸資料流通服務（Bus/Station'), '缺 TDX 公車署名');
+  assert(block.includes('交通部運輸資料流通服務平臺（TDX；Bus/Station'), '缺 TDX 公車署名');
+  assert(block.includes('《資料授權利用條款》'), '缺 TDX 授權條款字樣');
   assert(block.includes('臺北市政府交通局公共運輸處'), '缺臺北市公車來源署名');
   assert(block.includes('政府資料開放授權條款'), '缺授權條款字樣');
   // 正向對照：同一段裡本來就有的鐵道條目必須也找得到，證明我切到的真的是那一段。
