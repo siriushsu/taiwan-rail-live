@@ -1491,42 +1491,42 @@
         emu3000: {
           name: 'EMU3000 Tze-Chiang Limited Express',
           story: 'Hitachi designed this new intercity train around “silent mobility,” earning a Good Design Best 100 award. All 50 twelve-car sets are in service. It was TRA’s first train with a business-class cabin, Tengyun, which most services include (except the special-edition sets).',
-          facts: ['Unlike Taroko and Puyuma trains, the EMU3000 has no tilting mechanism; it relies on modern performance and improved track standards.']
+          facts: ['Unlike Taroko and Puyuma trains, the EMU3000 has no tilting mechanism; it relies on modern performance and improved track standards.', 'The body is aluminum alloy joined by friction stir welding (FSW); the livery is mainly black and white, with red, green, blue or camouflage-style blocks along the sides.']
         },
         taroko: {
           name: 'TEMU1000 Taroko Express',
           story: 'TRA’s first tilting train was built by Hitachi in 2006 from the JR Kyushu 885 family. Its body tilts up to five degrees through curves; reserved seats only. In 2026 it operates just six daily services between Shulin and Hualien.',
-          facts: ['Its public naming contest chose “Taroko” over candidates including Dawn and Flying Fish.', 'It was TRA’s first train with a fully painted body, in colours reminiscent of the 700T high-speed train.']
+          facts: ['Its public naming contest chose “Taroko” over candidates including Dawn and Flying Fish.', 'It was TRA’s first train with a fully painted body, in colours reminiscent of the 700T high-speed train.', 'Its look is based on JR Kyushu’s Series 885, but Hitachi redesigned it to TRA standards; its protruding headlights are known as the “TRA style”.']
         },
         puyuma: {
           name: 'TEMU2000 Puyuma Express',
           story: 'Named from a Puyuma word meaning unity, this second-generation Japanese tilting train uses air springs like the N700 Shinkansen. Since 2013 it has been a mainstay of eastern Taiwan services.',
-          facts: ['Its one-to-two-degree tilt is smaller than Taroko’s, but the mechanism is simpler and more reliable.', 'Eighteen sets remain in service, instantly recognisable by their streamlined red-and-black fronts.']
+          facts: ['Its one-to-two-degree tilt is smaller than Taroko’s, but the mechanism is simpler and more reliable.', 'Eighteen sets remain in service, instantly recognisable by their streamlined red-and-black fronts.', 'Its red nose earned it the nickname “Red-faced Muscovy Duck”; the 2016 supplementary batch carries a Year-of-the-Monkey emblem and is called “Puyouhou” (Puyuma monkey).']
         },
         pp: {
           name: 'Push–pull Tze-Chiang（PP）',
           story: 'Introduced in 1996, this classic has a locomotive at each end of a long coach set. The original E1000 locomotives left scheduled service in July 2026; new Japanese E500 locomotives now haul the coaches.',
-          facts: ['The coaches were built by Hyundai Precision in Korea and the original locomotives came from South Africa.', 'Most PP trains today are “PP 2.0” sets hauled by new E500 locomotives.']
+          facts: ['The coaches were built by Hyundai Precision in Korea and the original locomotives came from South Africa.', 'Most PP trains today are “PP 2.0” sets hauled by new E500 locomotives.', 'When the E1000 locomotive first ran trials it was called the “Bullet Train”; some who found it odd-looking called it the “Catfish”.']
         },
         dr3100: {
           name: 'DR3100 diesel Tze-Chiang',
           story: 'Built in 1998 by Nippon Sharyo and Tang Eng, the stainless-steel DR3100 is TRA’s last diesel intercity multiple unit in regular service. Only a few Shulin–Hualien trains remain.',
-          facts: ['Contemporary DR2800, DR2900 and DR3000 fleets have retired; the younger DR3100 remains.', 'It was TRA’s first diesel intercity train delivered with automatic doors.']
+          facts: ['Contemporary DR2800, DR2900 and DR3000 fleets have retired; the younger DR3100 remains.', 'It was TRA’s first diesel intercity train delivered with automatic doors.', 'Once it entered service, other diesel railcars could be coupled to it, so eastern diesel Tze-Chiang trains grew to 9 or 12 cars and eased holiday crowding.']
         },
         chukuang: {
           name: 'Chu-Kuang Express',
           story: 'Introduced in 1970 as TRA’s first air-conditioned reserved-seat train, the orange-and-cream locomotive-hauled service once ran 76 times a day. Only seven daily services remain after the July 2026 timetable change.',
-          facts: ['Slow acceleration from locomotive-hauled operation is a major reason electric multiple units replaced it.', 'Its cream-and-orange livery has been used since 1979.']
+          facts: ['Slow acceleration from locomotive-hauled operation is a major reason electric multiple units replaced it.', 'Its cream-and-orange livery has been used since 1979.', 'The first-generation Chu-Kuang went for luxury inside: wood-tone paneling, red carpet, reclining seats, and white lace curtains at the windows.']
         },
         local: {
           name: 'Local train（commuter EMU）',
           story: 'The backbone of everyday TRA service. The newest EMU900 generation pairs curved “smiling” headlights with a bright green stripe and includes priority seating and upright bicycle racks.',
-          facts: ['Timetable data cannot distinguish EMU500, 700, 800 and 900 generations; smiling headlights identify an EMU900.', 'A ten-car EMU900 can carry nearly 1,800 passengers, TRA’s longest commuter formation.']
+          facts: ['Timetable data cannot distinguish EMU500, 700, 800 and 900 generations; smiling headlights identify an EMU900.', 'A ten-car EMU900 can carry nearly 1,800 passengers, TRA’s longest commuter formation.', 'The EMU500 was TRA’s first stainless-steel commuter EMU; 344 cars were ordered at once, replacing the ordinary coaches on the Western Trunk Line.']
         },
         'fast-local': {
           name: 'Fast Local',
           story: 'The quicker version of a local train uses similar commuter EMUs but skips smaller stations. On the map, its rhythm of passing stops makes it easy to recognise.',
-          facts: []
+          facts: ['The EMU700, in service from 2007, began the switch of Fast Local services to EMUs; before that, they were locomotive-hauled.']
         }
       },
       branchLines: {
@@ -1590,42 +1590,42 @@
         emu3000: {
           name: 'EMU3000 新自強号',
           story: '日立が「静謐な移動」をテーマに設計し、Good Design Best 100を受賞した新世代都市間列車です。12両編成50本が揃いました。台湾鉄路で初めてビジネスクラス「騰雲座艙」を設けた車両で、多くの列車に連結されています（特別仕様編成を除く）。',
-          facts: ['太魯閣号・普悠瑪号と異なり車体傾斜装置はなく、新しい線路規格と車両性能で高速化しています。']
+          facts: ['太魯閣号・普悠瑪号と異なり車体傾斜装置はなく、新しい線路規格と車両性能で高速化しています。', '車体はアルミ合金で、摩擦攪拌接合（FSW）という工法で造られています。車体は白黒が基調で、側面に赤・緑・青、または迷彩色のブロックがあしらわれています。']
         },
         taroko: {
           name: 'TEMU1000 太魯閣号',
           story: 'JR九州885系をルーツに日立が2006年に製造した台湾鉄路初の振子式列車です。曲線で最大5度傾斜し、全車指定席。2026年は樹林―花蓮間を1日6本だけ運転します。',
-          facts: ['一般公募で「曙光号」「飛魚号」などを抑えて「太魯閣号」に決まりました。', '台湾鉄路で初めて車体全面塗装を採用し、高鉄700Tに似た配色です。']
+          facts: ['一般公募で「曙光号」「飛魚号」などを抑えて「太魯閣号」に決まりました。', '台湾鉄路で初めて車体全面塗装を採用し、高鉄700Tに似た配色です。', '外観はJR九州の885系を参考にしていますが、日立が台鉄の規格に合わせて設計し直しました。出っ張ったヘッドライトは「台鉄流」と呼ばれています。']
         },
         puyuma: {
           name: 'TEMU2000 普悠瑪号',
           story: 'プユマ語の「団結」にちなむ、日本車輌製造の第2世代振子式列車です。N700系と同様の空気ばね方式を採用し、2013年から東部幹線の主力を担っています。',
-          facts: ['傾斜角は太魯閣号より小さい1～2度ですが、機構が簡潔で信頼性に優れます。', '18編成が現役で、赤と黒の流線形先頭部が目印です。']
+          facts: ['傾斜角は太魯閣号より小さい1～2度ですが、機構が簡潔で信頼性に優れます。', '18編成が現役で、赤と黒の流線形先頭部が目印です。', '赤い先頭部から「紅面番鴨」という愛称がつきました。2016年の増備車には申年のマークがつき、「普悠猴」と呼ばれています。']
         },
         pp: {
           name: 'プッシュプル自強号（PP）',
           story: '1996年登場。客車の前後に機関車を置いて押し引きする名車です。旧E1000機関車は2026年7月に定期運用を退き、新しい日本製E500機関車が客車を牽引しています。',
-          facts: ['客車は韓国の現代精工、旧機関車は南アフリカ製です。', '現在のPP自強号の多くは新E500機関車が牽引する「PP 2.0」です。']
+          facts: ['客車は韓国の現代精工、旧機関車は南アフリカ製です。', '現在のPP自強号の多くは新E500機関車が牽引する「PP 2.0」です。', 'E1000形機関車は試運転を始めたころ「弾丸列車」と呼ばれました。見た目が変だと「土虱（ナマズ）」と呼ぶ人もいました。']
         },
         dr3100: {
           name: 'DR3100 ディーゼル自強号',
           story: '1998年に日本車輌と唐栄が製造したステンレス製気動車で、台湾鉄路に残る最後の定期運行ディーゼル自強号です。現在は樹林―花蓮間の少数列車だけです。',
-          facts: ['同世代のDR2800・2900・3000は引退し、比較的新しいDR3100だけが残りました。', '台湾鉄路で初めて新製時から自動ドアを備えたディーゼル都市間列車です。']
+          facts: ['同世代のDR2800・2900・3000は引退し、比較的新しいDR3100だけが残りました。', '台湾鉄路で初めて新製時から自動ドアを備えたディーゼル都市間列車です。', 'この車両の登場後、他のディーゼル車を増結できるようになり、東部のディーゼル自強号は9両または12両に長くなって、休日の混雑が和らぎました。']
         },
         chukuang: {
           name: '莒光号',
           story: '1970年登場の台湾鉄路初の冷房付き指定席列車です。最盛期は1日76本あったクリームとオレンジの客車列車も、2026年7月改正後は1日7本だけになりました。',
-          facts: ['機関車牽引で加減速が遅いことが、電車に置き換えられた主因です。', 'クリームとオレンジの塗装は1979年から使われています。']
+          facts: ['機関車牽引で加減速が遅いことが、電車に置き換えられた主因です。', 'クリームとオレンジの塗装は1979年から使われています。', '初代の莒光号は車内が豪華志向で、木目調の内装、赤いじゅうたん、リクライニングシート、窓には白いカーテンまでありました。']
         },
         local: {
           name: '区間車（通勤電車）',
           story: '台湾鉄路の日常を支える列車です。最新のEMU900は「笑顔」のような前照灯と明るい緑の帯が特徴で、優先席や縦置き自転車ラックも備えます。',
-          facts: ['時刻表だけではEMU500・700・800・900を区別できません。笑顔のような前照灯がEMU900の目印です。', 'EMU900は10両で約1,800人を運べる、台湾鉄路最長の通勤編成です。']
+          facts: ['時刻表だけではEMU500・700・800・900を区別できません。笑顔のような前照灯がEMU900の目印です。', 'EMU900は10両で約1,800人を運べる、台湾鉄路最長の通勤編成です。', 'EMU500は台鉄で最初のステンレス製通勤電車で、344両を一度に発注し、西部幹線の普通客車を全面的に置き換えました。']
         },
         'fast-local': {
           name: '区間快車',
           story: '区間車と同じ通勤電車を使いながら小駅を通過する速達版です。地図では駅を飛ばして進む停車パターンで見分けられます。',
-          facts: []
+          facts: ['2007年に走り出したEMU700は、区間快車が電車化されるきっかけでした。それまで区間快車は機関車が牽引していました。']
         }
       },
       branchLines: {
@@ -4806,6 +4806,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '讀取失敗，請稍後再試。': 'Couldn’t load. Please try again later.',
   '暫時無法兌換。': 'Redeeming isn’t available right now.',
   '看場景': 'View scene',
+  '介紹': 'About',
   '重試': 'Retry',
   '重試儲存': 'Retry saving',
   '重新讀取': 'Reload',
@@ -4872,6 +4873,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '讀取失敗，請稍後再試。': '読み込めませんでした。しばらくしてからもう一度お試しください。',
   '暫時無法兌換。': '現在は交換できません。',
   '看場景': '情景を見る',
+  '介紹': '紹介',
   '重試': '再試行',
   '重試儲存': '保存を再試行',
   '重新讀取': '再読み込み',
