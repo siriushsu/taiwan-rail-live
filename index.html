@@ -3510,7 +3510,9 @@
   }
   .help-sec .one { font-size: calc(12.5px * var(--ui)); margin: 0 0 6px; line-height: 1.7; }
   /* 步驟與提示是說明的主體（issue #52 嫌字小）：起點各大一號，並與上面那句一樣吃完整的 --ui，特大時不再比那句小一截。 */
-  .help-sec ol { margin: 0 0 7px; padding-left: 19px; font-size: calc(13px * var(--ui)); color: var(--muted); line-height: 1.75; }
+  /* text-spacing-trim：Chromium 預設會把行尾的全形「」」壓成半形來硬塞同一行，scrollWidth 卻照全形算，
+     步驟清單在幾個寬度被量成溢出（375 寬的懸賞板第一步）。照 WebKit 不壓縮，該換行就換行。 */
+  .help-sec ol { margin: 0 0 7px; padding-left: 19px; font-size: calc(13px * var(--ui)); color: var(--muted); line-height: 1.75; text-spacing-trim: space-all; }
   .help-sec .tip { font-size: calc(12.5px * var(--ui)); color: var(--faint); margin: 0 0 7px; line-height: 1.7; }
   .help-sec .tip b, .help-tail b { color: var(--muted); }
   .help-widgets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 6px 0 4px; }
