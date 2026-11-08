@@ -10,6 +10,7 @@ import blender_parts as p
 from tw_models import BUILDERS
 import tw_classic  # 經典退役車另放一檔，匯入時登記進 S 與 BUILDERS
 import tw_steam  # 蒸汽機車三款同上
+import tw_book  # 圖鑑補齊的車款同上
 args=sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else list(S)
 refs={m['id']:m for m in json.load(open(OUT/'catalog-source.json'))};results=[]
 for id in args:

@@ -1821,5 +1821,218 @@
   ],
   "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
   "thumbnail": "models/dt668/renders/thumb.webp"
+ },
+ {
+  "id": "emu200",
+  "name": "EMU200 原廠塗裝自強號",
+  "family": "railcar",
+  "detail": "橘紅頂帽黃色平頭車頭 · 中央黃色貫通門 · 米色上半與棕色下半車身",
+  "features": [
+   "南非 UC&W 製造車體、英國 GEC 供應電機，1987 年投入西部幹線自強號，主要接替長程莒光號；三節一組（兩節駕駛馬達車夾一節受電弓拖車），共 11 組 33 輛。2001 年底起分批改造成 EMU1200，原廠模樣從此消失。",
+   "平頭車頭、上緣大圓角：橘紅頂帽中央一盞橢圓雙頭燈，帽下整片黃色，兩側圓角前窗夾著中央黃色貫通門；窗下一細一粗的橘紅、黃色帶往中央微微下斜，再往下是整片橘紅與內白外紅的燈。",
+   "車頭的黃與橘紅繞到駕駛室側面，客室段是米色上半、棕色下半（後期下半改成芥末黃）；車庫做的是 1989 年的棕色版。受電弓在中間的拖車，駕駛車車頂只有冷氣。"
+  ],
+  "metadata": "models/emu200/emu200.model.json",
+  "blend": "models/emu200/emu200.blend",
+  "glb": "models/emu200/emu200.glb",
+  "hero": "models/emu200/renders/hero.png",
+  "sources": [
+   {
+    "label": "Wikimedia Commons／Thyristorchopper（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Taiwan_Railway_Administration_EMU_206_Banqiao_1989.jpg"
+   },
+   {
+    "label": "Wikimedia Commons／Lexcie（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_UCW_EMU200_Mainline_Running_in_1997.jpg"
+   },
+   {
+    "label": "Wikimedia Commons／Kazehayashi（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:EMU200_55EMC206.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/emu200/renders/thumb.webp"
+ },
+ {
+  "id": "dr2800",
+  "name": "DR2800 柴聯自強號",
+  "family": "railcar",
+  "detail": "黃色車頭橘色斜紋 · 頂帽雙頭燈座 · 波紋不鏽鋼車身",
+  "features": [
+   "日本東急車輛 1982 年交第一批、1984 年追加，三節一組（兩端動力車夾一節電源拖車）共 15 組 45 輛，花東線拓寬後跑台北—花蓮、台東，是東部幹線最有代表性的柴聯自強號；2000 年代換過更有力的引擎。",
+   "車體跟 DR2700 同一個來源（東急取得美國 Budd 授權），整車波紋不鏽鋼、下半略往內收，引擎冷卻器和排氣設備放在車頂中央；比 DR2700 多了冷氣、自動門與完整盥洗室。",
+   "黃色車頭配橘色頂帽與往中央下斜的橘色斜紋，頂帽中央凸出雙頭燈座；1987 年日立製的 DR2900 動力配置相同、兩型可以混編，差在車身較方正、側面只剩五條強化線（車庫合在這一款）。"
+  ],
+  "metadata": "models/dr2800/dr2800.model.json",
+  "blend": "models/dr2800/dr2800.blend",
+  "glb": "models/dr2800/dr2800.glb",
+  "hero": "models/dr2800/renders/hero.png",
+  "sources": [
+   {
+    "label": "Wikimedia Commons／Komushi（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_DR2827_at_Taitung_Station_20140225.jpg"
+   },
+   {
+    "label": "Wikimedia Commons／玄史生（CC0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_DR2814_DMU_Passing_through_Hualien_Station_20150704.jpg"
+   },
+   {
+    "label": "Wikimedia Commons／Samson Ng . D201@EAL（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:DR2800_Series_DMU.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/dr2800/renders/thumb.webp"
+ },
+ {
+  "id": "e100",
+  "name": "E100 電力機車",
+  "family": "electric",
+  "detail": "白色上半橘紅下半 · 正面 V 字白帶 · 雙駕駛室兩組受電弓",
+  "features": [
+   "台鐵第一款電力機車：西部幹線電氣化時向英國 GEC 訂的 20 輛中型機車（E101～E120），電機英國製、車體在南非組裝，1976–77 年運到台灣。",
+   "Bo-Bo 雙駕駛室、不必調頭，單車牽引力不大但可以三輛重連，常拉無空調客車、貨物列車，晚年在彰化跑台中港到瑞芳的煤列；2005–06 年解體，只留下 E101。",
+   "車庫做的是保存車 E101 的橘白塗裝：白色上半、橘紅下半，車側一道白細帶繞到正面往中央下彎成 V 字，頂端中央雙頭燈，下方黃黑 V 字排障板。"
+  ],
+  "metadata": "models/e100/e100.model.json",
+  "blend": "models/e100/e100.blend",
+  "glb": "models/e100/e100.glb",
+  "hero": "models/e100/renders/hero.png",
+  "sources": [
+   {
+    "label": "Wikimedia Commons／D1114456（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:E101_electric_locomotive.jpg"
+   },
+   {
+    "label": "Wikimedia Commons／黃 zero159（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E101_at_Changhua_Roundhouse_20080717.jpg"
+   },
+   {
+    "label": "Wikimedia Commons／Cheng-en Cheng（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_E100_electric_locomotives_at_Changhua_Station.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/e100/renders/thumb.webp"
+ },
+ {
+  "id": "s200",
+  "name": "S200 柴電機車",
+  "family": "hood",
+  "detail": "橘色車身灰色車頂 · 三片前窗短駕駛室 · 白帶 V 字與大面積黃黑端梁",
+  "features": [
+   "台鐵柴油化初期的機車：1959 年用國際開發基金貸款選定美國 GM-EMD 的 GL8 出口型，1960、1961 年共引進 12 輛（S201～S212），A1A-A1A 輪軸配置。",
+   "起初配在北部做調車、也拉幹線客貨車，後來全數調到高雄，長年是臨港線與屏東線的主力，也在高雄機廠進出調車；2001 年後被 DHL100 接手大部分調度工作。",
+   "車體小巧、沒有短機房，駕駛室在一端、正面三片窗；塗裝從早年的海軍藍配白帶，電氣化後改成橘色白帶加灰色車頂，車庫做的是這個晚期樣子。"
+  ],
+  "metadata": "models/s200/s200.model.json",
+  "blend": "models/s200/s200.blend",
+  "glb": "models/s200/s200.glb",
+  "hero": "models/s200/renders/hero.png",
+  "sources": [
+   {
+    "label": "Wikimedia Commons／Alan Wilson（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Taiwan_Railways_Type_S200_%E2%80%98S210%E2%80%99_-_55325377169.jpg"
+   },
+   {
+    "label": "Wikimedia Commons／Joe Lewis（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_S201_at_Kaohsiung_Station_20080708.jpg"
+   },
+   {
+    "label": "Wikimedia Commons／Mrmarkertw（CC BY 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:2025%E5%B9%B4%E7%9A%84S200%E5%9E%8B%E6%9F%B4%E9%9B%BB%E6%A9%9F%E8%BB%8A.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/s200/renders/thumb.webp"
+ },
+ {
+  "id": "shay31",
+  "name": "Shay 31 號蒸汽機車",
+  "family": "steam",
+  "detail": "直立三汽缸 · 斜齒輪轉向架 · 鍋爐偏左與斜筒形煙囪",
+  "features": [
+   "為了爬阿里山的陡坡與急彎而用的齒輪式蒸機：三支汽缸直立在鍋爐右邊，經曲軸、萬向接頭與伸縮軸帶動前後兩台轉向架，每個右側車輪外面一圈斜齒輪，所有車輪都是動輪。",
+   "28 噸級，美國 Lima 公司製造（林務局寫 1911 到 1915 年間），原本拉運木材；為了平衡右邊整組引擎，鍋爐往左偏，從正面看得出不對稱。",
+   "2005 年整修後重新上路，跟 25 號是阿里山僅有還能開的兩部 Shay，櫻花季等時候拉觀光列車；車庫照保存車做：全黑、煙箱門上紅底白圈車號圓牌。"
+  ],
+  "metadata": "models/shay31/shay31.model.json",
+  "blend": "models/shay31/shay31.blend",
+  "glb": "models/shay31/shay31.glb",
+  "hero": "models/shay31/renders/hero.png",
+  "sources": [
+   {
+    "label": "Wikimedia Commons／Industrial Wales（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_31_Alishan_2023-07-18_01.jpg"
+   },
+   {
+    "label": "Wikimedia Commons／阿里山林業鐵路及文化資產管理處（零件圖）",
+    "url": "https://commons.wikimedia.org/wiki/File:Components_diagram_of_a_28-ton_Class_B_Shay_steam_locomotive_of_the_Alishan_Forest_Railway.jpg"
+   },
+   {
+    "label": "Wikimedia Commons／Juen（CC BY 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:AFR_Shay_31_01.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/shay31/renders/thumb.webp"
+ },
+ {
+  "id": "tsc346",
+  "name": "台糖 346 號蒸汽機車",
+  "family": "steam",
+  "detail": "側水櫃小蒸機 · 火星網罩煙囪 · 紅色車架與緩衝梁",
+  "features": [
+   "戰後糖鐵的蒸機多從比利時買來，346 號是 1948 年比利時 AFB 廠的產品，跑 762 mm 窄軌，三對動輪、兩側水櫃、駕駛室後面帶煤櫃。",
+   "先在溪洲、後來在溪湖糖廠拉甘蔗車，1977 年退休；修復後從 2007 年起在溪湖糖廠拉觀光五分車，是糖鐵少數還會冒煙出勤的蒸機。",
+   "外觀好認：黑色車身配紅色車架與前後緩衝梁，煙囪頂上加方形火星網罩，煙箱頂一側一盞大圓頭燈。"
+  ],
+  "metadata": "models/tsc346/tsc346.model.json",
+  "blend": "models/tsc346/tsc346.blend",
+  "glb": "models/tsc346/tsc346.glb",
+  "hero": "models/tsc346/renders/hero.png",
+  "sources": [
+   {
+    "label": "Wikimedia Commons／Industrial Wales（CC BY-SA 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Steam_locomotive_346_of_Taiwan_Sugar_Corporation_2020-03-29.jpg"
+   },
+   {
+    "label": "Wikimedia Commons／Takara19（CC BY 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Taisugar_346_Steam_Locomotive_at_Xihu_Sugar_Factory_20100129.jpg"
+   },
+   {
+    "label": "維基百科「溪湖糖廠」",
+    "url": "https://zh.wikipedia.org/wiki/%E6%BA%AA%E6%B9%96%E7%B3%96%E5%BB%A0"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/tsc346/renders/thumb.webp"
+ },
+ {
+  "id": "wufen",
+  "name": "五分車觀光客車",
+  "family": "forestcoach",
+  "detail": "黑色密閉車身 · 一排七扇窗 · 窗下白細線",
+  "features": [
+   "糖業鐵路的軌距 762 mm，差不多是標準軌的一半，所以小火車被叫做「五分車」；全盛時期路線長達三千公里，運甘蔗也載客。",
+   "對外載客的營業線 1982 年全部停駛、糖廠也一間間停工之後，糖鐵轉向觀光，2001 年起烏樹林、溪湖、蒜頭、新營、橋頭陸續開出觀光五分車。",
+   "車庫做的是溪湖糖廠 346 號蒸機後面那種黑色密閉客車：方正車身、淺弧車頂、一排小窗，跟 346 號編成一列。"
+  ],
+  "metadata": "models/wufen/wufen.model.json",
+  "blend": "models/wufen/wufen.blend",
+  "glb": "models/wufen/wufen.glb",
+  "hero": "models/wufen/renders/hero.png",
+  "sources": [
+   {
+    "label": "Wikimedia Commons／Greg Longman（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Xihu_sugar_train.JPG"
+   },
+   {
+    "label": "Wikimedia Commons／Tbatb（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:A_Tourist_Train_in_Xihu_Sugar_Factory.jpg"
+   }
+  ],
+  "note": "參考照片僅供外觀比對，未封裝成貼圖。所有模型為 Q 版估製；車底與局部設備仍有簡化。",
+  "thumbnail": "models/wufen/renders/thumb.webp"
  }
 ]
