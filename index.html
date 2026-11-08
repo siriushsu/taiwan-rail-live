@@ -5886,7 +5886,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/11/06</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/11/08</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -5894,6 +5894,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="tmrtfirst1108"><span class="d">11/08</span><span>台中捷運綠線首班車照交通部 TDX 最新資料提前到 05:30，末班不變</span></li>
         <li data-cl-of="garagescenemusic1106"><span class="d">11/06</span><span>車庫音樂改到場景頁才放，只放慢版鋼琴，車跑起來還有鐵軌聲；車庫首頁不出聲，音符鈕留在場景頁</span></li>
         <li data-cl-of="garagefit1106"><span class="d">11/06</span><span>車庫場景頁的時段鈕、標題和車款選單放不下時改成換行，Safari 點車款也換得到車</span></li>
         <li data-cl-of="garageshort1106"><span class="d">11/06</span><span>手機橫放時，車庫的機務段入口排到展示台下面，第一屏看得到完整車模</span></li>
@@ -5901,7 +5902,6 @@
         <li data-cl-of="steam1106"><span class="d">11/06</span><span>CK124、CT273、DT668 三款蒸汽機車的 3D 車模照實車重新製作</span></li>
         <li data-cl-of="coachlead1106"><span class="d">11/06</span><span>車庫裡的客車款跑起來會配上機車頭，復興號、莒光號不再沒有車頭</span></li>
         <li data-cl-of="emu3000new1106"><span class="d">11/06</span><span>EMU3000 新自強號的 3D 車模重新製作，外型更接近實車</span></li>
-        <li data-cl-of="qclip1106"><span class="d">11/06</span><span>Q 版列車從側面看時，並行的列車不再互相穿過</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -6471,6 +6471,7 @@
         <li><span class="d">7/13</span><span>新增「分享畫面」：把地圖位置、時間與路網打包成一條連結</span></li>
         <li><span class="d">7/11</span><span>可以安裝到主畫面（PWA），像 App 一樣全螢幕開啟</span></li>
         <li class="grp">資料校正</li>
+        <li data-cl="tmrtfirst1108"><span class="d">11/08</span><span>台中捷運綠線首班車照交通部 TDX 最新資料提前到 05:30，末班不變</span></li>
         <li data-cl="trcurl1030"><span class="d">10/30</span><span>台鐵官網改用新網址 www.trc.com.tw，活動公告與車庫裡的台鐵官方連結都換成新網址（謝謝網友回報）</span></li>
         <li data-cl="klrtja0929"><span class="d">9/29</span><span>日文版的高雄環狀輕軌改用高雄捷運官方日文路線名「ライトレール環状線」</span></li>
         <li data-cl="metrolead0929"><span class="d">9/29</span><span>捷運導言更正：「北北桃」與台北捷運的地圖導言，也改成台北捷運各線（含文湖線）的列車位置與車站倒數都來自官方逐班即時資料，不再把文湖線寫成班距推算</span></li>
@@ -7439,7 +7440,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1106b：EMU3000 車模照實車重做；Q 版並行列車側視時，畫面上疊到的組再沿視線分開。
 // v1106c：車庫音樂改到場景頁才放，只放鋼琴（通行證再加花蓮山海兩首），車在跑時墊車聲。
 // v1107a：資料來源標示校正：TDX 改標交通部運輸資料流通服務平臺與《資料授權利用條款》，頁尾補上高鐵。
-const BUILD = 'v1107a';
+// v1108a：台中捷運綠線首班車照 TDX 提前到 05:30，末班不變。
+const BUILD = 'v1108a';
 // v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
