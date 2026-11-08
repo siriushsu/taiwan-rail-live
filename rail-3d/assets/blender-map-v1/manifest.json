@@ -2295,6 +2295,289 @@
           "url": "https://commons.wikimedia.org/wiki/File:TRA_1_circa_late_1990s.jpg"
         }
       ]
+    },
+    "emu200": {
+      "id": "emu200",
+      "name": "EMU200 原廠塗裝自強號",
+      "family": "railcar",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "emu200",
+          "flip": false
+        },
+        {
+          "mesh": "emu200-mid",
+          "flip": false
+        },
+        {
+          "mesh": "emu200",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "rail-3d/assets/garage-blender-v1/emu200.json",
+        "rawSha256": "147f12ac5e792e0027e5669843518051d1d381d68116baf424d6f5bf9a43d446",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Wikimedia Commons／Thyristorchopper（CC BY-SA 3.0）",
+          "url": "https://commons.wikimedia.org/wiki/File:Taiwan_Railway_Administration_EMU_206_Banqiao_1989.jpg"
+        },
+        {
+          "label": "Wikimedia Commons／Lexcie（CC BY-SA 3.0）",
+          "url": "https://commons.wikimedia.org/wiki/File:TRA_UCW_EMU200_Mainline_Running_in_1997.jpg"
+        },
+        {
+          "label": "Wikimedia Commons／Kazehayashi（CC BY-SA 4.0）",
+          "url": "https://commons.wikimedia.org/wiki/File:EMU200_55EMC206.jpg"
+        }
+      ]
+    },
+    "dr2800": {
+      "id": "dr2800",
+      "name": "DR2800 柴聯自強號",
+      "family": "railcar",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "dr2800",
+          "flip": false
+        },
+        {
+          "mesh": "dr2800-mid",
+          "flip": false
+        },
+        {
+          "mesh": "dr2800",
+          "flip": true
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "rail-3d/assets/garage-blender-v1/dr2800.json",
+        "rawSha256": "a70e6292220ac3ea1ad16404bf031236f91fff206f9f0f3e794d75e06820e3f1",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Wikimedia Commons／Komushi（CC BY-SA 4.0）",
+          "url": "https://commons.wikimedia.org/wiki/File:TRA_DR2827_at_Taitung_Station_20140225.jpg"
+        },
+        {
+          "label": "Wikimedia Commons／玄史生（CC0）",
+          "url": "https://commons.wikimedia.org/wiki/File:TRA_DR2814_DMU_Passing_through_Hualien_Station_20150704.jpg"
+        },
+        {
+          "label": "Wikimedia Commons／Samson Ng . D201@EAL（CC BY-SA 4.0）",
+          "url": "https://commons.wikimedia.org/wiki/File:DR2800_Series_DMU.jpg"
+        }
+      ]
+    },
+    "e100": {
+      "id": "e100",
+      "name": "E100 電力機車",
+      "family": "electric",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "e100",
+          "flip": false
+        },
+        {
+          "mesh": "juguang",
+          "flip": false
+        },
+        {
+          "mesh": "juguang",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "rail-3d/assets/garage-blender-v1/e100.json",
+        "rawSha256": "0d52925d5607cda96f175f33e362c083397979fa60d4cc73103317d95a336c70",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Wikimedia Commons／D1114456（CC BY-SA 4.0）",
+          "url": "https://commons.wikimedia.org/wiki/File:E101_electric_locomotive.jpg"
+        },
+        {
+          "label": "Wikimedia Commons／黃 zero159（CC BY-SA 2.0）",
+          "url": "https://commons.wikimedia.org/wiki/File:TRA_E101_at_Changhua_Roundhouse_20080717.jpg"
+        },
+        {
+          "label": "Wikimedia Commons／Cheng-en Cheng（CC BY-SA 2.0）",
+          "url": "https://commons.wikimedia.org/wiki/File:TRA_E100_electric_locomotives_at_Changhua_Station.jpg"
+        }
+      ]
+    },
+    "s200": {
+      "id": "s200",
+      "name": "S200 柴電機車",
+      "family": "hood",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "s200",
+          "flip": false
+        },
+        {
+          "mesh": "juguang",
+          "flip": false
+        },
+        {
+          "mesh": "juguang",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "rail-3d/assets/garage-blender-v1/s200.json",
+        "rawSha256": "57fd513907273d35a6530c27b793ced89f5f4e77e8e69585e8adbf4afee73d69",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Wikimedia Commons／Alan Wilson（CC BY-SA 2.0）",
+          "url": "https://commons.wikimedia.org/wiki/File:Taiwan_Railways_Type_S200_%E2%80%98S210%E2%80%99_-_55325377169.jpg"
+        },
+        {
+          "label": "Wikimedia Commons／Joe Lewis（CC BY-SA 2.0）",
+          "url": "https://commons.wikimedia.org/wiki/File:TRA_S201_at_Kaohsiung_Station_20080708.jpg"
+        },
+        {
+          "label": "Wikimedia Commons／Mrmarkertw（CC BY 4.0）",
+          "url": "https://commons.wikimedia.org/wiki/File:2025%E5%B9%B4%E7%9A%84S200%E5%9E%8B%E6%9F%B4%E9%9B%BB%E6%A9%9F%E8%BB%8A.jpg"
+        }
+      ]
+    },
+    "shay31": {
+      "id": "shay31",
+      "name": "Shay 31 號蒸汽機車",
+      "family": "steam",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "shay31",
+          "flip": false
+        },
+        {
+          "mesh": "hinoki",
+          "flip": false
+        },
+        {
+          "mesh": "hinoki",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "rail-3d/assets/garage-blender-v1/shay31.json",
+        "rawSha256": "af288f2d64fd33b5f6a7e378bc8623b335255481dbb78ff054c4afa6f71caa48",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Wikimedia Commons／Industrial Wales（CC BY-SA 2.0）",
+          "url": "https://commons.wikimedia.org/wiki/File:AFR_31_Alishan_2023-07-18_01.jpg"
+        },
+        {
+          "label": "Wikimedia Commons／阿里山林業鐵路及文化資產管理處（零件圖）",
+          "url": "https://commons.wikimedia.org/wiki/File:Components_diagram_of_a_28-ton_Class_B_Shay_steam_locomotive_of_the_Alishan_Forest_Railway.jpg"
+        },
+        {
+          "label": "Wikimedia Commons／Juen（CC BY 2.0）",
+          "url": "https://commons.wikimedia.org/wiki/File:AFR_Shay_31_01.jpg"
+        }
+      ]
+    },
+    "tsc346": {
+      "id": "tsc346",
+      "name": "台糖 346 號蒸汽機車",
+      "family": "steam",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "tsc346",
+          "flip": false
+        },
+        {
+          "mesh": "wufen",
+          "flip": false
+        },
+        {
+          "mesh": "wufen",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "rail-3d/assets/garage-blender-v1/tsc346.json",
+        "rawSha256": "934741b2273a341ede6acb8501a4ab4318f7cfdb721c9b1aff15fe69c931e0e7",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Wikimedia Commons／Industrial Wales（CC BY-SA 2.0）",
+          "url": "https://commons.wikimedia.org/wiki/File:Steam_locomotive_346_of_Taiwan_Sugar_Corporation_2020-03-29.jpg"
+        },
+        {
+          "label": "Wikimedia Commons／Takara19（CC BY 3.0）",
+          "url": "https://commons.wikimedia.org/wiki/File:Taisugar_346_Steam_Locomotive_at_Xihu_Sugar_Factory_20100129.jpg"
+        },
+        {
+          "label": "維基百科「溪湖糖廠」",
+          "url": "https://zh.wikipedia.org/wiki/%E6%BA%AA%E6%B9%96%E7%B3%96%E5%BB%A0"
+        }
+      ]
+    },
+    "wufen": {
+      "id": "wufen",
+      "name": "五分車觀光客車",
+      "family": "forestcoach",
+      "articulated": false,
+      "parts": [
+        {
+          "mesh": "wufen",
+          "flip": false
+        },
+        {
+          "mesh": "wufen",
+          "flip": false
+        },
+        {
+          "mesh": "wufen",
+          "flip": false
+        }
+      ],
+      "illustrative": true,
+      "appearance": "blender-map-lod",
+      "source": {
+        "metadata": "rail-3d/assets/garage-blender-v1/wufen.json",
+        "rawSha256": "8c6ffe5b97117dac170f8e3b7e15bcc96e24c733ede42dddeeb0b9ff0fe4ea2e",
+        "engineeringDimensionsM": null
+      },
+      "sources": [
+        {
+          "label": "Wikimedia Commons／Greg Longman（CC BY-SA 3.0）",
+          "url": "https://commons.wikimedia.org/wiki/File:Xihu_sugar_train.JPG"
+        },
+        {
+          "label": "Wikimedia Commons／Tbatb（CC BY-SA 4.0）",
+          "url": "https://commons.wikimedia.org/wiki/File:A_Tourist_Train_in_Xihu_Sugar_Factory.jpg"
+        }
+      ]
     }
   },
   "meshes": {
@@ -4876,6 +5159,204 @@
       "source": {
         "metadata": "rail-3d/assets/garage-blender-v1/tengyun.json",
         "rawSha256": "33147dbc87445e296178e630142c3cbd8f242c2c3d7bdfda376cd702a4f53639",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "emu200": {
+      "file": "emu200.bin",
+      "sha256": "04bb728925995835b1b260f5cb558384ea1bb0ac0cc31d120d52d51808834451",
+      "byteLength": 953280,
+      "vertexCount": 23832,
+      "min": [
+        -4.749000072479248,
+        -1.4951024055480957,
+        0.0
+      ],
+      "max": [
+        4.839000225067139,
+        1.4951024055480957,
+        3.7200000286102295
+      ],
+      "source": {
+        "metadata": "rail-3d/assets/garage-blender-v1/emu200.json",
+        "rawSha256": "147f12ac5e792e0027e5669843518051d1d381d68116baf424d6f5bf9a43d446",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "emu200-mid": {
+      "file": "emu200-mid.bin",
+      "sha256": "5983abdc137db942bd0c7679e52054d77385d81e0d05313646fa1d683f8b3d93",
+      "byteLength": 959040,
+      "vertexCount": 23976,
+      "min": [
+        -4.749000072479248,
+        -1.4809999465942383,
+        0.0
+      ],
+      "max": [
+        4.749000072479248,
+        1.482168436050415,
+        3.7093665599823
+      ],
+      "source": {
+        "metadata": "rail-3d/assets/garage-blender-v1/emu200.json",
+        "rawSha256": "147f12ac5e792e0027e5669843518051d1d381d68116baf424d6f5bf9a43d446",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "dr2800": {
+      "file": "dr2800.bin",
+      "sha256": "750d0e18a51502e4d2ed233a5db3e9aa4ea1e95a75723ab01d178d79bab2146d",
+      "byteLength": 959520,
+      "vertexCount": 23988,
+      "min": [
+        -4.548999786376953,
+        -1.4809999465942383,
+        0.0
+      ],
+      "max": [
+        4.638999938964844,
+        1.4809999465942383,
+        3.799267530441284
+      ],
+      "source": {
+        "metadata": "rail-3d/assets/garage-blender-v1/dr2800.json",
+        "rawSha256": "a70e6292220ac3ea1ad16404bf031236f91fff206f9f0f3e794d75e06820e3f1",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "dr2800-mid": {
+      "file": "dr2800-mid.bin",
+      "sha256": "e1cdf8f360c68acaa484feacc3d8acf01d31e57933e0e03440fc5d67f3b885fb",
+      "byteLength": 955080,
+      "vertexCount": 23877,
+      "min": [
+        -4.548999786376953,
+        -1.482168436050415,
+        0.0
+      ],
+      "max": [
+        4.548999786376953,
+        1.482168436050415,
+        3.799689531326294
+      ],
+      "source": {
+        "metadata": "rail-3d/assets/garage-blender-v1/dr2800.json",
+        "rawSha256": "a70e6292220ac3ea1ad16404bf031236f91fff206f9f0f3e794d75e06820e3f1",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "e100": {
+      "file": "e100.bin",
+      "sha256": "19ebb3715dc3c76f52a0d1fac04f1241eedd7cac538fb1fd932737f6b153f5e5",
+      "byteLength": 954240,
+      "vertexCount": 23856,
+      "min": [
+        -4.178999900817871,
+        -1.4915378093719482,
+        0.0
+      ],
+      "max": [
+        4.178999900817871,
+        1.4921029806137085,
+        4.687880992889404
+      ],
+      "source": {
+        "metadata": "rail-3d/assets/garage-blender-v1/e100.json",
+        "rawSha256": "0d52925d5607cda96f175f33e362c083397979fa60d4cc73103317d95a336c70",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "s200": {
+      "file": "s200.bin",
+      "sha256": "b133ca922346b7d9b16e2cc9ef6e4dd85d72a0fb33a5767b4d39ad6f33700a9a",
+      "byteLength": 955080,
+      "vertexCount": 23877,
+      "min": [
+        -3.749000072479248,
+        -1.3650001287460327,
+        0.0
+      ],
+      "max": [
+        3.749000072479248,
+        1.3650001287460327,
+        3.4892799854278564
+      ],
+      "source": {
+        "metadata": "rail-3d/assets/garage-blender-v1/s200.json",
+        "rawSha256": "57fd513907273d35a6530c27b793ced89f5f4e77e8e69585e8adbf4afee73d69",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "shay31": {
+      "file": "shay31.bin",
+      "sha256": "aaeb96a2b56f4fb2cf36dfdd560ac623e64fae25a80eff70a469cbade7562398",
+      "byteLength": 959880,
+      "vertexCount": 23997,
+      "min": [
+        -3.437000036239624,
+        -1.1399999856948853,
+        0.0
+      ],
+      "max": [
+        3.437000036239624,
+        1.1399999856948853,
+        3.0679211616516113
+      ],
+      "source": {
+        "metadata": "rail-3d/assets/garage-blender-v1/shay31.json",
+        "rawSha256": "af288f2d64fd33b5f6a7e378bc8623b335255481dbb78ff054c4afa6f71caa48",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "tsc346": {
+      "file": "tsc346.bin",
+      "sha256": "a31a658e315d75f2f0a9853bdd90b465fdb4cfcd08afbb08bbc4d4012bb59a23",
+      "byteLength": 941400,
+      "vertexCount": 23535,
+      "min": [
+        -2.818960666656494,
+        -1.1200000047683716,
+        0.0
+      ],
+      "max": [
+        2.818960666656494,
+        1.1200000047683716,
+        2.9441685676574707
+      ],
+      "source": {
+        "metadata": "rail-3d/assets/garage-blender-v1/tsc346.json",
+        "rawSha256": "934741b2273a341ede6acb8501a4ab4318f7cfdb721c9b1aff15fe69c931e0e7",
+        "engineeringDimensionsM": null
+      },
+      "appearance": "blender-map-lod"
+    },
+    "wufen": {
+      "file": "wufen.bin",
+      "sha256": "b8288e2779d4facbad3131ca05a818295cba89f38801088ddea4b2926122dab9",
+      "byteLength": 957000,
+      "vertexCount": 23925,
+      "min": [
+        -2.6493632793426514,
+        -1.059999942779541,
+        0.0
+      ],
+      "max": [
+        2.6494174003601074,
+        1.059999942779541,
+        2.450000047683716
+      ],
+      "source": {
+        "metadata": "rail-3d/assets/garage-blender-v1/wufen.json",
+        "rawSha256": "8c6ffe5b97117dac170f8e3b7e15bcc96e24c733ede42dddeeb0b9ff0fe4ea2e",
         "engineeringDimensionsM": null
       },
       "appearance": "blender-map-lod"

@@ -76,7 +76,7 @@ let manifestPromise;
 const LOCO=new Set(['electric','hood','forestloco','steam']);
 // 純客車款跑動時由哪款機車牽引（同 native railcore GarageLead）：車庫編組換成機車＋客車，車模本身與地圖 3D 不變。推拉客車前後各一台。
 // 福森號、栩悅號的車模本身是端車（見下），不配機車。family 給電車線規則用（garage-diorama.js catenaryFor）。
-export const COACH_LEAD={fuxing:{mesh:'e400',family:'electric'},juguang:{mesh:'e200',family:'electric'},ppcoach:{mesh:'e500',family:'electric',pushPull:true},bluecoach:{mesh:'blue',family:'hood'},mingricoach:{mesh:'mingri',family:'electric'},alicoach:{mesh:'dl39',family:'forestloco'},hinoki:{mesh:'dl45',family:'forestloco'}};
+export const COACH_LEAD={fuxing:{mesh:'e400',family:'electric'},juguang:{mesh:'e200',family:'electric'},ppcoach:{mesh:'e500',family:'electric',pushPull:true},bluecoach:{mesh:'blue',family:'hood'},mingricoach:{mesh:'mingri',family:'electric'},alicoach:{mesh:'dl39',family:'forestloco'},hinoki:{mesh:'dl45',family:'forestloco'},wufen:{mesh:'tsc346',family:'steam'}};
 export async function createConsist(id,primary,signal,opts={}){
  // Manifest 只含已發布的素材與示意編組；不推論使用者是否真的搭過這個編組。
  const catalog=await (manifestPromise??=json(new URL('manifest.json',mapBase)).catch(e=>{manifestPromise=null;throw e;}));

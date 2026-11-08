@@ -576,6 +576,48 @@ cars: {
     "ja": "R180とR190はアメリカのGM-EMDのディーゼル電気機関車で、エンジンと発電機はアメリカのイリノイ州で製造され、牽引モーターと車体はカナダのオンタリオで組み立てられました。1992年から順次納入され、のちに追加されたR190を含めて合計16両です。そのうちR193からR196は、台湾セメントが出資して購入したものです。2両の重連運転ができ、最大5両までを1人で総括制御できて、北廻線では重連で重い貨物列車を牽引する姿がよく見られます。",
     "ko": "R180과 R190은 미국 GM-EMD의 디젤전기 기관차로, 엔진과 발전기는 미국 일리노이주에서 제작했고 견인 모터와 차체는 캐나다 온타리오에서 조립했어요. 1992년부터 차례로 인도되었고 나중에 추가된 R190을 포함해 모두 16량이에요. 그중 R193부터 R196까지는 대만 시멘트가 출자해 구입했어요. 두 량을 중련할 수 있고 최대 다섯 량까지 한 사람이 총괄 제어하며, 베이후이선에서 무거운 화물열차를 중련해 끄는 모습이 흔해요.",
   },
+  "emu200": {
+    "zh-TW": "EMU200 是台鐵的電聯車，車體由南非的 UCW 公司製造，電機設備來自英國 GEC，3 輛一組，共 11 組 33 輛，1987 年投入營運，最高時速 120 公里。原廠塗裝以棕色系為主，駕駛端漆著黃橘色的警戒色。2000 年代初，它們陸續被改造成 9 輛固定編組的 EMU1200，換上自動門和新的內裝，成了另一種模樣的自強號。",
+    "en": "The EMU200 is a Taiwan Railway electric multiple unit. Its bodies were built by UCW of South Africa and its electrical equipment came from GEC of Britain. It runs in 3-car sets, 11 sets and 33 cars in all, entered service in 1987, and has a top speed of 120 km/h. The original livery is mostly shades of brown, with a yellow-orange warning color on the driver’s end. In the early 2000s the sets were rebuilt one after another into the 9-car fixed-formation EMU1200, with automatic doors and new interiors, becoming a different-looking Tze-Chiang train.",
+    "ja": "EMU200は台鉄の電車で、車体は南アフリカのUCW社が製造し、電機設備はイギリスのGECが供給しました。3両1編成で、全部で11編成33両、1987年に営業運転を始め、最高速度は時速120キロメートルです。登場時の塗装は茶色系が中心で、運転台側には黄橙色の警戒色が塗られていました。2000年代初めに、順次9両固定編成のEMU1200に改造され、自動ドアと新しい内装を備えた、別の姿の自強号になりました。",
+    "ko": "EMU200은 대만철도의 전동차로, 차체는 남아프리카의 UCW사가 만들고 전기 장비는 영국 GEC에서 공급했어요. 3량 1편성으로 모두 11편성 33량이며, 1987년에 운행을 시작했고 최고 속도는 시속 120km예요. 출고 당시 도장은 갈색 계열이 중심이고 운전대 쪽에는 황주황색 경고색을 칠했어요. 2000년대 초에 차례로 9량 고정 편성의 EMU1200으로 개조되어 자동문과 새 내장을 갖춘, 또 다른 모습의 쯔창호가 되었어요.",
+  },
+  "dr2800": {
+    "zh-TW": "DR2800 是日本東急車輛製造的柴油客車，不鏽鋼車體採用美國 Budd 公司授權的技術，1982 年 6 月以自強號之姿上路，跑台北到花蓮、台東。它 3 輛一組，兩端是動力車、中間是發電拖車，共 15 組 45 輛，最多可以 5 組連結一起跑。它是台鐵第一款裝有冷氣的柴油客車，2023 年 4 月退出營運，在東部服務了四十多年。",
+    "en": "The DR2800 is a diesel railcar built by Tokyu Car of Japan, with a stainless steel body made under licence from Budd of the United States. It took to the rails as a Tze-Chiang train in June 1982, running from Taipei to Hualien and Taitung. Each set has 3 cars, a driving power car at each end and a generator trailer in the middle, with 15 sets and 45 cars in all, and up to five sets can run coupled together. It was Taiwan Railway’s first diesel railcar with air conditioning. It left service in April 2023, after more than forty years in the east.",
+    "ja": "DR2800は日本の東急車輛製造が造ったディーゼルカーで、ステンレス車体にはアメリカのBudd社から許諾を受けた技術が使われています。1982年6月に自強号として走り始め、台北から花蓮、台東へ向かいました。3両1編成で、両端が動力車、中間が電源付随車、全部で15編成45両あり、最大5編成をつないで走れます。台鉄で初めて冷房を備えたディーゼルカーで、2023年4月に営業から退き、東部で40年あまり活躍しました。",
+    "ko": "DR2800은 일본 도큐차량이 제작한 디젤 동차로, 스테인리스 차체에는 미국 버드사에서 허가받은 기술을 썼어요. 1982년 6월 쯔창호로 달리기 시작해 타이베이에서 화롄, 타이둥으로 다녔어요. 3량 1편성으로 양 끝은 동력차, 가운데는 전원 부수차이며, 모두 15편성 45량이고 최대 5편성까지 연결해 달릴 수 있어요. 대만철도에서 처음으로 에어컨을 갖춘 디젤 동차였고, 2023년 4월에 운행을 마칠 때까지 동부에서 40년 넘게 활약했어요.",
+  },
+  "e100": {
+    "zh-TW": "E100 是台鐵為西部幹線電氣化訂購的中型電力機車，1974 年向英國 GEC 採購 20 輛，電機設備由 GEC 製造，車體在南非組裝，1976 年起陸續交車。編號 E101 到 E120，最大出力約 2,750 匹馬力。早期的橘白色配 V 字色帶很有歐洲味。後來陸續退役報廢，只有 E101 被保留下來，讓人還能看到這型老電力機車的模樣。",
+    "en": "The E100 is a medium-power electric locomotive that Taiwan Railway ordered for the electrification of the Western Trunk Line. In 1974 it bought 20 from GEC of Britain, with the electrical equipment made by GEC and the bodies assembled in South Africa, and deliveries began in 1976. They are numbered E101 to E120 and have a maximum output of about 2,750 hp. The early orange-and-white livery with a V-shaped band has a distinctly European look. They were later retired and scrapped one by one, and only E101 was kept, so visitors can still see what this old electric locomotive looked like.",
+    "ja": "E100は台鉄が西部幹線の電化に合わせて発注した中型電気機関車で、1974年にイギリスのGECから20両を購入しました。電機設備はGECが製造し、車体は南アフリカで組み立てられ、1976年から順次納入されました。番号はE101からE120で、最大出力は約2,750馬力です。初期の橙と白にV字の帯を入れた塗装は、ヨーロッパらしい雰囲気がありました。その後は順次廃車となり、E101だけが保存されて、この古い電気機関車の姿を今に伝えています。",
+    "ko": "E100은 대만철도가 서부 간선 전철화에 맞춰 주문한 중형 전기기관차로, 1974년 영국 GEC에서 20량을 구입했어요. 전기 장비는 GEC가 만들고 차체는 남아프리카에서 조립했으며, 1976년부터 차례로 인도되었어요. 번호는 E101부터 E120까지이고 최대 출력은 약 2,750마력이에요. 초기의 주황과 흰색에 V자 띠를 두른 도장은 유럽 느낌이 물씬 났어요. 이후 차례로 퇴역해 폐차되고 E101 한 량만 보존되어, 이 옛 전기기관차의 모습을 지금도 볼 수 있어요.",
+  },
+  "s200": {
+    "zh-TW": "S200 是台鐵柴油化初期的柴電機車，由美國 GM-EMD 製造，1960 年先購入 7 輛，隔年再加 5 輛，一共 12 輛。車體小巧、沒有鼻端罩，三片式的駕駛窗方便調車，長年在高雄一帶的臨港線和屏東線調車、拉貨列車。2018 年 9 月後不再跑臨港線，現在還有幾輛保存下來，供人懷念。",
+    "en": "The S200 is a diesel-electric locomotive from the early days of Taiwan Railway’s switch to diesel, built by GM-EMD of the United States. Seven were bought in 1960 and five more the next year, 12 in all. It has a compact body with no hood at the nose, and its three-piece cab windows make shunting easier. For many years it shunted and hauled freight on the Kaohsiung harbor line and the Pingtung Line. It stopped running the harbor line after September 2018, and a few have been preserved for visitors to remember it by.",
+    "ja": "S200は台鉄がディーゼル化を進めた初期のディーゼル電気機関車で、アメリカのGM-EMDが製造しました。1960年にまず7両、翌年さらに5両を購入し、合計12両です。車体は小ぶりでノーズのボンネットがなく、3枚組の運転窓が入換作業に便利でした。長年、高雄一帯の臨港線や屏東線で入換や貨物列車の牽引を担当しました。2018年9月以降は臨港線を走らなくなり、いまは数両が保存されています。",
+    "ko": "S200은 대만철도가 디젤화를 시작하던 초기의 디젤전기 기관차로, 미국 GM-EMD가 제작했어요. 1960년에 7량을 먼저 들여오고 이듬해 5량을 더해 모두 12량이에요. 차체가 작고 앞쪽 보닛이 없으며, 3장으로 나뉜 운전창 덕분에 입환 작업이 편했어요. 오랫동안 가오슝 일대의 린강선과 핑둥선에서 입환과 화물열차 견인을 맡았어요. 2018년 9월 이후에는 린강선을 달리지 않으며, 지금은 몇 량이 보존되어 있어요.",
+  },
+  "shay31": {
+    "zh-TW": "阿里山林鐵的 31 號是一部 Shay 式蒸汽機車，屬於 28 噸級，由美國 Lima 公司製造，約在 1910 年代出廠。Shay 靠直立的汽缸和傘形齒輪帶動車輪，爬陡坡、轉急彎特別有力，很適合山裡的窄軌鐵路。31 號在 2005 年整修後復駛，和 25 號是阿里山僅存仍能運行的兩部 Shay，現在多半拉觀光列車，噴著白煙慢慢爬進山裡。",
+    "en": "Number 31 of the Alishan Forest Railway is a Shay-type steam locomotive in the 28-ton class, built by the Lima company of the United States around the 1910s. A Shay drives its wheels through vertical cylinders and bevel gears, which gives it great pulling power on steep grades and sharp curves, a good fit for a narrow-gauge mountain railway. No. 31 returned to service in 2005 after an overhaul. Together with No. 25 it is one of the only two Shays on Alishan that can still run, and today it mostly hauls sightseeing trains, puffing white steam slowly up into the mountains.",
+    "ja": "阿里山森林鉄道の31号は、28トン級のシェイ式蒸気機関車で、アメリカのLima社が1910年代ごろに製造しました。シェイ式は垂直のシリンダーと傘歯車で車輪を回すので、急勾配や急カーブで力強く、山岳の狭軌鉄道によく合います。31号は2005年に整備を終えて復活し、25号とともに阿里山で今も走れる2両だけのシェイです。いまは観光列車を牽引することが多く、白い蒸気を上げながらゆっくり山を登ります。",
+    "ko": "아리산 임업철도의 31호는 28톤급 쉐이(Shay)식 증기기관차로, 미국 리마사가 1910년대쯤 제작했어요. 쉐이는 수직 실린더와 베벨 기어로 바퀴를 돌려서 가파른 비탈과 급한 커브에서 힘이 세고, 산악 협궤 철도에 잘 어울려요. 31호는 2005년 정비를 마치고 복귀했으며, 25호와 함께 아리산에서 지금도 달릴 수 있는 단 두 대의 쉐이예요. 요즘은 주로 관광 열차를 끌며 하얀 증기를 내뿜고 천천히 산으로 올라가요.",
+  },
+  "tsc346": {
+    "zh-TW": "346 號是台糖的蒸汽機車，1948 年由比利時的 AFB 公司製造，先配屬在彰化溪洲糖廠，後來調到溪湖糖廠，拉運甘蔗列車。1977 年台糖推動鐵道柴油化，它因此停用。後來經過修復，2007 年起在溪湖糖廠重新牽引觀光小火車，一趟約 7 公里，用黑色的蒸汽機車帶著遊客回味糖鐵的年代。",
+    "en": "No. 346 is a Taiwan Sugar steam locomotive built in 1948 by AFB of Belgium. It was first assigned to the Xizhou Sugar Mill in Changhua and later moved to the Xihu Sugar Mill, where it hauled sugarcane trains. It was taken out of service in 1977 when the sugar railways switched to diesel. After restoration, it has hauled the tourist train at the Xihu Sugar Mill again since 2007, on a trip of about 7 km, letting visitors relive the age of the sugar railways behind a steam locomotive.",
+    "ja": "346号は台糖の蒸気機関車で、1948年にベルギーのAFB社が製造しました。最初は彰化の渓洲糖廠に配属され、のちに渓湖糖廠へ移って甘蔗列車を牽引しました。1977年、台糖が鉄道のディーゼル化を進めたため運用を外れました。その後修復され、2007年から渓湖糖廠で再び観光列車を牽引しています。往復約7キロメートルの道のりで、蒸気機関車に引かれて糖鉄の時代を味わえます。",
+    "ko": "346호는 대만 설탕회사(타이탕)의 증기기관차로, 1948년 벨기에 AFB사가 제작했어요. 처음에는 장화의 시저우 제당소에 배속되었다가 나중에 시후 제당소로 옮겨 사탕수수 열차를 끌었어요. 1977년 타이탕이 철도를 디젤화하면서 운행에서 빠졌지요. 이후 복원되어 2007년부터 시후 제당소에서 다시 관광 열차를 끌고 있으며, 한 번에 약 7km를 달려서 증기기관차와 함께 설탕 철도의 시대를 되새길 수 있어요.",
+  },
+  "wufen": {
+    "zh-TW": "五分車是台灣糖業鐵路的小火車，軌距只有 762 公釐，車廂小巧。糖鐵全盛時期，全部路線加起來將近 3,000 公里，縱橫中南部，除了運甘蔗，還有路段載客；最後一條客運營業線在 1982 年停駛。後來有些路線轉型觀光，如今有五條糖鐵路線提供觀光體驗，在溪湖糖廠，黑色的密閉客車由 346 號蒸汽機車牽引，慢慢駛過舊日的糖廠風景。",
+    "en": "The “five-fen train” (wufen che) is the little train of Taiwan’s sugar railways, running on a gauge of only 762 mm with small, compact cars. At their peak the sugar railways added up to nearly 3,000 km of track across central and southern Taiwan, hauling sugarcane and also carrying passengers on some stretches; the last passenger line stopped running in 1982. Some lines later turned to tourism, and today five sugar railway lines offer sightseeing rides. At the Xihu Sugar Mill, a black enclosed coach is pulled by steam locomotive No. 346 past the scenery of an old sugar mill.",
+    "ja": "五分車（ウーフェンチャー）は台湾の糖業鉄道の小さな列車で、軌間はわずか762ミリメートル、車両もこぢんまりしています。糖鉄の最盛期には全路線を合わせて3,000キロメートル近くに達し、中南部一帯に広がっていました。甘蔗の輸送のほか、一部の区間では旅客も乗せましたが、最後の旅客営業線は1982年に運行を終えています。その後、一部の路線は観光用に生まれ変わり、いまは5つの糖鉄路線で観光列車が楽しめます。渓湖糖廠では、黒い密閉式の客車が346号蒸気機関車に牽かれ、昔の製糖所の景色の中をゆっくり進みます。",
+    "ko": "우펀처(五分車)는 대만 제당 철도의 작은 열차로, 궤간이 762mm밖에 안 되고 객차도 아담해요. 전성기에는 모든 노선을 합치면 3,000km에 가까워 중남부 곳곳으로 뻗었고, 사탕수수를 나르는 한편 일부 구간에서는 승객도 태웠어요. 마지막 여객 영업선은 1982년에 운행을 멈췄어요. 이후 일부 노선이 관광용으로 바뀌어 지금은 다섯 개 제당 철도 노선에서 관광 열차를 탈 수 있어요. 시후 제당소에서는 검은색 밀폐형 객차를 346호 증기기관차가 끌고 옛 제당소 풍경 속을 천천히 달려요.",
+  },
 },
 profileLabels: {
   "zh-TW": {
@@ -2809,6 +2851,280 @@ profiles: {
       "notes": [
         "아리산에서 벌목이 멈추면서 관광으로 방향을 바꿨고, 중싱호와 광푸호, 에어컨이 있는 아리산호가 차례로 등장했어요.",
         "태풍 피해로 오랫동안 끊겼다가 2024년에 자이~아리산 전 구간 운행이 다시 시작됐어요."
+      ]
+    }
+  },
+  "emu200": {
+    "zh-TW": {
+      "maker": "南非 UC&W（車體）、英國 GEC（電機）",
+      "year": "1987 年",
+      "count": "11 組 33 輛",
+      "formation": "3 輛一組",
+      "speed": "120 km/h",
+      "notes": [
+        "3 輛一組，動力車與拖車比例是 2 比 1，加速比前一代 EMU100 更好，最高速度維持 120 km/h。",
+        "車身方正，原廠塗裝以棕色系為主，駕駛端是黃橘色的警戒色；2000 年代初改造成 EMU1200 後，換成白底紅條的「紅斑馬」塗裝。"
+      ]
+    },
+    "en": {
+      "maker": "UCW, South Africa (bodies); GEC, UK (electrical equipment)",
+      "year": "1987",
+      "count": "11 sets, 33 cars",
+      "formation": "3 cars per set",
+      "speed": "120 km/h",
+      "notes": [
+        "Each set has 3 cars with a 2-to-1 ratio of motor cars to trailers. It accelerates better than the earlier EMU100, while the top speed stays at 120 km/h.",
+        "The body is boxy, and the original livery is mostly shades of brown with a yellow-orange warning color on the driver’s end. After the rebuild into EMU1200 in the early 2000s, it got a white livery with red stripes, nicknamed the “red zebra”."
+      ]
+    },
+    "ja": {
+      "maker": "南アフリカ UC&W（車体）、イギリス GEC（電機）",
+      "year": "1987年",
+      "count": "11編成33両",
+      "formation": "3両1編成",
+      "speed": "120 km/h",
+      "notes": [
+        "3両1編成で、電動車と付随車の比率は2対1です。先代のEMU100より加速がよく、最高速度は120 km/hのままです。",
+        "車体は角ばった形で、登場時の塗装は茶色系が中心、運転台側は黄橙色の警戒色でした。2000年代初めにEMU1200へ改造されると、白地に赤い帯の「赤シマウマ」塗装に変わりました。"
+      ]
+    },
+    "ko": {
+      "maker": "남아프리카 UC&W(차체), 영국 GEC(전기 장비)",
+      "year": "1987년",
+      "count": "11편성 33량",
+      "formation": "3량 1편성",
+      "speed": "120 km/h",
+      "notes": [
+        "3량 1편성이며 전동차와 부수차의 비율은 2대 1이에요. 이전 세대 EMU100보다 가속이 좋고, 최고 속도는 120 km/h를 유지해요.",
+        "차체가 네모반듯하고 출고 당시 도장은 갈색 계열이 중심이며 운전대 쪽은 황주황색 경고색이었어요. 2000년대 초 EMU1200으로 개조된 뒤에는 흰 바탕에 붉은 줄무늬의 ‘붉은 얼룩말’ 도장으로 바뀌었어요."
+      ]
+    }
+  },
+  "dr2800": {
+    "zh-TW": {
+      "maker": "日本東急車輛",
+      "year": "1982 年（前 10 組）、1984 年（後 5 組）",
+      "count": "15 組 45 輛",
+      "formation": "3 輛一組（兩端動力車、中間電源拖車）",
+      "speed": "110 km/h",
+      "notes": [
+        "1982 年投入台北到花蓮、台東後，速度快、冷氣舒適，大受歡迎，班班客滿。",
+        "最多可以 5 組 15 輛連結一起跑；不鏽鋼浪板車體下半部略微內縮，有點像日本的特急列車。"
+      ]
+    },
+    "en": {
+      "maker": "Tokyu Car, Japan",
+      "year": "1982 (first 10 sets), 1984 (last 5 sets)",
+      "count": "15 sets, 45 cars",
+      "formation": "3 cars per set (driving power cars at the ends, generator trailer in the middle)",
+      "speed": "110 km/h",
+      "notes": [
+        "After it began running from Taipei to Hualien and Taitung in 1982, it proved hugely popular for its speed and comfortable air conditioning, and every service was full.",
+        "Up to 5 sets, 15 cars, can run coupled together; the corrugated stainless steel body tapers slightly inward at the bottom, giving it a look a little like a Japanese limited express."
+      ]
+    },
+    "ja": {
+      "maker": "日本 東急車輛",
+      "year": "1982年（前10編成）、1984年（後5編成）",
+      "count": "15編成45両",
+      "formation": "3両1編成（両端が動力車、中間が電源付随車）",
+      "speed": "110 km/h",
+      "notes": [
+        "1982年に台北から花蓮、台東へ走り始めると、速くて冷房も快適だったため大人気となり、どの列車も満席でした。",
+        "最大5編成15両をつないで走れます。ステンレスの波板車体は下半分がわずかに内側へ絞られ、日本の特急列車に少し似た雰囲気です。"
+      ]
+    },
+    "ko": {
+      "maker": "일본 도큐차량",
+      "year": "1982년(앞 10편성), 1984년(뒤 5편성)",
+      "count": "15편성 45량",
+      "formation": "3량 1편성(양 끝 동력차, 가운데 전원 부수차)",
+      "speed": "110 km/h",
+      "notes": [
+        "1982년 타이베이에서 화롄, 타이둥으로 달리기 시작하자 빠르고 에어컨도 쾌적해서 큰 인기를 끌었고, 열차마다 만석이었어요.",
+        "최대 5편성 15량을 연결해 달릴 수 있어요. 스테인리스 골판 차체는 아랫부분이 살짝 안쪽으로 들어가서 일본 특급열차와 조금 닮았어요."
+      ]
+    }
+  },
+  "e100": {
+    "zh-TW": {
+      "maker": "英國 GEC（電機）、南非 UC&W（車體組裝）",
+      "year": "1976 年",
+      "count": "20 輛（E101～E120）",
+      "power": "2,750 匹馬力（2,052 kW）",
+      "speed": "110 km/h",
+      "notes": [
+        "剛試車時設計規格和台鐵現場有不小差異，故障不少，台鐵與 GEC 反覆修正後才慢慢穩定。",
+        "車軸配置是 Bo-Bo，單輛牽引力不算特別大，但可以三輛重連，跑海線或拖重貨車都很有彈性。"
+      ]
+    },
+    "en": {
+      "maker": "GEC, UK (electrical equipment); UC&W, South Africa (body assembly)",
+      "year": "1976",
+      "count": "20 units (E101–E120)",
+      "power": "2,750 hp (2,052 kW)",
+      "speed": "110 km/h",
+      "notes": [
+        "In early trials the design differed quite a bit from Taiwan Railway’s actual conditions and there were many faults; only after repeated fixes by Taiwan Railway and GEC did it gradually settle down.",
+        "Its wheel arrangement is Bo-Bo. A single unit’s tractive effort is not especially large, but three can be coupled together, which gave it flexibility on the Coast Line and on heavy freight trains."
+      ]
+    },
+    "ja": {
+      "maker": "イギリス GEC（電機）、南アフリカ UC&W（車体組立）",
+      "year": "1976年",
+      "count": "20両（E101～E120）",
+      "power": "2,750馬力（2,052 kW）",
+      "speed": "110 km/h",
+      "notes": [
+        "試運転を始めたころは、設計仕様と台鉄の現場にかなり差があり、故障も多く出ました。台鉄とGECが何度も手直しして、ようやく安定しました。",
+        "軸配置はBo-Boで、1両あたりの牽引力はそれほど大きくありませんが、3両の重連ができ、海線や重い貨物列車でも柔軟に使えました。"
+      ]
+    },
+    "ko": {
+      "maker": "영국 GEC(전기 장비), 남아프리카 UC&W(차체 조립)",
+      "year": "1976년",
+      "count": "20량(E101～E120)",
+      "power": "2,750마력(2,052 kW)",
+      "speed": "110 km/h",
+      "notes": [
+        "처음 시험 운행을 했을 때는 설계 규격과 대만철도 현장 사이에 차이가 꽤 커서 고장이 잦았고, 대만철도와 GEC가 거듭 고친 끝에 차츰 안정되었어요.",
+        "차축 배치는 Bo-Bo예요. 한 량의 견인력은 아주 크지 않지만 세 량을 중련할 수 있어서 해안선이나 무거운 화물열차에서 활용하기 좋았어요."
+      ]
+    }
+  },
+  "s200": {
+    "zh-TW": {
+      "maker": "美國 GM-EMD（原廠型號 GL8）",
+      "year": "1960～1961 年",
+      "count": "12 輛（S201～S212）",
+      "power": "950 匹馬力",
+      "speed": "100 km/h",
+      "notes": [
+        "塗裝早期是海軍藍配白帶，電氣化後改成橘色配白帶，並延伸出灰色車頂，成了晚期最常見的樣子。",
+        "2001 到 2002 年 DHL100 型加入後，調度任務減少，主要改拉臨港線和屏東線的貨列，也常在高雄機廠擔任調動機車。"
+      ]
+    },
+    "en": {
+      "maker": "GM-EMD, USA (original model GL8)",
+      "year": "1960–1961",
+      "count": "12 units (S201–S212)",
+      "power": "950 hp",
+      "speed": "100 km/h",
+      "notes": [
+        "The early livery was navy blue with a white band. After electrification it became orange with a white band and a gray roof, the look most people remember from its later years.",
+        "After the DHL100 arrived in 2001–2002, shunting duties declined and it mainly hauled freight on the harbor and Pingtung lines, and often worked as a shunter at the Kaohsiung Works."
+      ]
+    },
+    "ja": {
+      "maker": "アメリカ GM-EMD（原型式 GL8）",
+      "year": "1960～1961年",
+      "count": "12両（S201～S212）",
+      "power": "950馬力",
+      "speed": "100 km/h",
+      "notes": [
+        "塗装は初期が紺色に白帯で、電化後は橙色に白帯、さらに灰色の屋根が加わり、晩年によく知られた姿になりました。",
+        "2001～2002年にDHL100形が加わると入換の仕事が減り、主に臨港線と屏東線の貨物列車を牽引し、高雄機廠でも入換機としてよく働きました。"
+      ]
+    },
+    "ko": {
+      "maker": "미국 GM-EMD(원형식 GL8)",
+      "year": "1960～1961년",
+      "count": "12량(S201～S212)",
+      "power": "950마력",
+      "speed": "100 km/h",
+      "notes": [
+        "도장은 초기에 감색 바탕에 흰 띠였고, 전철화 뒤에는 주황색에 흰 띠, 거기에 회색 지붕이 더해져 말년의 흔한 모습이 되었어요.",
+        "2001～2002년 DHL100형이 들어온 뒤 입환 임무가 줄어서 주로 린강선과 핑둥선의 화물열차를 끌었고, 가오슝 기관차 공장에서 입환 기관차로도 자주 일했어요."
+      ]
+    }
+  },
+  "shay31": {
+    "zh-TW": {
+      "maker": "美國 Lima 公司",
+      "notes": [
+        "28 噸級，三個直立汽缸排在車身右側，透過長長的傳動軸和傘形齒輪，帶動兩個轉向架上的每一根車軸。",
+        "阿里山的坡又陡、彎又急，一般火車難以勝任，所以才採用這種直立汽缸加傘形齒輪的 Shay 式蒸汽火車。"
+      ]
+    },
+    "en": {
+      "maker": "Lima, USA",
+      "notes": [
+        "A 28-ton class locomotive with three upright cylinders on its right side; a long line shaft and bevel gears drive every axle on both trucks.",
+        "Alishan’s slopes are steep and its curves tight, which ordinary locomotives could hardly handle, so this Shay type, with vertical cylinders and bevel gears, was used."
+      ]
+    },
+    "ja": {
+      "maker": "アメリカ Lima社",
+      "notes": [
+        "28トン級で、3本の縦型シリンダーが車体の右側に並び、長い推進軸と傘歯車で2台の台車のすべての車軸を回します。",
+        "阿里山は勾配が急でカーブもきついため、普通の機関車では難しく、垂直シリンダーと傘歯車を備えたシェイ式が使われました。"
+      ]
+    },
+    "ko": {
+      "maker": "미국 리마사",
+      "notes": [
+        "28톤급이고, 세로로 선 실린더 3개가 차체 오른쪽에 있어요. 긴 구동축과 베벨 기어로 두 대차의 모든 차축을 돌려요.",
+        "아리산은 경사가 가파르고 커브가 급해서 보통 기관차로는 감당하기 어려웠기 때문에, 수직 실린더와 베벨 기어를 갖춘 쉐이식 증기기관차를 썼어요."
+      ]
+    }
+  },
+  "tsc346": {
+    "zh-TW": {
+      "maker": "比利時 AFB",
+      "year": "1948 年",
+      "notes": [
+        "先配屬彰化溪洲糖廠，後來調到溪湖糖廠牽引運蔗列車；1977 年因台糖鐵道柴油化而停用，修復後 2007 年起重新拉觀光小火車。",
+        "糖鐵最早用蒸汽火車，戰後以比利時和台灣製的蒸汽機車為主。"
+      ]
+    },
+    "en": {
+      "maker": "AFB, Belgium",
+      "year": "1948",
+      "notes": [
+        "It was first assigned to the Xizhou Sugar Mill in Changhua, then moved to the Xihu Sugar Mill to haul sugarcane trains. It was taken out of service in 1977 when Taiwan Sugar converted its railways to diesel, and after restoration it has pulled the tourist train again since 2007.",
+        "The sugar railways used steam locomotives at the start, and after the war they relied mainly on Belgian- and Taiwan-built steam locomotives."
+      ]
+    },
+    "ja": {
+      "maker": "ベルギー AFB",
+      "year": "1948年",
+      "notes": [
+        "最初は彰化の渓洲糖廠に配属され、のちに渓湖糖廠へ移って甘蔗列車を牽引しました。1977年に台糖の鉄道がディーゼル化されたため運用を外れ、修復後の2007年から再び観光列車を牽引しています。",
+        "糖鉄は最初に蒸気機関車を使い、戦後はベルギー製と台湾製の蒸気機関車が中心でした。"
+      ]
+    },
+    "ko": {
+      "maker": "벨기에 AFB",
+      "year": "1948년",
+      "notes": [
+        "처음에는 장화의 시저우 제당소에 배속되었다가 시후 제당소로 옮겨 사탕수수 열차를 끌었어요. 1977년 타이탕 철도가 디젤화되면서 운행에서 빠졌고, 복원된 뒤 2007년부터 다시 관광 열차를 끌고 있어요.",
+        "설탕 철도는 처음에 증기기관차를 썼고, 전쟁 뒤에는 벨기에제와 대만제 증기기관차가 중심이었어요."
+      ]
+    }
+  },
+  "wufen": {
+    "zh-TW": {
+      "notes": [
+        "糖鐵除了運甘蔗和砂糖，早期還是學生上學、媽祖廟進香的交通工具，也曾是台灣外匯的重要來源之一。",
+        "全盛時期路線全長約 3,000 公里；除專用線外，還有約 600 公里的對外營業線可載客貨，後來因公路運輸興起，最後一條在 1982 年停駛。"
+      ]
+    },
+    "en": {
+      "notes": [
+        "Besides hauling sugarcane and sugar, the sugar railways were in the early days a way for students to get to school and for pilgrims to reach Mazu temples, and they were also once one of Taiwan’s important sources of foreign exchange.",
+        "At its peak the network was about 3,000 km long; besides private lines it had roughly 600 km of public lines carrying passengers and freight, and as road transport rose the last of these stopped running in 1982."
+      ]
+    },
+    "ja": {
+      "notes": [
+        "糖鉄は甘蔗や砂糖の輸送だけでなく、かつては学生の通学や媽祖廟への参拝の足でもあり、台湾の外貨獲得の大事な手段の一つでもありました。",
+        "最盛期の路線は全長約3,000キロメートルで、専用線のほかに約600キロメートルの一般営業線があり、旅客や貨物を運びました。自動車輸送の発達で、最後の一本が1982年に運行を終えています。"
+      ]
+    },
+    "ko": {
+      "notes": [
+        "설탕 철도는 사탕수수와 설탕을 나르는 것 외에도 예전에는 학생들의 통학길이자 마조 사당 참배길이었고, 대만의 중요한 외화 수입원 가운데 하나이기도 했어요.",
+        "전성기 노선은 전체 길이가 약 3,000km였고, 전용선 외에 여객과 화물을 나르는 약 600km의 대외 영업선이 있었어요. 도로 운송이 늘면서 마지막 노선이 1982년에 운행을 멈췄어요."
       ]
     }
   }
