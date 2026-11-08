@@ -1,5 +1,6 @@
 // 車庫介紹：每座場景、每款車一段（約 150 字），四語寫在同一份（zh-TW／en／ja／ko），顯示在兌換視窗、場景頁的「介紹」與車款詳情。
 // 手維護。年份、數字與「最早／唯一」這類說法都要有出處，出處清單在 docs/garage-intros-sources.md。
+// profileLabels／profiles：車款詳情的「車款檔案」（綽號、規格、小故事），資料取自《台灣鐵道車輛完全圖鑑》；跟上面出處矛盾的欄位不寫，見同一份出處文件。
 // App 由 native tools/gen_garage_intros.mjs 從網頁釘版讀這份產生，改了這裡 App 要重產。
 window.RailGarageIntros = {
 scenes: {
@@ -575,5 +576,2241 @@ cars: {
     "ja": "R180とR190はアメリカのGM-EMDのディーゼル電気機関車で、エンジンと発電機はアメリカのイリノイ州で製造され、牽引モーターと車体はカナダのオンタリオで組み立てられました。1992年から順次納入され、のちに追加されたR190を含めて合計16両です。そのうちR193からR196は、台湾セメントが出資して購入したものです。2両の重連運転ができ、最大5両までを1人で総括制御できて、北廻線では重連で重い貨物列車を牽引する姿がよく見られます。",
     "ko": "R180과 R190은 미국 GM-EMD의 디젤전기 기관차로, 엔진과 발전기는 미국 일리노이주에서 제작했고 견인 모터와 차체는 캐나다 온타리오에서 조립했어요. 1992년부터 차례로 인도되었고 나중에 추가된 R190을 포함해 모두 16량이에요. 그중 R193부터 R196까지는 대만 시멘트가 출자해 구입했어요. 두 량을 중련할 수 있고 최대 다섯 량까지 한 사람이 총괄 제어하며, 베이후이선에서 무거운 화물열차를 중련해 끄는 모습이 흔해요.",
   },
+},
+profileLabels: {
+  "zh-TW": {
+    "title": "車款檔案",
+    "nick": "綽號",
+    "maker": "製造",
+    "year": "引進",
+    "count": "數量",
+    "formation": "編組",
+    "power": "出力",
+    "speed": "最高速度",
+    "source": "資料參考：《台灣鐵道車輛完全圖鑑》"
+  },
+  "en": {
+    "title": "Vehicle Profile",
+    "nick": "Nickname",
+    "maker": "Builder",
+    "year": "Introduced",
+    "count": "Quantity",
+    "formation": "Formation",
+    "power": "Output",
+    "speed": "Top Speed",
+    "source": "Source: “Taiwan Railway Vehicles: The Complete Illustrated Guide” (台灣鐵道車輛完全圖鑑)"
+  },
+  "ja": {
+    "title": "車両データ",
+    "nick": "愛称",
+    "maker": "製造",
+    "year": "導入",
+    "count": "数量",
+    "formation": "編成",
+    "power": "出力",
+    "speed": "最高速度",
+    "source": "資料参考：『台灣鐵道車輛完全圖鑑』"
+  },
+  "ko": {
+    "title": "차량 정보",
+    "nick": "별명",
+    "maker": "제조",
+    "year": "도입",
+    "count": "수량",
+    "formation": "편성",
+    "power": "출력",
+    "speed": "최고 속도",
+    "source": "자료 참고: 『台灣鐵道車輛完全圖鑑』"
+  }
+},
+profiles: {
+  "r20": {
+    "zh-TW": {
+      "maker": "美國 GM-EMD（原廠型號 G12）",
+      "year": "1960～1966 年",
+      "count": "52 輛（R21～R72）",
+      "power": "1,425 匹馬力",
+      "speed": "100 km/h",
+      "notes": [
+        "1961 年「觀光號」特快車開行時，主要的牽引機車就是 R20。",
+        "早年漆成海軍藍配白色 V 字帶，1979 年後才換成現在的橘色；2006 年有 4 輛（R56～R59）捐給非洲的馬拉威，繼續拉火車。"
+      ]
+    },
+    "en": {
+      "maker": "GM-EMD, USA (model G12)",
+      "year": "1960–1966",
+      "count": "52 units (R21–R72)",
+      "power": "1,425 hp",
+      "speed": "100 km/h",
+      "notes": [
+        "When the “Tourist Express” (Guanguang) limited express began running in 1961, the R20 was its main locomotive.",
+        "Originally painted navy blue with a white V-shaped band, they only got today’s orange after 1979. In 2006, four units (R56–R59) were donated to Malawi in Africa, where they still haul trains."
+      ]
+    },
+    "ja": {
+      "maker": "アメリカ GM-EMD（原型式 G12）",
+      "year": "1960～1966年",
+      "count": "52両（R21～R72）",
+      "power": "1,425馬力",
+      "speed": "100 km/h",
+      "notes": [
+        "1961年に特急「観光号」が走り始めたとき、主に牽引したのがR20でした。",
+        "当初は紺色に白いV字帯の塗装で、現在の橙色になったのは1979年以降です。2006年には4両（R56～R59）がアフリカのマラウイに寄贈され、いまも列車を牽いています。"
+      ]
+    },
+    "ko": {
+      "maker": "미국 GM-EMD(원래 형식 G12)",
+      "year": "1960~1966년",
+      "count": "52량(R21~R72)",
+      "power": "1,425마력",
+      "speed": "100 km/h",
+      "notes": [
+        "1961년 특급 ‘관광호’가 운행을 시작했을 때 주로 끈 기관차가 R20이에요.",
+        "처음에는 네이비 블루에 흰색 V자 띠를 칠했고, 지금의 주황색으로 바뀐 건 1979년 이후예요. 2006년에는 4량(R56~R59)을 아프리카 말라위에 기증해, 지금도 열차를 끌고 있어요."
+      ]
+    }
+  },
+  "r100": {
+    "zh-TW": {
+      "maker": "美國 GM-EMD（原廠型號 G22U）",
+      "year": "1969 年",
+      "count": "39 輛（R101～R139）",
+      "power": "1,650 匹馬力",
+      "speed": "100 km/h",
+      "notes": [
+        "1979 年西部幹線電氣化後，R100 全數轉往東部，牽引各級客貨列車。",
+        "塗裝從海軍藍換成橘色，近年又有幾輛漆回深藍色。"
+      ]
+    },
+    "en": {
+      "maker": "GM-EMD, USA (model G22U)",
+      "year": "1969",
+      "count": "39 units (R101–R139)",
+      "power": "1,650 hp",
+      "speed": "100 km/h",
+      "notes": [
+        "After the Western Trunk Line was electrified in 1979, all R100s moved to the east to haul passenger and freight trains of every class.",
+        "The livery changed from navy blue to orange, and in recent years a few have been repainted dark blue."
+      ]
+    },
+    "ja": {
+      "maker": "アメリカ GM-EMD（原型式 G22U）",
+      "year": "1969年",
+      "count": "39両（R101～R139）",
+      "power": "1,650馬力",
+      "speed": "100 km/h",
+      "notes": [
+        "1979年に西部幹線が電化されると、R100は全車が東部に移り、各種の旅客列車と貨物列車を牽引しました。",
+        "塗装は紺色から橙色に変わり、近年は数両が濃紺に塗り戻されています。"
+      ]
+    },
+    "ko": {
+      "maker": "미국 GM-EMD(원래 형식 G22U)",
+      "year": "1969년",
+      "count": "39량(R101~R139)",
+      "power": "1,650마력",
+      "speed": "100 km/h",
+      "notes": [
+        "1979년 서부 간선이 전철화된 뒤 R100은 전부 동부로 옮겨 여러 등급의 여객·화물 열차를 끌었어요.",
+        "도색은 네이비 블루에서 주황색으로 바뀌었고, 최근에는 몇 량이 짙은 파랑으로 다시 칠해졌어요."
+      ]
+    }
+  },
+  "blue": {
+    "zh-TW": {
+      "maker": "美國 GM-EMD（R100 型）",
+      "year": "1969 年",
+      "count": "R100 型共 39 輛",
+      "power": "1,650 匹馬力",
+      "speed": "100 km/h",
+      "notes": [
+        "南迴線電氣化之後，藍皮解憂號仍由 R100 這型柴電機車牽引。",
+        "R100 全數配屬台東機務段，部分已停用。"
+      ]
+    },
+    "en": {
+      "maker": "GM-EMD, USA (R100 class)",
+      "year": "1969",
+      "count": "39 units of the R100 class",
+      "power": "1,650 hp",
+      "speed": "100 km/h",
+      "notes": [
+        "Even after the South Link Line was electrified, the Breezy Blue train is still hauled by this R100-class diesel-electric locomotive.",
+        "All R100s are assigned to the Taitung depot, and some are now out of service."
+      ]
+    },
+    "ja": {
+      "maker": "アメリカ GM-EMD（R100形）",
+      "year": "1969年",
+      "count": "R100形は計39両",
+      "power": "1,650馬力",
+      "speed": "100 km/h",
+      "notes": [
+        "南廻線が電化されたあとも、藍皮解憂号はこのR100形ディーゼル電気機関車が牽引しています。",
+        "R100は全車が台東機務段に所属していて、一部はすでに運用を外れています。"
+      ]
+    },
+    "ko": {
+      "maker": "미국 GM-EMD(R100형)",
+      "year": "1969년",
+      "count": "R100형 모두 39량",
+      "power": "1,650마력",
+      "speed": "100 km/h",
+      "notes": [
+        "남회선이 전철화된 뒤에도 브리지 블루 열차는 이 R100형 디젤전기 기관차가 끌어요.",
+        "R100은 전부 타이둥 기관차 사무소에 배속되어 있고, 일부는 이미 운행을 멈췄어요."
+      ]
+    }
+  },
+  "r150": {
+    "zh-TW": {
+      "maker": "美國 GM-EMD（原廠型號 G22CU）",
+      "year": "1973、1982 年",
+      "count": "25 輛（R151～R175）",
+      "power": "1,650 匹馬力",
+      "speed": "110 km/h",
+      "notes": [
+        "六根車軸全都有動力，牽引力比 R100 大得多，宜蘭線、北迴線電氣化後成了東部貨運的主力。",
+        "1982 年加買的 5 輛，是為了北迴線通車與台東線拓寬。"
+      ]
+    },
+    "en": {
+      "maker": "GM-EMD, USA (model G22CU)",
+      "year": "1973, 1982",
+      "count": "25 units (R151–R175)",
+      "power": "1,650 hp",
+      "speed": "110 km/h",
+      "notes": [
+        "All six axles are powered, giving far more tractive effort than the R100; after the Yilan and North-Link lines were electrified, it became the mainstay of eastern freight.",
+        "The five units bought in 1982 were for the opening of the North-Link Line and the widening of the Taitung Line."
+      ]
+    },
+    "ja": {
+      "maker": "アメリカ GM-EMD（原型式 G22CU）",
+      "year": "1973、1982年",
+      "count": "25両（R151～R175）",
+      "power": "1,650馬力",
+      "speed": "110 km/h",
+      "notes": [
+        "6本の車軸すべてに動力があり、牽引力はR100よりずっと大きいです。宜蘭線と北廻線が電化されたあとは、東部の貨物輸送の主力になりました。",
+        "1982年に追加した5両は、北廻線の開通と台東線の拡幅のためのものでした。"
+      ]
+    },
+    "ko": {
+      "maker": "미국 GM-EMD(원래 형식 G22CU)",
+      "year": "1973, 1982년",
+      "count": "25량(R151~R175)",
+      "power": "1,650마력",
+      "speed": "110 km/h",
+      "notes": [
+        "여섯 개 차축 모두에 동력이 있어 견인력이 R100보다 훨씬 커요. 이란선과 베이후이선이 전철화된 뒤 동부 화물 수송의 주력이 되었어요.",
+        "1982년에 추가로 산 5량은 베이후이선 개통과 타이둥선 확장을 위한 것이었어요."
+      ]
+    }
+  },
+  "r180": {
+    "zh-TW": {
+      "maker": "美國 GM（引擎在美國製造、車體在加拿大組裝）",
+      "year": "1992～2001 年",
+      "count": "16 輛（R180 型 10 輛、R190 型 6 輛）",
+      "power": "1,650 匹馬力",
+      "speed": "110 km/h",
+      "notes": [
+        "台鐵第一批在加拿大組裝的柴電機車。",
+        "2014 年起固定兩輛重聯，牽引五堵貨場到和仁的貨物列車，是台鐵唯一常態雙機重聯運轉的機車。"
+      ]
+    },
+    "en": {
+      "maker": "GM, USA (engines made in the US, bodies assembled in Canada)",
+      "year": "1992–2001",
+      "count": "16 units (10 R180, 6 R190)",
+      "power": "1,650 hp",
+      "speed": "110 km/h",
+      "notes": [
+        "The first Taiwan Railway locomotives assembled in Canada.",
+        "Since 2014 two units have been permanently coupled to haul freight between Wudu Yard and Heren, making them the only locomotives on Taiwan Railway regularly run in double-header."
+      ]
+    },
+    "ja": {
+      "maker": "アメリカ GM（エンジンはアメリカ製、車体はカナダで組み立て）",
+      "year": "1992～2001年",
+      "count": "16両（R180形10両、R190形6両）",
+      "power": "1,650馬力",
+      "speed": "110 km/h",
+      "notes": [
+        "台鉄で初めてカナダで組み立てられたディーゼル電気機関車です。",
+        "2014年からは2両を常時重連にして、五堵貨物駅から和仁までの貨物列車を牽引しています。台鉄で唯一、常に重連で運転される機関車です。"
+      ]
+    },
+    "ko": {
+      "maker": "미국 GM(엔진은 미국 제작, 차체는 캐나다 조립)",
+      "year": "1992~2001년",
+      "count": "16량(R180형 10량, R190형 6량)",
+      "power": "1,650마력",
+      "speed": "110 km/h",
+      "notes": [
+        "대만철도가 처음으로 캐나다에서 조립한 디젤전기 기관차예요.",
+        "2014년부터 두 량을 늘 겹쳐 연결해 우두 화물 기지에서 허런까지 화물 열차를 끌어요. 대만철도에서 상시 중련으로 운행하는 유일한 기관차예요."
+      ]
+    }
+  },
+  "r200": {
+    "zh-TW": {
+      "maker": "Stadler（西班牙瓦倫西亞廠）",
+      "year": "2023 年起",
+      "count": "34 輛",
+      "power": "2,700 匹馬力",
+      "speed": "120 km/h（設計）",
+      "notes": [
+        "台鐵隔了約 30 年才再引進新型幹線柴電機車，這也是 Stadler 第一次打進亞太市場。",
+        "引擎配了尿素與廢氣處理系統，比老機車更安靜、更乾淨。"
+      ]
+    },
+    "en": {
+      "maker": "Stadler (Valencia plant, Spain)",
+      "year": "From 2023",
+      "count": "34 units",
+      "power": "2,700 hp",
+      "speed": "120 km/h (design)",
+      "notes": [
+        "Taiwan Railway had not bought a new mainline diesel-electric locomotive for about 30 years, and this was also Stadler’s first entry into the Asia-Pacific market.",
+        "The engine is fitted with urea and exhaust after-treatment systems, so it is quieter and cleaner than the older locomotives."
+      ]
+    },
+    "ja": {
+      "maker": "Stadler（スペイン・バレンシア工場）",
+      "year": "2023年から",
+      "count": "34両",
+      "power": "2,700馬力",
+      "speed": "120 km/h（設計）",
+      "notes": [
+        "台鉄が幹線用の新型ディーゼル電気機関車を導入するのは約30年ぶりで、Stadlerにとってはアジア太平洋市場への初参入でもありました。",
+        "エンジンには尿素と排気ガス処理システムを備えていて、古い機関車より静かできれいです。"
+      ]
+    },
+    "ko": {
+      "maker": "슈타들러(스페인 발렌시아 공장)",
+      "year": "2023년부터",
+      "count": "34량",
+      "power": "2,700마력",
+      "speed": "120 km/h(설계)",
+      "notes": [
+        "대만철도가 새 간선용 디젤전기 기관차를 들여온 건 약 30년 만이고, 슈타들러가 아시아·태평양 시장에 처음 진출한 사례이기도 해요.",
+        "엔진에 요소수와 배기가스 처리 장치를 달아서 오래된 기관차보다 더 조용하고 깨끗해요."
+      ]
+    }
+  },
+  "dhl100": {
+    "zh-TW": {
+      "maker": "日本新潟鐵工（原型車）、台灣車輛（組裝）",
+      "year": "2002～2003 年",
+      "count": "16 輛（DHL101～DHL116）",
+      "power": "1,200 匹馬力",
+      "speed": "75 km/h",
+      "notes": [
+        "靠液體變速機傳動，低速也有大扭力，很適合在車站裡調度車廂；台鐵的柴液機車現在只剩這一型還在用。",
+        "七堵的 DHL100 常跑平溪線、深澳線的貨運，彰化的則會進集集線牽引客貨列車。"
+      ]
+    },
+    "en": {
+      "maker": "Niigata Engineering, Japan (prototype); Taiwan Car (assembly)",
+      "year": "2002–2003",
+      "count": "16 units (DHL101–DHL116)",
+      "power": "1,200 hp",
+      "speed": "75 km/h",
+      "notes": [
+        "Its hydraulic transmission gives strong torque even at low speed, ideal for shunting cars in stations; it is the only diesel-hydraulic type Taiwan Railway still uses.",
+        "Qidu’s DHL100s often work freight on the Pingxi and Shen’ao lines, while Changhua’s run on the Jiji Line hauling passenger and freight trains."
+      ]
+    },
+    "ja": {
+      "maker": "日本 新潟鉄工所（原型）、台湾車輌（組み立て）",
+      "year": "2002～2003年",
+      "count": "16両（DHL101～DHL116）",
+      "power": "1,200馬力",
+      "speed": "75 km/h",
+      "notes": [
+        "液体変速機で動力を伝えるため、低速でも大きなトルクが出て、駅構内での入換に向いています。台鉄のディーゼル液体式機関車で現役なのは、いまはこの形式だけです。",
+        "七堵のDHL100は平渓線や深澳線の貨物によく入り、彰化のものは集集線で客車・貨車を牽引します。"
+      ]
+    },
+    "ko": {
+      "maker": "일본 니가타철공(원형), 대만차량(조립)",
+      "year": "2002~2003년",
+      "count": "16량(DHL101~DHL116)",
+      "power": "1,200마력",
+      "speed": "75 km/h",
+      "notes": [
+        "액체식 변속기로 동력을 전달해서 저속에서도 토크가 커요. 역 안에서 객차를 이리저리 옮기는 입환에 아주 잘 맞아요. 대만철도의 디젤 액체식 기관차 중 지금도 쓰는 건 이 형식뿐이에요.",
+        "치두의 DHL100은 핑시선과 선아오선의 화물 열차에 자주 나오고, 장화의 DHL100은 지지선에서 객차와 화물 열차를 끌어요."
+      ]
+    }
+  },
+  "e200": {
+    "zh-TW": {
+      "maker": "美國奇異（GE）",
+      "year": "1978～1992 年",
+      "count": "40 輛（E201～E240）",
+      "power": "2,800 kW",
+      "speed": "110 km/h",
+      "notes": [
+        "車上有供電機組，能直接供應客車冷氣和照明，不必另掛電源車，所以專拉空調列車。",
+        "台鐵當年向 GE 一口氣買了 74 輛電力機車：35 輛編為 E200，另外 39 輛編為 E300。"
+      ]
+    },
+    "en": {
+      "maker": "General Electric (GE), USA",
+      "year": "1978–1992",
+      "count": "40 units (E201–E240)",
+      "power": "2,800 kW",
+      "speed": "110 km/h",
+      "notes": [
+        "It carries its own power-supply generator set that feeds air conditioning and lighting directly to the coaches, with no separate power car needed, so it hauls air-conditioned trains.",
+        "Taiwan Railway bought 74 electric locomotives from GE in one go: 35 became the E200 and the other 39 the E300."
+      ]
+    },
+    "ja": {
+      "maker": "アメリカ ゼネラル・エレクトリック（GE）",
+      "year": "1978～1992年",
+      "count": "40両（E201～E240）",
+      "power": "2,800 kW",
+      "speed": "110 km/h",
+      "notes": [
+        "電源装置を搭載していて、客車の冷房と照明に直接電力を送れるので、電源車を別につなぐ必要がなく、冷房付きの列車を専門に牽引しました。",
+        "台鉄はGEから電気機関車を一度に74両購入し、35両をE200、残りの39両をE300としました。"
+      ]
+    },
+    "ko": {
+      "maker": "미국 제너럴 일렉트릭(GE)",
+      "year": "1978~1992년",
+      "count": "40량(E201~E240)",
+      "power": "2,800 kW",
+      "speed": "110 km/h",
+      "notes": [
+        "전원 발전 장치를 실어서 객차의 에어컨과 조명에 전기를 바로 공급할 수 있어요. 전원차를 따로 달 필요가 없어서 에어컨 열차 전용으로 썼어요.",
+        "대만철도는 GE에서 전기 기관차 74량을 한꺼번에 사서, 35량은 E200, 나머지 39량은 E300으로 편성했어요."
+      ]
+    }
+  },
+  "e300": {
+    "zh-TW": {
+      "maker": "美國奇異（GE）",
+      "year": "1977 年起",
+      "count": "39 輛（E301～E339）",
+      "power": "2,800 kW",
+      "speed": "110 km/h",
+      "notes": [
+        "原廠沒裝供電機組，早年拉冷氣客車時，後面一定要再掛一輛電源行李車，是當年的招牌畫面。",
+        "交車其實比 E200 還早；無空調客車退場後，成了東西幹線貨物列車的主力之一。"
+      ]
+    },
+    "en": {
+      "maker": "General Electric (GE), USA",
+      "year": "From 1977",
+      "count": "39 units (E301–E339)",
+      "power": "2,800 kW",
+      "speed": "110 km/h",
+      "notes": [
+        "It came from the factory without a power-supply set, so when hauling air-conditioned coaches in the early days it always had to be followed by a power-and-baggage car, a signature sight of the era.",
+        "It was actually delivered before the E200; once non-air-conditioned coaches were retired, it became one of the mainstays of freight on the east and west trunk lines."
+      ]
+    },
+    "ja": {
+      "maker": "アメリカ ゼネラル・エレクトリック（GE）",
+      "year": "1977年から",
+      "count": "39両（E301～E339）",
+      "power": "2,800 kW",
+      "speed": "110 km/h",
+      "notes": [
+        "工場出荷時には電源装置がなく、かつて冷房付きの客車を牽くときは、後ろに必ず電源荷物車を連結する必要がありました。当時を象徴する光景です。",
+        "じつは納入はE200より早く、冷房のない客車が引退したあとは、東西の幹線の貨物列車の主力のひとつになりました。"
+      ]
+    },
+    "ko": {
+      "maker": "미국 제너럴 일렉트릭(GE)",
+      "year": "1977년부터",
+      "count": "39량(E301~E339)",
+      "power": "2,800 kW",
+      "speed": "110 km/h",
+      "notes": [
+        "공장에서 나올 때 전원 장치가 없었어서, 예전에 에어컨 객차를 끌 때는 뒤에 반드시 전원 수하물차를 하나 더 달아야 했어요. 그 시절의 상징 같은 모습이었지요.",
+        "사실 인도는 E200보다 더 빨랐어요. 에어컨 없는 객차가 사라진 뒤에는 동·서 간선 화물 열차의 주력 가운데 하나가 되었어요."
+      ]
+    }
+  },
+  "e400": {
+    "zh-TW": {
+      "maker": "美國奇異（GE）",
+      "count": "18 輛（E401～E418）",
+      "power": "2,800 kW",
+      "speed": "130 km/h（設計）",
+      "notes": [
+        "為了讓莒光號跑得更快，這批調了齒輪比、減輕車重；代價是牽引力比 E200 小、不適合拉貨，所以只買了 18 輛。",
+        "側窗沒有跟著 E200 改窗，是現在分辨兩型的線索。"
+      ]
+    },
+    "en": {
+      "maker": "General Electric (GE), USA",
+      "count": "18 units (E401–E418)",
+      "power": "2,800 kW",
+      "speed": "130 km/h (design)",
+      "notes": [
+        "To make Chu-Kuang trains faster, this batch got adjusted gear ratios and lighter weight; the price was less tractive effort than the E200 and poor suitability for freight, so only 18 were bought.",
+        "Its side windows were not changed along with the E200’s window refit, which is now a clue for telling the two types apart."
+      ]
+    },
+    "ja": {
+      "maker": "アメリカ ゼネラル・エレクトリック（GE）",
+      "count": "18両（E401～E418）",
+      "power": "2,800 kW",
+      "speed": "130 km/h（設計）",
+      "notes": [
+        "莒光号をもっと速く走らせるため、このグループは歯車比を調整し、車体も軽くしました。その代わり牽引力はE200より小さく、貨物には向かないので、18両しか買われませんでした。",
+        "側窓はE200のように改造されなかったので、いまは両形式を見分ける手がかりになっています。"
+      ]
+    },
+    "ko": {
+      "maker": "미국 제너럴 일렉트릭(GE)",
+      "count": "18량(E401~E418)",
+      "power": "2,800 kW",
+      "speed": "130 km/h(설계)",
+      "notes": [
+        "쥐광호를 더 빠르게 달리게 하려고 이 형식은 기어비를 조정하고 차체를 가볍게 했어요. 대신 견인력이 E200보다 작아 화물에는 맞지 않아서 18량만 샀어요.",
+        "측면 창은 E200처럼 바꾸지 않아서, 지금은 두 형식을 구분하는 단서가 돼요."
+      ]
+    }
+  },
+  "mingri": {
+    "zh-TW": {
+      "maker": "美國奇異（GE，E400 型）",
+      "count": "E400 型共 18 輛",
+      "power": "2,800 kW",
+      "speed": "130 km/h（設計）",
+      "notes": [
+        "鳴日號的橘黑塗裝不只用在 E400：E200 型的 E237～E239 也漆過同一套顏色。"
+      ]
+    },
+    "en": {
+      "maker": "General Electric (GE), USA (E400 class)",
+      "count": "18 units of the E400 class",
+      "power": "2,800 kW",
+      "speed": "130 km/h (design)",
+      "notes": [
+        "The orange-and-black livery of the Future train is not used only on the E400: E237–E239 of the E200 class have also been painted in the same colors."
+      ]
+    },
+    "ja": {
+      "maker": "アメリカ ゼネラル・エレクトリック（GE、E400形）",
+      "count": "E400形は計18両",
+      "power": "2,800 kW",
+      "speed": "130 km/h（設計）",
+      "notes": [
+        "鳴日号の橙と黒の塗装を施されたのはE400形だけではありません。E200形のE237～E239も同じ色に塗られたことがあります。"
+      ]
+    },
+    "ko": {
+      "maker": "미국 제너럴 일렉트릭(GE, E400형)",
+      "count": "E400형 모두 18량",
+      "power": "2,800 kW",
+      "speed": "130 km/h(설계)",
+      "notes": [
+        "밍르호의 주황·검정 도색은 E400에만 쓰인 게 아니에요. E200형의 E237~E239도 같은 색으로 칠한 적이 있어요."
+      ]
+    }
+  },
+  "e500": {
+    "zh-TW": {
+      "maker": "日本東芝",
+      "year": "2023 年起",
+      "power": "3,888 kW",
+      "notes": [
+        "第一輛 E501 在 2023 年 9 月從花蓮港上岸，整備了 95 天才開始測試。",
+        "2024 年 9 月 30 日的啟航列車是 121 次自強號，從七堵開往屏東。"
+      ]
+    },
+    "en": {
+      "maker": "Toshiba, Japan",
+      "year": "From 2023",
+      "power": "3,888 kW",
+      "notes": [
+        "The first unit, E501, came ashore at Hualien Port in September 2023 and spent 95 days being prepared before testing began.",
+        "The inaugural run on September 30, 2024 was Tze-Chiang No. 121, from Qidu to Pingtung."
+      ]
+    },
+    "ja": {
+      "maker": "日本 東芝",
+      "year": "2023年から",
+      "power": "3,888 kW",
+      "notes": [
+        "1両目のE501は2023年9月に花蓮港で陸揚げされ、95日間の整備を経て試験が始まりました。",
+        "2024年9月30日の出発式の列車は自強号121次で、七堵から屏東へ向かいました。"
+      ]
+    },
+    "ko": {
+      "maker": "일본 도시바",
+      "year": "2023년부터",
+      "power": "3,888 kW",
+      "notes": [
+        "첫 번째 E501은 2023년 9월 화롄항에 내려, 95일 동안 정비를 거친 뒤 시험을 시작했어요.",
+        "2024년 9월 30일 출범 열차는 쯔창호 121편으로, 치두에서 핑둥으로 달렸어요."
+      ]
+    }
+  },
+  "e1000": {
+    "zh-TW": {
+      "nick": "子彈列車、土虱、豬頭車",
+      "maker": "南非 UCW（機電：GEC-Alsthom）",
+      "year": "1996～1997 年",
+      "count": "64 輛（E1001～E1064）",
+      "power": "1,743 kW（每輛）",
+      "speed": "130 km/h",
+      "notes": [
+        "剛試車時，流線車頭像歐洲的高速列車，被叫作「子彈列車」；也有人嫌它長得怪，叫它「土虱」或「豬頭車」。",
+        "兩輛一組、一推一拉，中間掛 12 到 15 節客車，只要一位司機就能開。"
+      ]
+    },
+    "en": {
+      "nick": "Bullet Train, Catfish (Tuhu), Pig-Head Car",
+      "maker": "UCW, South Africa (electrical: GEC-Alsthom)",
+      "year": "1996–1997",
+      "count": "64 units (E1001–E1064)",
+      "power": "1,743 kW (each)",
+      "speed": "130 km/h",
+      "notes": [
+        "During its first trials, its streamlined nose looked like a European high-speed train and was dubbed the “Bullet Train”; others, finding it odd-looking, called it the “Catfish” or “Pig-Head Car”.",
+        "Two locomotives form a pair, one pushing and one pulling, with 12 to 15 coaches between them, and a single driver can run the whole train."
+      ]
+    },
+    "ja": {
+      "nick": "弾丸列車、土虱、豚頭車",
+      "maker": "南アフリカ UCW（電機：GEC-Alsthom）",
+      "year": "1996～1997年",
+      "count": "64両（E1001～E1064）",
+      "power": "1,743 kW（1両あたり）",
+      "speed": "130 km/h",
+      "notes": [
+        "試運転のころ、流線形の先頭部がヨーロッパの高速列車のようだったので「弾丸列車」と呼ばれました。変な形だと、「土虱（ナマズ）」や「豚頭車」と呼ぶ人もいました。",
+        "2両が1組で、一方が牽引し、もう一方が後ろから押します。間に12～15両の客車をはさみ、運転士1人で走らせられます。"
+      ]
+    },
+    "ko": {
+      "nick": "총알 열차, 메기(투후), 돼지머리 차",
+      "maker": "남아프리카 UCW(전기 장치: GEC-Alsthom)",
+      "year": "1996~1997년",
+      "count": "64량(E1001~E1064)",
+      "power": "1,743 kW(1량당)",
+      "speed": "130 km/h",
+      "notes": [
+        "시험 운행 때 유선형 앞부분이 유럽의 고속열차 같아서 ‘총알 열차’라고 불렸어요. 생김새가 이상하다며 ‘메기’나 ‘돼지머리 차’라고 부르는 사람도 있었어요.",
+        "두 량이 한 조로, 하나는 끌고 하나는 밀어요. 사이에 객차 12~15량을 달고, 기관사 한 명만 있어도 운전할 수 있어요."
+      ]
+    }
+  },
+  "dr1000": {
+    "zh-TW": {
+      "maker": "日本車輛（原型）、唐榮鐵工廠（組裝）",
+      "year": "1998 年",
+      "count": "36 輛（DR1001～DR1036）",
+      "power": "350 匹馬力（主引擎）",
+      "notes": [
+        "除了主引擎，車上另有一具發電引擎專供冷氣和照明，所以單獨一輛也能跑。",
+        "DR1036 曾改成公務車，人稱「台鐵一號」「局長專車」；2014 年底改回一般客車，取名「進化 1001 號」。"
+      ]
+    },
+    "en": {
+      "maker": "Nippon Sharyo, Japan (prototype); Tang Eng Iron Works (assembly)",
+      "year": "1998",
+      "count": "36 units (DR1001–DR1036)",
+      "power": "350 hp (main engine)",
+      "notes": [
+        "Besides the main engine, each car carries a separate generator engine for air conditioning and lighting, so even a single car can run alone.",
+        "DR1036 was once converted into an official inspection car, nicknamed “Taiwan Railway One” and the “Director General’s Car”; at the end of 2014 it went back to ordinary service as “Evolution No. 1001”."
+      ]
+    },
+    "ja": {
+      "maker": "日本車輌製造（原型）、唐栄鉄工廠（組み立て）",
+      "year": "1998年",
+      "count": "36両（DR1001～DR1036）",
+      "power": "350馬力（主機関）",
+      "notes": [
+        "主機関のほかに、冷房と照明専用の発電用エンジンも載せているので、1両だけでも走れます。",
+        "DR1036は一時、公務車に改造され、「台鉄一号」「局長専用車」と呼ばれました。2014年末に一般の客車に戻り、「進化1001号」と名づけられました。"
+      ]
+    },
+    "ko": {
+      "maker": "닛폰샤료(원형), 탕룽 철공장(조립)",
+      "year": "1998년",
+      "count": "36량(DR1001~DR1036)",
+      "power": "350마력(주 엔진)",
+      "notes": [
+        "주 엔진 외에 에어컨과 조명 전용 발전 엔진이 따로 있어서 한 량만으로도 달릴 수 있어요.",
+        "DR1036은 한때 공무용 차량으로 개조되어 ‘대만철도 1호’, ‘국장 전용차’라고 불렸어요. 2014년 말에 일반 객차로 돌아와 ‘진화 1001호’라는 이름이 붙었어요."
+      ]
+    }
+  },
+  "dr2700": {
+    "zh-TW": {
+      "nick": "白鐵仔",
+      "maker": "日本東急車輛（美國 Budd 公司授權）",
+      "year": "1966 年",
+      "count": "31 輛（動力車 25 輛、拖車 6 輛）",
+      "power": "300 匹馬力（原裝引擎）",
+      "speed": "110 km/h",
+      "notes": [
+        "車內是草綠色旋轉椅和月洞門，還有茶杯托與書報插，在當年比一般客車高級得多。",
+        "2014 年 7 月 15 日開完最後一班常態列車；2020 年後因底盤腐蝕，全數停用。"
+      ]
+    },
+    "en": {
+      "nick": "Bai Tie Zai (“White Iron”)",
+      "maker": "Tokyu Car, Japan (licensed by the Budd Company, USA)",
+      "year": "1966",
+      "count": "31 cars (25 motor cars, 6 trailers)",
+      "power": "300 hp (original engine)",
+      "speed": "110 km/h",
+      "notes": [
+        "Inside were grass-green swivel seats and moon-gate-style doorways, plus cup holders and magazine racks, far classier than ordinary coaches of the time.",
+        "It ran its last regular service on July 15, 2014; after 2020, chassis corrosion took every unit out of service."
+      ]
+    },
+    "ja": {
+      "nick": "白鉄仔",
+      "maker": "日本 東急車輛製造（アメリカ・バッド社のライセンス）",
+      "year": "1966年",
+      "count": "31両（動力車25両、付随車6両）",
+      "power": "300馬力（導入時のエンジン）",
+      "speed": "110 km/h",
+      "notes": [
+        "車内は若草色の回転式シートと円形の出入り口を備え、カップホルダーや新聞差しもあって、当時の一般の客車よりずっと上等でした。",
+        "2014年7月15日に最後の定期列車を走らせ、2020年以降は台枠の腐食により全車が運用を離れました。"
+      ]
+    },
+    "ko": {
+      "nick": "바이톄자이(백철이)",
+      "maker": "일본 도큐차량(미국 버드사 라이선스)",
+      "year": "1966년",
+      "count": "31량(동력차 25량, 부수차 6량)",
+      "power": "300마력(도입 당시 엔진)",
+      "speed": "110 km/h",
+      "notes": [
+        "내부는 연초록색 회전 의자와 둥근 달 모양 출입문이 있었고, 컵 홀더와 신문꽂이까지 갖춰서 당시 일반 객차보다 훨씬 고급스러웠어요.",
+        "2014년 7월 15일에 마지막 정기 열차를 운행했고, 2020년 이후에는 차대 부식 때문에 전부 운행을 멈췄어요."
+      ]
+    }
+  },
+  "dr3000": {
+    "zh-TW": {
+      "maker": "日本日立",
+      "year": "1990 年",
+      "count": "81 輛（27 組）",
+      "formation": "3 輛一組",
+      "notes": [
+        "前一代 DR2900 在 1987 年春節前來台，船還沒靠港，加班車票就賣光了；新車下船後立刻裝座椅、冷氣、試車，隔天就上線。",
+        "DR3000 和 DR2900 長得幾乎一模一樣，原本只差 DR3000 出廠就漆上台鐵局徽；後來 DR2900 也補上了，現在只能看車號分辨。"
+      ]
+    },
+    "en": {
+      "maker": "Hitachi, Japan",
+      "year": "1990",
+      "count": "81 cars (27 sets)",
+      "formation": "3 cars per set",
+      "notes": [
+        "Its predecessor, the DR2900, arrived in Taiwan just before Lunar New Year in 1987; extra-service tickets sold out before the ship even docked, and the new cars were fitted with seats and air conditioning, tested, and put into service the very next day.",
+        "The DR3000 and DR2900 look almost identical. At first the only difference was that the DR3000 left the factory with the Taiwan Railway emblem painted on; the DR2900 later got it too, so now only the car numbers tell them apart."
+      ]
+    },
+    "ja": {
+      "maker": "日本 日立製作所",
+      "year": "1990年",
+      "count": "81両（27編成）",
+      "formation": "3両1編成",
+      "notes": [
+        "先代のDR2900は1987年の旧正月前に台湾に来ましたが、船が着く前に臨時列車の切符が売り切れました。新車は下船するとすぐ座席と冷房を取りつけて試運転し、翌日には営業運転に入りました。",
+        "DR3000とDR2900は見た目がほとんど同じで、はじめはDR3000が出荷時から台鉄のエンブレムをつけていた点だけが違いました。のちにDR2900にもエンブレムがつき、いまは車号で見分けるしかありません。"
+      ]
+    },
+    "ko": {
+      "maker": "일본 히타치",
+      "year": "1990년",
+      "count": "81량(27편성)",
+      "formation": "3량 1편성",
+      "notes": [
+        "앞 세대인 DR2900은 1987년 설 직전에 대만에 왔는데, 배가 항구에 닿기도 전에 임시 열차 표가 다 팔렸어요. 새 차량은 내리자마자 좌석과 에어컨을 달고 시험 운행을 마친 뒤 다음 날 바로 운행에 들어갔어요.",
+        "DR3000과 DR2900은 생김새가 거의 같아요. 처음에는 DR3000만 출고 때부터 대만철도 로고를 달았다는 점이 달랐지만, 나중에 DR2900에도 로고를 붙여서 지금은 차량 번호로만 구분할 수 있어요."
+      ]
+    }
+  },
+  "dr3100": {
+    "zh-TW": {
+      "maker": "日本車輛、唐榮鐵工廠",
+      "year": "1998 年",
+      "count": "30 輛（10 組）",
+      "formation": "3 輛一組",
+      "notes": [
+        "每節車廂前後都有車門，上下車更快；車門變多，車內就不再有前幾代柴聯車招牌的「月洞門」。",
+        "它上線後，其他柴聯車就能加掛，東部的柴聯自強號因此拉長到 9 或 12 節，緩解假日的擁擠。"
+      ]
+    },
+    "en": {
+      "maker": "Nippon Sharyo, Tang Eng Iron Works",
+      "year": "1998",
+      "count": "30 cars (10 sets)",
+      "formation": "3 cars per set",
+      "notes": [
+        "Every car has doors at both ends, so boarding and alighting are quicker; with more doors, the cars no longer have the moon-gate doorways that were a trademark of earlier diesel railcars.",
+        "Once it entered service, other diesel railcars could be coupled to it, so eastern diesel Tze-Chiang trains grew to 9 or 12 cars and eased holiday crowding."
+      ]
+    },
+    "ja": {
+      "maker": "日本車輌製造、唐栄鉄工廠",
+      "year": "1998年",
+      "count": "30両（10編成）",
+      "formation": "3両1編成",
+      "notes": [
+        "各車両の前後に出入り口があって乗り降りが速くなっています。ドアが増えたぶん、前の世代のディーゼルカーの名物だった円形の出入り口は、車内にはもうありません。",
+        "この車両の登場後、他のディーゼルカーを増結できるようになり、東部のディーゼル自強号は9両または12両に長くなって、休日の混雑が和らぎました。"
+      ]
+    },
+    "ko": {
+      "maker": "닛폰샤료, 탕룽 철공장",
+      "year": "1998년",
+      "count": "30량(10편성)",
+      "formation": "3량 1편성",
+      "notes": [
+        "모든 객차의 앞뒤에 출입문이 있어 타고 내리기가 더 빨라요. 문이 늘어난 대신, 이전 세대 디젤 동차의 상징이던 둥근 달 모양 출입문은 이제 차 안에 없어요.",
+        "이 열차가 운행을 시작한 뒤 다른 디젤 동차를 연결할 수 있게 되어, 동부의 디젤 쯔창호가 9량 또는 12량으로 길어지면서 휴일 혼잡이 줄었어요."
+      ]
+    }
+  },
+  "emu100": {
+    "zh-TW": {
+      "nick": "英國婆、英國貴婦、貓頭鷹臉",
+      "maker": "英國 GEC（電機）、英國 BREL（車體）",
+      "year": "1978 年",
+      "count": "13 組 65 輛",
+      "formation": "5 輛一組",
+      "speed": "120 km/h",
+      "notes": [
+        "「自強號」這個名字，就是它 1978 年上線時經民調選出來的。",
+        "1979 年西部幹線全線電氣化後，它台北到高雄只要 4 小時 10 分，是當年台鐵最快的列車；駕駛端後來加漆警戒色，又被叫作「貓頭鷹臉」。"
+      ]
+    },
+    "en": {
+      "nick": "British Lady, British Noblewoman, Owl Face",
+      "maker": "GEC, UK (electrical); BREL, UK (bodies)",
+      "year": "1978",
+      "count": "13 sets, 65 cars",
+      "formation": "5 cars per set",
+      "speed": "120 km/h",
+      "notes": [
+        "The name “Tze-Chiang” was picked by public poll when this train entered service in 1978.",
+        "After the Western Trunk Line was fully electrified in 1979, it ran Taipei–Kaohsiung in just 4 hours 10 minutes, the fastest train on Taiwan Railway at the time; warning-color paint was later added to the driving ends, earning it the name “Owl Face”."
+      ]
+    },
+    "ja": {
+      "nick": "英国婆、英国貴婦、フクロウ顔",
+      "maker": "イギリス GEC（電機）、イギリス BREL（車体）",
+      "year": "1978年",
+      "count": "13編成65両",
+      "formation": "5両1編成",
+      "speed": "120 km/h",
+      "notes": [
+        "「自強号」という名前は、1978年にこの電車が走り始めたとき、世論調査で選ばれたものです。",
+        "1979年に西部幹線が全線電化されると、台北～高雄を4時間10分で結び、当時の台鉄で最速の列車でした。運転台側にあとから警戒色が塗られ、「フクロウ顔」とも呼ばれるようになりました。"
+      ]
+    },
+    "ko": {
+      "nick": "영국 할머니, 영국 귀부인, 부엉이 얼굴",
+      "maker": "영국 GEC(전기 장치), 영국 BREL(차체)",
+      "year": "1978년",
+      "count": "13편성 65량",
+      "formation": "5량 1편성",
+      "speed": "120 km/h",
+      "notes": [
+        "‘쯔창호’라는 이름은 1978년 이 열차가 운행을 시작할 때 여론조사로 정해졌어요.",
+        "1979년 서부 간선이 전 구간 전철화된 뒤 타이베이~가오슝을 4시간 10분에 달려, 당시 대만철도에서 가장 빠른 열차였어요. 운전대 쪽에 나중에 경계색을 덧칠해서 ‘부엉이 얼굴’이라고도 불러요."
+      ]
+    }
+  },
+  "emu1200": {
+    "zh-TW": {
+      "nick": "紅斑馬",
+      "maker": "南非 UCW（原車 EMU200）",
+      "year": "1987 年上線，2002～2004 年改造",
+      "count": "原車 11 組 33 輛",
+      "formation": "改造後 9 輛固定編組",
+      "speed": "120 km/h",
+      "notes": [
+        "前身 EMU200 由南非製造，大多整車進口，最後 3 組則散裝運來、由唐榮組裝。",
+        "通道門是台鐵第一次用紅外線自動門，不過反應不太靈敏，改造時換成了觸控式。"
+      ]
+    },
+    "en": {
+      "nick": "Red Zebra",
+      "maker": "UCW, South Africa (original EMU200)",
+      "year": "In service 1987; rebuilt 2002–2004",
+      "count": "11 original sets, 33 cars",
+      "formation": "Fixed 9-car sets after rebuild",
+      "speed": "120 km/h",
+      "notes": [
+        "Its predecessor, the EMU200, was built in South Africa; most were imported as complete trains, while the last 3 sets arrived in parts and were assembled by Tang Eng.",
+        "The gangway doors were Taiwan Railway’s first infrared automatic doors, but they responded sluggishly, so touch-operated ones replaced them during the rebuild."
+      ]
+    },
+    "ja": {
+      "nick": "赤いシマウマ",
+      "maker": "南アフリカ UCW（原型はEMU200）",
+      "year": "1987年に営業開始、2002～2004年に改造",
+      "count": "改造前は11編成33両",
+      "formation": "改造後は9両固定編成",
+      "speed": "120 km/h",
+      "notes": [
+        "前身のEMU200は南アフリカ製で、大半は完成車で輸入されました。最後の3編成は部品の状態で運ばれ、唐栄が組み立てました。",
+        "貫通路のドアは台鉄で初めての赤外線式自動ドアでしたが、反応があまり良くなかったため、改造のときにタッチ式に替えられました。"
+      ]
+    },
+    "ko": {
+      "nick": "붉은 얼룩말",
+      "maker": "남아프리카 UCW(원래 차량은 EMU200)",
+      "year": "1987년 운행 시작, 2002~2004년 개조",
+      "count": "개조 전 11편성 33량",
+      "formation": "개조 후 9량 고정 편성",
+      "speed": "120 km/h",
+      "notes": [
+        "전신인 EMU200은 남아프리카에서 만들었고, 대부분은 완성차로 들여왔어요. 마지막 3편성은 부품 상태로 들어와 탕룽이 조립했어요.",
+        "통로 문은 대만철도 최초의 적외선 자동문이었는데 반응이 그리 민감하지 않아서, 개조할 때 터치식으로 바꿨어요."
+      ]
+    }
+  },
+  "emu300": {
+    "zh-TW": {
+      "maker": "義大利 SOCIMI（車體）、英國 Brush（機電）",
+      "year": "1989 年",
+      "count": "8 組 24 輛",
+      "formation": "3 輛一組",
+      "notes": [
+        "海線 1019 次曾用它跑完台北到高雄只要 3 小時 47 分，這個紀錄直到 2016 年才被普悠瑪號打破。",
+        "鐵道迷公認最有速度感的自強號：駕駛端略微後傾，車底下緣斜切。"
+      ]
+    },
+    "en": {
+      "maker": "SOCIMI, Italy (bodies); Brush, UK (electrical)",
+      "year": "1989",
+      "count": "8 sets, 24 cars",
+      "formation": "3 cars per set",
+      "notes": [
+        "On the Coast Line, Train 1019 once ran Taipei–Kaohsiung in just 3 hours 47 minutes with it, a record not broken until the Puyuma Express in 2016.",
+        "Railfans widely agree it is the most dynamic-looking Tze-Chiang: the driving end tilts slightly back and the lower edge of the underframe is cut at an angle."
+      ]
+    },
+    "ja": {
+      "maker": "イタリア SOCIMI（車体）、イギリス Brush（電機）",
+      "year": "1989年",
+      "count": "8編成24両",
+      "formation": "3両1編成",
+      "notes": [
+        "海線の1019次はこの電車で台北～高雄を3時間47分で走り切ったことがあり、この記録は2016年に普悠瑪号が破るまで破られませんでした。",
+        "鉄道ファンの間では、自強号で最も速さを感じさせる車両だと言われています。運転台側がわずかに後ろへ傾き、車体の下端は斜めに切り落とされています。"
+      ]
+    },
+    "ko": {
+      "maker": "이탈리아 SOCIMI(차체), 영국 Brush(전기 장치)",
+      "year": "1989년",
+      "count": "8편성 24량",
+      "formation": "3량 1편성",
+      "notes": [
+        "해안선 1019편이 이 열차로 타이베이~가오슝을 3시간 47분에 달린 적이 있고, 이 기록은 2016년 푸유마호가 깰 때까지 이어졌어요.",
+        "철도 팬들이 입을 모아 쯔창호 중 가장 속도감 있다고 꼽는 차량이에요. 운전대 쪽이 살짝 뒤로 젖혀져 있고, 차체 아래쪽 가장자리는 비스듬하게 잘려 있어요."
+      ]
+    }
+  },
+  "emu500": {
+    "zh-TW": {
+      "maker": "韓國大宇重工（機電：德國西門子、日本三菱電機）",
+      "year": "1995～1997 年",
+      "count": "86 組 344 輛",
+      "formation": "4 輛一組",
+      "speed": "110 km/h",
+      "notes": [
+        "台鐵第一批不鏽鋼通勤電車，每側三扇門，全面取代了西部幹線北、中、南的普通客車。",
+        "部分編組改成座椅較舒適的「優化車」，主要跑高屏的區間快車。"
+      ]
+    },
+    "en": {
+      "maker": "Daewoo Heavy Industries, Korea (electrical: Siemens, Germany; Mitsubishi Electric, Japan)",
+      "year": "1995–1997",
+      "count": "86 sets, 344 cars",
+      "formation": "4 cars per set",
+      "speed": "110 km/h",
+      "notes": [
+        "Taiwan Railway’s first batch of stainless-steel commuter EMUs, with three doors per side, they fully replaced the ordinary coaches on the north, central and south Western Trunk Line.",
+        "Some sets were converted into “upgraded cars” with more comfortable seats, mainly running Fast Local services in Kaohsiung and Pingtung."
+      ]
+    },
+    "ja": {
+      "maker": "韓国 大宇重工（電機：ドイツ シーメンス、日本 三菱電機）",
+      "year": "1995～1997年",
+      "count": "86編成344両",
+      "formation": "4両1編成",
+      "speed": "110 km/h",
+      "notes": [
+        "台鉄で初めてのステンレス製通勤電車で、片側に3か所のドアがあり、西部幹線の北・中・南の普通客車をすべて置き換えました。",
+        "一部の編成は座席が快適な「優化車」に改造され、主に高雄・屏東の区間快車として走っています。"
+      ]
+    },
+    "ko": {
+      "maker": "한국 대우중공업(전기 장치: 독일 지멘스, 일본 미쓰비시 전기)",
+      "year": "1995~1997년",
+      "count": "86편성 344량",
+      "formation": "4량 1편성",
+      "speed": "110 km/h",
+      "notes": [
+        "대만철도의 첫 스테인리스 통근 전동차로, 한쪽에 문이 세 개 있어요. 서부 간선의 북부·중부·남부 보통 객차를 모두 대체했어요.",
+        "일부 편성은 좌석이 더 편한 ‘업그레이드 차량’으로 개조되어, 주로 가오슝·핑둥의 구간쾌속으로 달려요."
+      ]
+    }
+  },
+  "emu600": {
+    "zh-TW": {
+      "maker": "韓國 Rotem（機電：日本東芝）",
+      "year": "2001～2002 年",
+      "count": "14 組 56 輛",
+      "formation": "4 輛一組",
+      "speed": "110 km/h",
+      "notes": [
+        "原本要用西門子的機電系統，因為歐元大漲改用東芝，結果加速性能在台鐵電聯車裡名列前茅。",
+        "外觀和 EMU500 幾乎一樣，現在主要跑六家線和沙崙線。"
+      ]
+    },
+    "en": {
+      "maker": "Rotem, Korea (electrical: Toshiba, Japan)",
+      "year": "2001–2002",
+      "count": "14 sets, 56 cars",
+      "formation": "4 cars per set",
+      "speed": "110 km/h",
+      "notes": [
+        "It was meant to use Siemens electrical equipment, but a surge in the euro led to Toshiba being chosen instead, and its acceleration ended up among the best of Taiwan Railway’s EMUs.",
+        "It looks almost identical to the EMU500 and now mainly runs the Liujia and Shalun lines."
+      ]
+    },
+    "ja": {
+      "maker": "韓国 Rotem（電機：日本 東芝）",
+      "year": "2001～2002年",
+      "count": "14編成56両",
+      "formation": "4両1編成",
+      "speed": "110 km/h",
+      "notes": [
+        "もともとはシーメンスの電機システムを使う予定でしたが、ユーロの高騰で東芝に変更されました。その結果、加速性能は台鉄の電車の中でも上位です。",
+        "外観はEMU500とほとんど同じで、いまは主に六家線と沙崙線を走っています。"
+      ]
+    },
+    "ko": {
+      "maker": "한국 Rotem(전기 장치: 일본 도시바)",
+      "year": "2001~2002년",
+      "count": "14편성 56량",
+      "formation": "4량 1편성",
+      "speed": "110 km/h",
+      "notes": [
+        "원래는 지멘스 전기 시스템을 쓰려 했는데 유로화가 크게 오르면서 도시바로 바꿨고, 그 덕분에 가속 성능은 대만철도 전동차 중 손꼽혀요.",
+        "외관은 EMU500과 거의 같고, 지금은 주로 류자선과 사룬선을 달려요."
+      ]
+    }
+  },
+  "emu700": {
+    "zh-TW": {
+      "nick": "阿福號、戽斗車、小夫",
+      "maker": "日本車輛（前 3 組）、台灣車輛（其餘）；機電：日本東芝",
+      "year": "2007～2008 年",
+      "count": "160 輛",
+      "formation": "8 輛一列",
+      "speed": "110 km/h",
+      "notes": [
+        "台鐵第一批由國內廠商主導組裝的電聯車，也是區間快車改用電聯車的開端。",
+        "車頭加了連結器罩，把連結器藏起來，看起來比 EMU500、600 更有速度感；往前凸的車頭就是「阿福號」「戽斗車」這些綽號的由來。"
+      ]
+    },
+    "en": {
+      "nick": "A-Fu train, Underbite Car (Hudou), Suneo",
+      "maker": "Nippon Sharyo (first 3 sets), Taiwan Car (the rest); electrical: Toshiba, Japan",
+      "year": "2007–2008",
+      "count": "160 cars",
+      "formation": "8 cars per train",
+      "speed": "110 km/h",
+      "notes": [
+        "The first EMUs assembled mainly by a Taiwanese manufacturer, and the start of Fast Local services switching to EMUs.",
+        "A coupler cover hides the coupler at the front, making it look faster than the EMU500 and 600; the forward-jutting nose is where nicknames like “A-Fu train” and “Underbite Car” come from."
+      ]
+    },
+    "ja": {
+      "nick": "阿福号、戽斗車、スネ夫",
+      "maker": "日本車輌製造（最初の3編成）、台湾車輌（残り）、電機：日本 東芝",
+      "year": "2007～2008年",
+      "count": "160両",
+      "formation": "8両1編成",
+      "speed": "110 km/h",
+      "notes": [
+        "台湾の国内メーカーが主導して組み立てた初めての電車で、区間快車が電車化されるきっかけにもなりました。",
+        "先頭部に連結器カバーがつき、連結器を隠しているため、EMU500・600より速そうに見えます。前へ突き出た先頭部が、「阿福号」「戽斗車」といった愛称の由来です。"
+      ]
+    },
+    "ko": {
+      "nick": "아푸호, 주걱턱 차(후더우), 비실이(스네오)",
+      "maker": "닛폰샤료(앞 3편성), 대만차량(나머지), 전기 장치: 일본 도시바",
+      "year": "2007~2008년",
+      "count": "160량",
+      "formation": "8량 1편성",
+      "speed": "110 km/h",
+      "notes": [
+        "대만 국내 업체가 주도해 조립한 첫 전동차이고, 구간쾌속이 전동차로 바뀌는 시작이기도 해요.",
+        "앞부분에 연결기 덮개를 달아 연결기를 감췄고, 그래서 EMU500·600보다 속도감이 더 느껴져요. 앞으로 튀어나온 앞부분이 ‘아푸호’, ‘주걱턱 차’ 같은 별명의 유래예요."
+      ]
+    }
+  },
+  "emu800": {
+    "zh-TW": {
+      "nick": "微笑號",
+      "maker": "台灣車輛、日本車輛（機電：日本東芝）",
+      "year": "2013～2016 年",
+      "count": "43 列 344 輛",
+      "formation": "8 輛一列",
+      "speed": "130 km/h",
+      "notes": [
+        "原本規劃 370 輛，因為原物料上漲多次流標，先縮成 296 輛，後來再增購 48 輛。",
+        "車側黃藍色帶像一張笑臉，車頭還有自行車圖案的 800 型標誌。"
+      ]
+    },
+    "en": {
+      "nick": "Smile train",
+      "maker": "Taiwan Car, Nippon Sharyo (electrical: Toshiba, Japan)",
+      "year": "2013–2016",
+      "count": "43 trains, 344 cars",
+      "formation": "8 cars per train",
+      "speed": "130 km/h",
+      "notes": [
+        "The original plan was for 370 cars, but repeated failed tenders amid rising raw-material prices cut it first to 296 cars, then 48 more were added later.",
+        "The yellow-and-blue stripe along the side looks like a smiling face, and the front carries an 800-series emblem with a bicycle on it."
+      ]
+    },
+    "ja": {
+      "nick": "微笑号",
+      "maker": "台湾車輌、日本車輌製造（電機：日本 東芝）",
+      "year": "2013～2016年",
+      "count": "43編成344両",
+      "formation": "8両1編成",
+      "speed": "130 km/h",
+      "notes": [
+        "当初は370両の計画でしたが、原材料の値上がりで入札が何度も不調に終わり、まず296両に減らされ、のちに48両が追加されました。",
+        "側面の黄色と青の帯が笑顔のように見え、先頭部には自転車の絵柄の入った800形のマークがあります。"
+      ]
+    },
+    "ko": {
+      "nick": "스마일호",
+      "maker": "대만차량, 닛폰샤료(전기 장치: 일본 도시바)",
+      "year": "2013~2016년",
+      "count": "43편성 344량",
+      "formation": "8량 1편성",
+      "speed": "130 km/h",
+      "notes": [
+        "원래 370량을 계획했지만 원자재 값이 올라 입찰이 여러 번 유찰되어, 먼저 296량으로 줄였다가 나중에 48량을 더 샀어요.",
+        "옆면의 노랑·파랑 띠가 웃는 얼굴처럼 보이고, 앞부분에는 자전거 그림이 들어간 800형 마크가 있어요."
+      ]
+    }
+  },
+  "emu800r": {
+    "zh-TW": {
+      "nick": "小小兵",
+      "maker": "台灣車輛（機電：日本東芝）",
+      "count": "增購 48 輛",
+      "formation": "8 輛一列",
+      "speed": "130 km/h",
+      "notes": [
+        "EMU800 的增購車，配色和原車顛倒過來，被鐵道迷叫作「小小兵」。"
+      ]
+    },
+    "en": {
+      "nick": "Minions (Xiaoxiaobing)",
+      "maker": "Taiwan Car (electrical: Toshiba, Japan)",
+      "count": "48 supplementary cars",
+      "formation": "8 cars per train",
+      "speed": "130 km/h",
+      "notes": [
+        "The supplementary batch of the EMU800, with the colors reversed from the original cars, which railfans call the “Minions”."
+      ]
+    },
+    "ja": {
+      "nick": "小小兵（ミニオンズ）",
+      "maker": "台湾車輌（電機：日本 東芝）",
+      "count": "増備48両",
+      "formation": "8両1編成",
+      "speed": "130 km/h",
+      "notes": [
+        "EMU800の増備車で、配色がもとの車両と逆になっていて、鉄道ファンから「小小兵（ミニオンズ）」と呼ばれています。"
+      ]
+    },
+    "ko": {
+      "nick": "미니언즈(샤오샤오빙)",
+      "maker": "대만차량(전기 장치: 일본 도시바)",
+      "count": "추가 도입 48량",
+      "formation": "8량 1편성",
+      "speed": "130 km/h",
+      "notes": [
+        "EMU800의 추가 도입 차량으로, 배색이 원래 차량과 거꾸로라서 철도 팬들은 ‘미니언즈’라고 불러요."
+      ]
+    }
+  },
+  "emu900": {
+    "zh-TW": {
+      "nick": "最美區間車",
+      "maker": "韓國現代 Rotem（機電：日本東芝）",
+      "year": "2020 年起",
+      "count": "52 列 520 輛",
+      "formation": "10 輛一列",
+      "speed": "130 km/h",
+      "notes": [
+        "內外設計委託法國 MBD Design，就是設計 TGV 的團隊。",
+        "為了方便連結，取消了 EMU700／800 的鼻頭罩，車頭改用航空級碳纖維材質。"
+      ]
+    },
+    "en": {
+      "nick": "Most Beautiful Local Train",
+      "maker": "Hyundai Rotem, Korea (electrical: Toshiba, Japan)",
+      "year": "From 2020",
+      "count": "52 trains, 520 cars",
+      "formation": "10 cars per train",
+      "speed": "130 km/h",
+      "notes": [
+        "The interior and exterior were designed by France’s MBD Design, the team behind the TGV.",
+        "To make coupling easier, the nose covers of the EMU700/800 were dropped, and the front is made of aerospace-grade carbon fiber."
+      ]
+    },
+    "ja": {
+      "nick": "最も美しい区間車",
+      "maker": "韓国 現代ロテム（電機：日本 東芝）",
+      "year": "2020年から",
+      "count": "52編成520両",
+      "formation": "10両1編成",
+      "speed": "130 km/h",
+      "notes": [
+        "内外装のデザインは、TGVを手がけたフランスのMBD Designが担当しました。",
+        "連結しやすいように、EMU700・800にあった先頭部のカバーをなくし、先頭部には航空機用グレードの炭素繊維が使われています。"
+      ]
+    },
+    "ko": {
+      "nick": "가장 아름다운 구간열차",
+      "maker": "한국 현대로템(전기 장치: 일본 도시바)",
+      "year": "2020년부터",
+      "count": "52편성 520량",
+      "formation": "10량 1편성",
+      "speed": "130 km/h",
+      "notes": [
+        "내외부 디자인은 TGV를 디자인한 팀인 프랑스 MBD Design에 맡겼어요.",
+        "연결하기 쉽도록 EMU700·800에 있던 앞부분 덮개를 없앴고, 앞부분은 항공기급 탄소섬유로 만들었어요."
+      ]
+    }
+  },
+  "emu3000": {
+    "zh-TW": {
+      "nick": "新自強號",
+      "maker": "日本日立",
+      "year": "2021 年起",
+      "count": "50 列 600 輛",
+      "formation": "12 輛一列",
+      "speed": "130 km/h（設計 150）",
+      "notes": [
+        "為了減少軌道磨損，刻意不做傾斜機構。",
+        "鋁合金車體用摩擦攪拌焊接；車身以黑白為主，車側點綴紅、綠、藍或迷彩色塊。"
+      ]
+    },
+    "en": {
+      "nick": "New Tze-Chiang",
+      "maker": "Hitachi, Japan",
+      "year": "From 2021",
+      "count": "50 trains, 600 cars",
+      "formation": "12 cars per train",
+      "speed": "130 km/h (design 150)",
+      "notes": [
+        "To reduce wear on the track, it deliberately has no tilting mechanism.",
+        "The aluminum body is joined by friction stir welding; the livery is mainly black and white, with red, green, blue or camouflage-style blocks along the sides."
+      ]
+    },
+    "ja": {
+      "nick": "新自強号",
+      "maker": "日本 日立製作所",
+      "year": "2021年から",
+      "count": "50編成600両",
+      "formation": "12両1編成",
+      "speed": "130 km/h（設計150）",
+      "notes": [
+        "線路の摩耗を減らすため、あえて車体傾斜装置を載せていません。",
+        "アルミ合金の車体は摩擦攪拌接合で造られています。車体は白黒が基調で、側面に赤・緑・青、または迷彩色のブロックがあしらわれています。"
+      ]
+    },
+    "ko": {
+      "nick": "신형 쯔창호",
+      "maker": "일본 히타치",
+      "year": "2021년부터",
+      "count": "50편성 600량",
+      "formation": "12량 1편성",
+      "speed": "130 km/h(설계 150)",
+      "notes": [
+        "선로 마모를 줄이려고 일부러 틸팅 장치를 달지 않았어요.",
+        "알루미늄 합금 차체는 마찰교반용접으로 만들었어요. 차체는 흑백이 기본이고, 옆면에 빨강, 초록, 파랑 또는 위장무늬 색 블록이 들어가요."
+      ]
+    }
+  },
+  "temu1000": {
+    "zh-TW": {
+      "maker": "日本日立",
+      "year": "2006～2007 年（2016 年增購）",
+      "count": "8 列 64 輛",
+      "formation": "8 輛一列",
+      "speed": "130 km/h",
+      "notes": [
+        "「太魯閣號」這個名字是公開徵名選出來的。",
+        "外形參考 JR 九州 885 系，但日立照台鐵規範重新設計，凸出的頭燈被稱為「台鐵流」。"
+      ]
+    },
+    "en": {
+      "maker": "Hitachi, Japan",
+      "year": "2006–2007 (more bought in 2016)",
+      "count": "8 trains, 64 cars",
+      "formation": "8 cars per train",
+      "speed": "130 km/h",
+      "notes": [
+        "The name “Taroko” was chosen through a public naming contest.",
+        "Its look is based on JR Kyushu’s Series 885, but Hitachi redesigned it to Taiwan Railway’s standards; the protruding headlights are known as the “Taiwan Railway style”."
+      ]
+    },
+    "ja": {
+      "maker": "日本 日立製作所",
+      "year": "2006～2007年（2016年に増備）",
+      "count": "8編成64両",
+      "formation": "8両1編成",
+      "speed": "130 km/h",
+      "notes": [
+        "「太魯閣号」という名前は、一般公募で選ばれました。",
+        "外観はJR九州の885系を参考にしていますが、日立が台鉄の規格に合わせて設計し直しました。出っ張ったヘッドライトは「台鉄流」と呼ばれています。"
+      ]
+    },
+    "ko": {
+      "maker": "일본 히타치",
+      "year": "2006~2007년(2016년 추가 도입)",
+      "count": "8편성 64량",
+      "formation": "8량 1편성",
+      "speed": "130 km/h",
+      "notes": [
+        "‘타이루거호’라는 이름은 공개 모집으로 정해졌어요.",
+        "외형은 JR 규슈의 885계를 참고했지만 히타치가 대만철도 규격에 맞춰 다시 설계했어요. 튀어나온 전조등은 ‘대만철도류’라고 불려요."
+      ]
+    }
+  },
+  "temu2000": {
+    "zh-TW": {
+      "nick": "紅面番鴨、薑母鴨、普悠猴",
+      "maker": "日本車輛（機電：日本東芝）",
+      "year": "2012～2015 年",
+      "count": "19 列 152 輛",
+      "formation": "8 輛一列",
+      "speed": "130 km/h",
+      "notes": [
+        "紅色車頭讓它被叫作「紅面番鴨」或「薑母鴨」；2016 年的增購車加了猴年標誌，又被叫作「普悠猴」。",
+        "增購車另外加裝半主動式減震控制，坐起來更穩。"
+      ]
+    },
+    "en": {
+      "nick": "Red-faced Muscovy Duck, Ginger Duck, Puyouhou",
+      "maker": "Nippon Sharyo, Japan (electrical: Toshiba, Japan)",
+      "year": "2012–2015",
+      "count": "19 trains, 152 cars",
+      "formation": "8 cars per train",
+      "speed": "130 km/h",
+      "notes": [
+        "The red nose earned it the names “Red-faced Muscovy Duck” and “Ginger Duck”; the 2016 supplementary batch carries a Year-of-the-Monkey emblem and is also called “Puyouhou” (Puyuma monkey).",
+        "The supplementary cars also have semi-active suspension control, so the ride feels steadier."
+      ]
+    },
+    "ja": {
+      "nick": "紅面番鴨、薑母鴨、普悠猴",
+      "maker": "日本車輌製造（電機：日本 東芝）",
+      "year": "2012～2015年",
+      "count": "19編成152両",
+      "formation": "8両1編成",
+      "speed": "130 km/h",
+      "notes": [
+        "赤い先頭部から「紅面番鴨」や「薑母鴨」と呼ばれました。2016年の増備車には申年のマークがつき、「普悠猴」とも呼ばれています。",
+        "増備車にはセミアクティブ制振装置も追加され、乗り心地がさらに安定しています。"
+      ]
+    },
+    "ko": {
+      "nick": "붉은얼굴 머스코비오리, 생강오리탕, 푸유허우",
+      "maker": "닛폰샤료(전기 장치: 일본 도시바)",
+      "year": "2012~2015년",
+      "count": "19편성 152량",
+      "formation": "8량 1편성",
+      "speed": "130 km/h",
+      "notes": [
+        "빨간 앞부분 때문에 ‘붉은얼굴 머스코비오리’나 ‘생강오리탕’이라고 불렸어요. 2016년 추가 도입 차량에는 원숭이해 마크가 붙어 ‘푸유허우’라고도 불러요.",
+        "추가 도입 차량에는 반능동식 진동 제어 장치도 달아서 더 안정적으로 앉아 갈 수 있어요."
+      ]
+    }
+  },
+  "700t": {
+    "zh-TW": {
+      "maker": "日本川崎重工、日本車輛、日立",
+      "year": "2007 年",
+      "count": "34 列（先 30 列，後增購 4 列）",
+      "formation": "12 節一列",
+      "speed": "300 km/h",
+      "notes": [
+        "台灣高鐵原本規劃用法國 TGV，後來日本提出技術轉移與低利貸款，才改採新幹線系統。",
+        "車門有雙重控制，遇到地震會自動停車。"
+      ]
+    },
+    "en": {
+      "maker": "Kawasaki Heavy Industries, Nippon Sharyo, Hitachi, Japan",
+      "year": "2007",
+      "count": "34 trains (30 at first, 4 added later)",
+      "formation": "12 cars per train",
+      "speed": "300 km/h",
+      "notes": [
+        "Taiwan High Speed Rail had planned to use France’s TGV, but Japan offered technology transfer and low-interest loans, and the Shinkansen system was chosen instead.",
+        "The doors have dual control, and the train stops automatically in an earthquake."
+      ]
+    },
+    "ja": {
+      "maker": "日本 川崎重工、日本車輌製造、日立製作所",
+      "year": "2007年",
+      "count": "34編成（当初30編成、のちに4編成増備）",
+      "formation": "12両1編成",
+      "speed": "300 km/h",
+      "notes": [
+        "台湾高速鉄道は当初、フランスのTGVを使う計画でしたが、日本が技術移転と低利の融資を提案したため、新幹線方式に変わりました。",
+        "ドアは二重の制御になっていて、地震のときは自動で列車が止まります。"
+      ]
+    },
+    "ko": {
+      "maker": "일본 가와사키 중공업, 닛폰샤료, 히타치",
+      "year": "2007년",
+      "count": "34편성(처음 30편성, 이후 4편성 추가)",
+      "formation": "12량 1편성",
+      "speed": "300 km/h",
+      "notes": [
+        "대만 고속철도는 원래 프랑스 TGV를 쓰려 했지만, 일본이 기술 이전과 저리 대출을 제안해서 신칸센 방식으로 바뀌었어요.",
+        "문은 이중으로 제어되고, 지진이 나면 열차가 자동으로 멈춰요."
+      ]
+    }
+  },
+  "c301": {
+    "zh-TW": {
+      "nick": "還沒上路就先繞地球一圈",
+      "maker": "日本川崎重工、美國 URC",
+      "year": "1992～1993 年",
+      "count": "22 列 132 輛",
+      "formation": "6 輛一列",
+      "notes": [
+        "台灣第一款高運量捷運列車。",
+        "C371 還沒來之前，013／014 車組曾拆成 3 節一列，跑新北投支線。"
+      ]
+    },
+    "en": {
+      "nick": "Circled the World Before Opening",
+      "maker": "Kawasaki Heavy Industries, Japan; URC, USA",
+      "year": "1992–1993",
+      "count": "22 trains, 132 cars",
+      "formation": "6 cars per train",
+      "notes": [
+        "Taiwan’s first high-capacity metro train.",
+        "Before the C371 arrived, trainsets 013 and 014 were split into 3-car trains to run the Xinbeitou branch."
+      ]
+    },
+    "ja": {
+      "nick": "営業前に世界を一周した列車",
+      "maker": "日本 川崎重工、アメリカ URC",
+      "year": "1992～1993年",
+      "count": "22編成132両",
+      "formation": "6両1編成",
+      "notes": [
+        "台湾で初めての高運量MRT電車です。",
+        "C371が来る前は、013・014編成が3両に分けられ、新北投支線を走ったことがあります。"
+      ]
+    },
+    "ko": {
+      "nick": "운행도 하기 전에 세계 일주를 한 열차",
+      "maker": "일본 가와사키 중공업, 미국 URC",
+      "year": "1992~1993년",
+      "count": "22편성 132량",
+      "formation": "6량 1편성",
+      "notes": [
+        "대만 최초의 고수송량 MRT 열차예요.",
+        "C371이 오기 전에는 013·014 편성을 3량씩 나눠 신베이터우 지선을 달린 적이 있어요."
+      ]
+    }
+  },
+  "c321": {
+    "zh-TW": {
+      "maker": "德國西門子（南非 UCW、中鋼參與）",
+      "year": "1998～1999 年",
+      "count": "36 列 216 輛",
+      "formation": "6 輛一列",
+      "notes": [
+        "當初是為中和線、新店線、南港線採購，各線都有配；2009 年為了統一調度和維修，全數集中到板南線。"
+      ]
+    },
+    "en": {
+      "maker": "Siemens, Germany (UCW of South Africa and China Steel participated)",
+      "year": "1998–1999",
+      "count": "36 trains, 216 cars",
+      "formation": "6 cars per train",
+      "notes": [
+        "It was originally bought for the Zhonghe, Xindian and Nangang lines, with some for each; in 2009, to unify dispatch and maintenance, all were moved to the Bannan Line."
+      ]
+    },
+    "ja": {
+      "maker": "ドイツ シーメンス（南アフリカ UCW、中鋼が参加）",
+      "year": "1998～1999年",
+      "count": "36編成216両",
+      "formation": "6両1編成",
+      "notes": [
+        "もともと中和線・新店線・南港線用に購入され、各線に配置されていました。2009年に運用と整備を一本化するため、全車が板南線に集められました。"
+      ]
+    },
+    "ko": {
+      "maker": "독일 지멘스(남아프리카 UCW, 중국강철 참여)",
+      "year": "1998~1999년",
+      "count": "36편성 216량",
+      "formation": "6량 1편성",
+      "notes": [
+        "원래 중허선, 신뎬선, 난강선용으로 사서 각 노선에 나눠 배치했어요. 2009년에 운용과 정비를 통일하려고 전부 반난선에 모았어요."
+      ]
+    }
+  },
+  "c341": {
+    "zh-TW": {
+      "maker": "德國西門子",
+      "year": "2003 年",
+      "count": "6 列 36 輛",
+      "formation": "6 輛一列",
+      "notes": [
+        "跟 C321 幾乎一模一樣，除了看車號，只能從車頭逃生門和車身的光澤分辨。"
+      ]
+    },
+    "en": {
+      "maker": "Siemens, Germany",
+      "year": "2003",
+      "count": "6 trains, 36 cars",
+      "formation": "6 cars per train",
+      "notes": [
+        "It is almost identical to the C321; apart from the car numbers, the only ways to tell them apart are the escape door at the front and the sheen of the body."
+      ]
+    },
+    "ja": {
+      "maker": "ドイツ シーメンス",
+      "year": "2003年",
+      "count": "6編成36両",
+      "formation": "6両1編成",
+      "notes": [
+        "C321とほとんど同じで、車号を見るほかは、先頭部の非常口と車体の光沢で見分けるしかありません。"
+      ]
+    },
+    "ko": {
+      "maker": "독일 지멘스",
+      "year": "2003년",
+      "count": "6편성 36량",
+      "formation": "6량 1편성",
+      "notes": [
+        "C321과 거의 똑같아서, 차량 번호를 보는 것 외에는 앞부분의 비상문과 차체의 광택으로만 구분할 수 있어요."
+      ]
+    }
+  },
+  "c371": {
+    "zh-TW": {
+      "maker": "日本川崎重工、台灣車輛",
+      "year": "2005～2009 年",
+      "count": "321 輛（6 節 52 列、3 節 3 列）",
+      "formation": "6 輛或 3 輛一列",
+      "notes": [
+        "車組編號 3 開頭的是 2007 年前完成，4 開頭的是 2008 年後完成；4 系車主要跑中和新蘆線。",
+        "新北投支線原則上派車組 399 行駛，它漆的是溫泉主題塗裝。"
+      ]
+    },
+    "en": {
+      "maker": "Kawasaki Heavy Industries, Japan; Taiwan Car",
+      "year": "2005–2009",
+      "count": "321 cars (52 six-car trains, 3 three-car trains)",
+      "formation": "6 or 3 cars per train",
+      "notes": [
+        "Trainset numbers starting with 3 were completed before 2007, and those starting with 4 after 2008; the 4-series mainly run on the Zhonghe–Xinlu Line.",
+        "The Xinbeitou branch is normally served by trainset 399, which wears a hot-spring-themed livery."
+      ]
+    },
+    "ja": {
+      "maker": "日本 川崎重工、台湾車輌",
+      "year": "2005～2009年",
+      "count": "321両（6両編成52本、3両編成3本）",
+      "formation": "6両または3両1編成",
+      "notes": [
+        "編成番号が3で始まるものは2007年までに、4で始まるものは2008年以降に完成しました。4系は主に中和新蘆線を走っています。",
+        "新北投支線には原則として399編成が使われ、温泉をテーマにした塗装をまとっています。"
+      ]
+    },
+    "ko": {
+      "maker": "일본 가와사키 중공업, 대만차량",
+      "year": "2005~2009년",
+      "count": "321량(6량 편성 52개, 3량 편성 3개)",
+      "formation": "6량 또는 3량 1편성",
+      "notes": [
+        "편성 번호가 3으로 시작하는 것은 2007년 이전에, 4로 시작하는 것은 2008년 이후에 완성됐어요. 4번대 열차는 주로 중허신루선을 달려요.",
+        "신베이터우 지선에는 원칙적으로 399 편성이 투입되며, 온천을 주제로 한 도색을 하고 있어요."
+      ]
+    }
+  },
+  "c381": {
+    "zh-TW": {
+      "maker": "日本川崎重工、台灣車輛",
+      "year": "2010～2013 年",
+      "count": "24 列 144 輛",
+      "formation": "6 輛一列",
+      "notes": [
+        "台北捷運第一次用立體曲面的擋風玻璃，車廂之間也加了防墜擋板。",
+        "當初是為了信義線東延段與松山線增購。"
+      ]
+    },
+    "en": {
+      "maker": "Kawasaki Heavy Industries, Japan; Taiwan Car",
+      "year": "2010–2013",
+      "count": "24 trains, 144 cars",
+      "formation": "6 cars per train",
+      "notes": [
+        "The first Taipei Metro train with a three-dimensional curved windshield, and it also has anti-fall barriers between cars.",
+        "It was bought for the Xinyi Line eastern extension and the Songshan Line."
+      ]
+    },
+    "ja": {
+      "maker": "日本 川崎重工、台湾車輌",
+      "year": "2010～2013年",
+      "count": "24編成144両",
+      "formation": "6両1編成",
+      "notes": [
+        "台北MRTで初めて立体曲面の前面ガラスを採用し、車両の間には転落防止の板もつけました。",
+        "信義線東延区間と松山線のために増備されたものです。"
+      ]
+    },
+    "ko": {
+      "maker": "일본 가와사키 중공업, 대만차량",
+      "year": "2010~2013년",
+      "count": "24편성 144량",
+      "formation": "6량 1편성",
+      "notes": [
+        "타이베이 MRT 최초로 입체 곡면 앞유리를 썼고, 객차 사이에는 추락 방지 판도 달았어요.",
+        "신이선 동쪽 연장 구간과 쑹산선을 위해 추가로 구입했어요."
+      ]
+    }
+  },
+  "val256": {
+    "zh-TW": {
+      "maker": "法國馬特拉、阿爾斯通",
+      "year": "1990～1993 年",
+      "count": "51 組 102 輛",
+      "formation": "4 輛一列",
+      "notes": [
+        "台灣第一款中運量捷運列車。",
+        "1997 年馬特拉和台北市捷運局起糾紛、撤走所有技術人員，時任市長陳水扁留下「馬特拉不拉，我們自己拉」這句話，之後列車照樣順利運行。"
+      ]
+    },
+    "en": {
+      "maker": "Matra and Alstom, France",
+      "year": "1990–1993",
+      "count": "51 sets, 102 cars",
+      "formation": "4 cars per train",
+      "notes": [
+        "Taiwan’s first medium-capacity metro train.",
+        "In 1997 Matra fell into a dispute with the Taipei Department of Rapid Transit Systems and pulled all its technicians; then-mayor Chen Shui-bian left the line “If Matra won’t pull, we’ll pull ourselves”, and the trains ran smoothly all the same."
+      ]
+    },
+    "ja": {
+      "maker": "フランス マトラ、アルストム",
+      "year": "1990～1993年",
+      "count": "51編成102両",
+      "formation": "4両1編成",
+      "notes": [
+        "台湾で初めての中運量MRT電車です。",
+        "1997年にマトラと台北市捷運局が対立し、マトラが全技術者を引き揚げました。当時の陳水扁市長は「マトラが引かないなら、われわれが自分で引く」という言葉を残し、その後も列車は問題なく走りました。"
+      ]
+    },
+    "ko": {
+      "maker": "프랑스 마트라, 알스톰",
+      "year": "1990~1993년",
+      "count": "51편성 102량",
+      "formation": "4량 1편성",
+      "notes": [
+        "대만 최초의 중수송량 MRT 열차예요.",
+        "1997년 마트라와 타이베이시 지하철국이 분쟁을 벌여 마트라가 기술자를 모두 철수시켰어요. 당시 천수이볜 시장은 ‘마트라가 안 끌면 우리가 직접 끈다’는 말을 남겼고, 그 뒤로도 열차는 문제없이 달렸어요."
+      ]
+    }
+  },
+  "wenhu": {
+    "zh-TW": {
+      "maker": "龐巴迪、唐榮",
+      "year": "2006～2009 年",
+      "count": "101 組 202 輛",
+      "formation": "4 輛一列",
+      "notes": [
+        "北捷內部叫它「370 型」，這個號碼其實是自動駕駛系統的架構型號，不是列車型號。"
+      ]
+    },
+    "en": {
+      "maker": "Bombardier, Tang Eng",
+      "year": "2006–2009",
+      "count": "101 sets, 202 cars",
+      "formation": "4 cars per train",
+      "notes": [
+        "Inside Taipei Metro it is called the “Type 370”; that number is actually the model of the automatic train control system architecture, not of the train."
+      ]
+    },
+    "ja": {
+      "maker": "ボンバルディア、唐栄",
+      "year": "2006～2009年",
+      "count": "101対202両",
+      "formation": "4両1編成",
+      "notes": [
+        "台北MRT内部では「370型」と呼ばれていますが、この番号は実は自動運転システムの構成の型番で、車両の型式ではありません。"
+      ]
+    },
+    "ko": {
+      "maker": "봄바르디어, 탕룽",
+      "year": "2006~2009년",
+      "count": "101편성 202량",
+      "formation": "4량 1편성",
+      "notes": [
+        "타이베이 MRT 내부에서는 ‘370형’이라고 부르는데, 이 번호는 사실 자동운전 시스템 구조의 형식 번호이고 열차 형식이 아니에요."
+      ]
+    }
+  },
+  "y100": {
+    "zh-TW": {
+      "maker": "日立軌道義大利、台灣車輛",
+      "year": "2017～2018 年",
+      "count": "17 列 68 輛",
+      "formation": "4 輛一列",
+      "notes": [
+        "全台第一個用鋼輪的中運量系統（文湖線用的是膠輪）。",
+        "車廂編號不用數字，改用英文字母 A、B、C、D。"
+      ]
+    },
+    "en": {
+      "maker": "Hitachi Rail Italy, Taiwan Car",
+      "year": "2017–2018",
+      "count": "17 trains, 68 cars",
+      "formation": "4 cars per train",
+      "notes": [
+        "Taiwan’s first medium-capacity system to use steel wheels (the Wenhu Line uses rubber tires).",
+        "Car numbers use the letters A, B, C and D instead of numerals."
+      ]
+    },
+    "ja": {
+      "maker": "日立レール・イタリア、台湾車輌",
+      "year": "2017～2018年",
+      "count": "17編成68両",
+      "formation": "4両1編成",
+      "notes": [
+        "台湾で初めて鉄車輪を使った中運量システムです（文湖線はゴムタイヤ式）。",
+        "車両の番号は数字ではなく、A、B、C、Dのアルファベットを使っています。"
+      ]
+    },
+    "ko": {
+      "maker": "히타치 레일 이탈리아, 대만차량",
+      "year": "2017~2018년",
+      "count": "17편성 68량",
+      "formation": "4량 1편성",
+      "notes": [
+        "대만 최초로 강철 바퀴를 쓴 중수송량 시스템이에요(원후선은 고무 바퀴).",
+        "객차 번호는 숫자 대신 알파벳 A, B, C, D를 써요."
+      ]
+    }
+  },
+  "danhai": {
+    "zh-TW": {
+      "nick": "行武者",
+      "maker": "台灣車輛",
+      "year": "2016～2017 年",
+      "count": "15 列",
+      "formation": "5 節一列",
+      "notes": [
+        "台灣第一款真正「國車國造」的列車。",
+        "102、105、109 號列車的車廂裡，有插畫家幾米的彩繪。"
+      ]
+    },
+    "en": {
+      "nick": "Xingwuzhe",
+      "maker": "Taiwan Car",
+      "year": "2016–2017",
+      "count": "15 trains",
+      "formation": "5 modules per train",
+      "notes": [
+        "Taiwan’s first train truly “built in Taiwan, by Taiwan”.",
+        "Trains 102, 105 and 109 carry artwork by illustrator Jimmy Liao inside the cars."
+      ]
+    },
+    "ja": {
+      "nick": "行武者",
+      "maker": "台湾車輌",
+      "year": "2016～2017年",
+      "count": "15編成",
+      "formation": "5モジュール1編成",
+      "notes": [
+        "台湾で初めての、本当の意味での「国産車両」です。",
+        "102・105・109号編成の車内には、イラストレーター幾米（ジミー・リャオ）の絵が描かれています。"
+      ]
+    },
+    "ko": {
+      "nick": "싱우저",
+      "maker": "대만차량",
+      "year": "2016~2017년",
+      "count": "15편성",
+      "formation": "5모듈 1편성",
+      "notes": [
+        "대만 최초로 진정한 ‘대만 기술로 대만에서 만든’ 열차예요.",
+        "102·105·109호 열차 안에는 일러스트레이터 지미(幾米)의 그림이 그려져 있어요."
+      ]
+    }
+  },
+  "ankeng": {
+    "zh-TW": {
+      "maker": "台灣車輛",
+      "count": "15 列",
+      "formation": "5 節一列",
+      "notes": [
+        "除了外觀，規格和淡海輕軌完全相同。"
+      ]
+    },
+    "en": {
+      "maker": "Taiwan Car",
+      "count": "15 trains",
+      "formation": "5 modules per train",
+      "notes": [
+        "Apart from the looks, its specifications are identical to those of the Danhai Light Rail."
+      ]
+    },
+    "ja": {
+      "maker": "台湾車輌",
+      "count": "15編成",
+      "formation": "5モジュール1編成",
+      "notes": [
+        "外観を除けば、仕様は淡海ライトレールとまったく同じです。"
+      ]
+    },
+    "ko": {
+      "maker": "대만차량",
+      "count": "15편성",
+      "formation": "5모듈 1편성",
+      "notes": [
+        "외관만 다를 뿐, 사양은 단하이 경전철과 완전히 같아요."
+      ]
+    }
+  },
+  "airportlocal": {
+    "zh-TW": {
+      "maker": "日本川崎重工、台灣車輛",
+      "year": "2011～2015 年",
+      "count": "20 列 80 輛",
+      "formation": "4 輛一列（全是動力車）",
+      "notes": [
+        "林口台地有好幾段長陡坡，所以四節全都是馬達車。"
+      ]
+    },
+    "en": {
+      "maker": "Kawasaki Heavy Industries, Japan; Taiwan Car",
+      "year": "2011–2015",
+      "count": "20 trains, 80 cars",
+      "formation": "4 cars per train (all motor cars)",
+      "notes": [
+        "The Linkou Tableland has several long, steep grades, so all four cars are motor cars."
+      ]
+    },
+    "ja": {
+      "maker": "日本 川崎重工、台湾車輌",
+      "year": "2011～2015年",
+      "count": "20編成80両",
+      "formation": "4両1編成（全車動力車）",
+      "notes": [
+        "林口台地には長い急勾配がいくつもあるため、4両すべてがモーター付きの車両です。"
+      ]
+    },
+    "ko": {
+      "maker": "일본 가와사키 중공업, 대만차량",
+      "year": "2011~2015년",
+      "count": "20편성 80량",
+      "formation": "4량 1편성(전부 동력차)",
+      "notes": [
+        "린커우 대지에는 길고 가파른 오르막이 여러 곳 있어서 네 량 모두 모터가 있는 동력차예요."
+      ]
+    }
+  },
+  "airportexpress": {
+    "zh-TW": {
+      "maker": "日本川崎重工",
+      "year": "2011～2013 年",
+      "count": "11 列 55 輛",
+      "formation": "5 輛一列（全是動力車）",
+      "notes": [
+        "全台唯一有行李車廂、也唯一分快慢車的捷運系統。",
+        "延伸線用的是另一套號誌系統，所以直達車往南只開到 A21 環北站。"
+      ]
+    },
+    "en": {
+      "maker": "Kawasaki Heavy Industries, Japan",
+      "year": "2011–2013",
+      "count": "11 trains, 55 cars",
+      "formation": "5 cars per train (all motor cars)",
+      "notes": [
+        "Taiwan’s only metro system with baggage cars and the only one to run both express and local services.",
+        "The extension line uses a different signaling system, so express trains going south only run as far as A21 Huanbei."
+      ]
+    },
+    "ja": {
+      "maker": "日本 川崎重工",
+      "year": "2011～2013年",
+      "count": "11編成55両",
+      "formation": "5両1編成（全車動力車）",
+      "notes": [
+        "台湾のMRTで荷物車両があるのはここだけで、快速と普通に分かれているのもここだけです。",
+        "延伸線は別の信号システムを使っているため、直通列車は南へはA21環北駅までしか行きません。"
+      ]
+    },
+    "ko": {
+      "maker": "일본 가와사키 중공업",
+      "year": "2011~2013년",
+      "count": "11편성 55량",
+      "formation": "5량 1편성(전부 동력차)",
+      "notes": [
+        "대만의 MRT 중 수하물 객차가 있는 곳은 여기뿐이고, 급행과 보통으로 나뉘는 곳도 여기뿐이에요.",
+        "연장선은 다른 신호 시스템을 쓰기 때문에, 급행은 남쪽으로 A21 환베이역까지만 가요."
+      ]
+    }
+  },
+  "taichung": {
+    "zh-TW": {
+      "maker": "日本川崎重工、台灣車輛",
+      "year": "2017 年",
+      "count": "18 列 36 輛",
+      "formation": "2 輛一列"
+    },
+    "en": {
+      "maker": "Kawasaki Heavy Industries, Japan; Taiwan Car",
+      "year": "2017",
+      "count": "18 trains, 36 cars",
+      "formation": "2 cars per train"
+    },
+    "ja": {
+      "maker": "日本 川崎重工、台湾車輌",
+      "year": "2017年",
+      "count": "18編成36両",
+      "formation": "2両1編成"
+    },
+    "ko": {
+      "maker": "일본 가와사키 중공업, 대만차량",
+      "year": "2017년",
+      "count": "18편성 36량",
+      "formation": "2량 1편성"
+    }
+  },
+  "kaohsiung": {
+    "zh-TW": {
+      "maker": "德國西門子",
+      "year": "2005～2007 年",
+      "count": "42 列 126 輛",
+      "formation": "3 輛一列（可擴充到 6 輛）"
+    },
+    "en": {
+      "maker": "Siemens, Germany",
+      "year": "2005–2007",
+      "count": "42 trains, 126 cars",
+      "formation": "3 cars per train (expandable to 6)"
+    },
+    "ja": {
+      "maker": "ドイツ シーメンス",
+      "year": "2005～2007年",
+      "count": "42編成126両",
+      "formation": "3両1編成（6両まで増結可能）"
+    },
+    "ko": {
+      "maker": "독일 지멘스",
+      "year": "2005~2007년",
+      "count": "42편성 126량",
+      "formation": "3량 1편성(6량까지 늘릴 수 있음)"
+    }
+  },
+  "caf": {
+    "zh-TW": {
+      "nick": "小綠綠",
+      "maker": "西班牙 CAF",
+      "year": "2014～2015 年",
+      "count": "9 列 45 輛",
+      "formation": "5 節一列",
+      "notes": [
+        "2003 年中央公園辦過輕軌試乘，但若說正式營運載客，這款才是台灣第一。"
+      ]
+    },
+    "en": {
+      "nick": "Little Green Green",
+      "maker": "CAF, Spain",
+      "year": "2014–2015",
+      "count": "9 trains, 45 cars",
+      "formation": "5 modules per train",
+      "notes": [
+        "A light-rail test ride was held at Central Park in 2003, but for regular passenger service, this is Taiwan’s first."
+      ]
+    },
+    "ja": {
+      "nick": "小緑緑",
+      "maker": "スペイン CAF",
+      "year": "2014～2015年",
+      "count": "9編成45両",
+      "formation": "5モジュール1編成",
+      "notes": [
+        "2003年に中央公園でライトレールの試乗会が開かれたことがありますが、正式な営業運転で旅客を乗せたのは、この車両が台湾で初めてです。"
+      ]
+    },
+    "ko": {
+      "nick": "작은 초록이",
+      "maker": "스페인 CAF",
+      "year": "2014~2015년",
+      "count": "9편성 45량",
+      "formation": "5모듈 1편성",
+      "notes": [
+        "2003년 중앙공원에서 경전철 시승 행사가 열린 적이 있지만, 정식으로 영업 운행을 하며 승객을 태운 건 이 열차가 대만 최초예요."
+      ]
+    }
+  },
+  "citadis": {
+    "zh-TW": {
+      "nick": "小黑綠",
+      "maker": "法國阿爾斯通",
+      "year": "2018～2021 年",
+      "count": "15 列 75 輛",
+      "formation": "5 節一列"
+    },
+    "en": {
+      "nick": "Little Black Green",
+      "maker": "Alstom, France",
+      "year": "2018–2021",
+      "count": "15 trains, 75 cars",
+      "formation": "5 modules per train"
+    },
+    "ja": {
+      "nick": "小黒緑",
+      "maker": "フランス アルストム",
+      "year": "2018～2021年",
+      "count": "15編成75両",
+      "formation": "5モジュール1編成"
+    },
+    "ko": {
+      "nick": "작은 검은 초록이",
+      "maker": "프랑스 알스톰",
+      "year": "2018~2021년",
+      "count": "15편성 75량",
+      "formation": "5모듈 1편성"
+    }
+  },
+  "juguang": {
+    "zh-TW": {
+      "maker": "日本車輛、日立（第一代）；唐榮鐵工廠（之後各系）",
+      "year": "1970 年起",
+      "notes": [
+        "第一代 32850 型莒光號內裝走豪華路線：木色裝潢、紅地毯、可躺的座椅，車窗還掛著白紗。",
+        "1995 年的 10400 系首度用自動門和 LED 終點顯示，是當時最先進的莒光號客車。"
+      ]
+    },
+    "en": {
+      "maker": "Nippon Sharyo and Hitachi, Japan (first generation); Tang Eng Iron Works (later series)",
+      "year": "From 1970",
+      "notes": [
+        "The interior of the first-generation Type 32850 Chu-Kuang went for luxury: wood-tone paneling, red carpet, reclining seats, and white lace curtains at the windows.",
+        "The 10400 series of 1995 was the first Chu-Kuang coach with automatic doors and an LED destination display, the most advanced of its day."
+      ]
+    },
+    "ja": {
+      "maker": "日本車輌製造、日立製作所（初代）、唐栄鉄工廠（以降の各系列）",
+      "year": "1970年から",
+      "notes": [
+        "初代の32850形莒光号は車内が豪華志向で、木目調の内装、赤いじゅうたん、リクライニングシート、窓には白いカーテンまでありました。",
+        "1995年の10400系は、自動ドアとLEDの行先表示を初めて採用した莒光号の客車で、当時の最新型でした。"
+      ]
+    },
+    "ko": {
+      "maker": "닛폰샤료, 히타치(1세대), 탕룽 철공장(이후 각 계열)",
+      "year": "1970년부터",
+      "notes": [
+        "1세대 32850형 쥐광호는 내부를 고급스럽게 꾸몄어요. 나무색 인테리어, 붉은 카펫, 눕힐 수 있는 좌석에 창문에는 흰 커튼까지 달려 있었어요.",
+        "1995년의 10400계는 자동문과 LED 행선 표시기를 처음 쓴 쥐광호 객차로, 당시 가장 앞선 객차였어요."
+      ]
+    }
+  },
+  "ppcoach": {
+    "zh-TW": {
+      "maker": "唐榮鐵工廠",
+      "year": "2001～2002 年",
+      "count": "32 輛",
+      "notes": [
+        "一開始是半客室、半餐車，碰上 SARS 生意不好，改當快遞車和自行車車廂。",
+        "2017 年起有 20 輛改成親子車廂、11 輛改成附自行車架的多功能車，多掛在推拉式自強號的第 12 車。"
+      ]
+    },
+    "en": {
+      "maker": "Tang Eng Iron Works",
+      "year": "2001–2002",
+      "count": "32 cars",
+      "notes": [
+        "It started out half passenger compartment, half dining car; when business was poor during SARS, it was converted into an express-parcel car and a bicycle car.",
+        "From 2017, 20 cars were converted into family cars and 11 into multi-purpose cars with bike racks, mostly coupled as car 12 of the push–pull Tze-Chiang."
+      ]
+    },
+    "ja": {
+      "maker": "唐栄鉄工廠",
+      "year": "2001～2002年",
+      "count": "32両",
+      "notes": [
+        "最初は半分が客室、半分が食堂車でしたが、SARSで売れ行きが悪くなり、宅配荷物車と自転車車両に改造されました。",
+        "2017年から20両が親子車両に、11両が自転車ラックつきの多目的車に改造され、多くはプッシュプル式自強号の12号車に連結されています。"
+      ]
+    },
+    "ko": {
+      "maker": "탕룽 철공장",
+      "year": "2001~2002년",
+      "count": "32량",
+      "notes": [
+        "처음에는 반은 객실, 반은 식당차였는데, 사스(SARS) 때 장사가 안 돼서 택배차와 자전거 차량으로 바뀌었어요.",
+        "2017년부터 20량은 가족 칸으로, 11량은 자전거 거치대가 달린 다목적 칸으로 개조되어, 대부분 푸시풀 쯔창호의 12번째 칸에 달려요."
+      ]
+    }
+  },
+  "fuxing": {
+    "zh-TW": {
+      "maker": "唐榮鐵工廠",
+      "year": "1980 年起",
+      "count": "20000 系 120 輛、2000 系 40 輛",
+      "notes": [
+        "最早叫「冷氣對號客車」，塗裝和莒光號很像、容易搞混，後來改漆天藍配灰白，才有了復興號的樣子。",
+        "2000 系是用舊客車的機件重新打造的，首度裝了緊急通風窗。"
+      ]
+    },
+    "en": {
+      "maker": "Tang Eng Iron Works",
+      "year": "From 1980",
+      "count": "120 cars of the 20000 series, 40 of the 2000 series",
+      "notes": [
+        "It was first called the “air-conditioned reserved-seat coach”; its livery looked so much like the Chu-Kuang’s that the two were easily confused, and it was later repainted sky blue with gray-white, giving the Fu-Hsing the look we know.",
+        "The 2000 series was rebuilt from the machinery of old coaches and was the first to have emergency ventilation windows."
+      ]
+    },
+    "ja": {
+      "maker": "唐栄鉄工廠",
+      "year": "1980年から",
+      "count": "20000系120両、2000系40両",
+      "notes": [
+        "最初は「冷房付き指定席客車」と呼ばれ、塗装が莒光号によく似ていて紛らわしかったため、のちに空色にグレーがかった白の塗装に改められ、復興号らしい姿になりました。",
+        "2000系は古い客車の機器を使って造り直された車両で、非常用換気窓を初めて備えました。"
+      ]
+    },
+    "ko": {
+      "maker": "탕룽 철공장",
+      "year": "1980년부터",
+      "count": "20000계 120량, 2000계 40량",
+      "notes": [
+        "처음에는 ‘에어컨 지정석 객차’로 불렸어요. 도색이 쥐광호와 비슷해 헷갈렸고, 나중에 하늘색에 회백색으로 다시 칠하면서 푸싱호다운 모습이 되었어요.",
+        "2000계는 오래된 객차의 부품으로 새로 만든 차량이고, 비상 환기창을 처음 달았어요."
+      ]
+    }
+  },
+  "bluecoach": {
+    "zh-TW": {
+      "maker": "日本富士重工、近畿車輛、新潟鐵工（35SPK32700 型）",
+      "year": "1970 年",
+      "count": "100 輛（32701～32800）",
+      "notes": [
+        "35SPK32700 型一次買了 100 輛，是台鐵第一款單一型式就達百輛的客守車。",
+        "到 2014 年底，南迴線上只剩 4 輛還在跑；修復之後，成了藍皮解憂號的車廂。"
+      ]
+    },
+    "en": {
+      "maker": "Fuji Heavy Industries, Kinki Sharyo, Niigata Engineering, Japan (type 35SPK32700)",
+      "year": "1970",
+      "count": "100 cars (32701–32800)",
+      "notes": [
+        "The 35SPK32700 type was bought 100 at a time, making it the first single type of Taiwan Railway coach to reach one hundred cars.",
+        "By the end of 2014 only 4 were still running on the South Link Line; after restoration they became the coaches of the Breezy Blue train."
+      ]
+    },
+    "ja": {
+      "maker": "日本 富士重工、近畿車輌、新潟鉄工所（35SPK32700形）",
+      "year": "1970年",
+      "count": "100両（32701～32800）",
+      "notes": [
+        "35SPK32700形は一度に100両が購入され、台鉄で単一の形式として初めて100両に達した客車でした。",
+        "2014年末には南廻線で走っていたのは4両だけになりました。修復されたのち、藍皮解憂号の客車になりました。"
+      ]
+    },
+    "ko": {
+      "maker": "일본 후지중공업, 긴키샤료, 니가타철공(35SPK32700형)",
+      "year": "1970년",
+      "count": "100량(32701~32800)",
+      "notes": [
+        "35SPK32700형은 한꺼번에 100량을 샀어요. 대만철도에서 한 형식으로 100량에 이른 첫 객차예요.",
+        "2014년 말에는 남회선에서 4량만 달리고 있었고, 복원을 거쳐 브리지 블루 열차의 객차가 되었어요."
+      ]
+    }
+  },
+  "mingricoach": {
+    "zh-TW": {
+      "notes": [
+        "鳴日號的商務車由 35BCK10700 型改造，而這型本身又是從莒光號客車改來的。",
+        "鳴日廚房的餐車在 2021 年由三輛莒光號客車改成，加裝了抽風設備和廚房廢水箱。"
+      ]
+    },
+    "en": {
+      "notes": [
+        "The business car of the Future train was converted from a 35BCK10700 coach, which itself was converted from a Chu-Kuang coach.",
+        "The Future kitchen’s dining car was converted in 2021 from three Chu-Kuang coaches and fitted with ventilation equipment and a kitchen wastewater tank."
+      ]
+    },
+    "ja": {
+      "notes": [
+        "鳴日号のビジネス車は35BCK10700形を改造したもので、この形式もまた莒光号の客車から改造されたものです。",
+        "鳴日厨房の食堂車は、2021年に莒光号の客車3両を改造したもので、排気設備と厨房排水タンクが加えられました。"
+      ]
+    },
+    "ko": {
+      "notes": [
+        "밍르호의 비즈니스 객차는 35BCK10700형을 개조한 것이고, 이 형식 자체도 쥐광호 객차를 개조한 거예요.",
+        "밍르 주방의 식당차는 2021년 쥐광호 객차 세 량을 개조해 만들었고, 환기 설비와 주방 폐수 탱크를 달았어요."
+      ]
+    }
+  },
+  "alicoach": {
+    "zh-TW": {
+      "notes": [
+        "阿里山停止伐木後轉型觀光，先後推出中興號、光復號，以及有空調的阿里山號。",
+        "因風災中斷多年後，2024 年恢復嘉義到阿里山的全線通車。"
+      ]
+    },
+    "en": {
+      "notes": [
+        "After logging stopped on Alishan, the area turned to tourism, introducing first the Chung-Hsing and Kuang-Fu trains and then the air-conditioned Alishan Express.",
+        "After years of disruption by typhoon damage, full service from Chiayi to Alishan resumed in 2024."
+      ]
+    },
+    "ja": {
+      "notes": [
+        "阿里山の伐採が止まったあと観光に転じ、中興号、光復号、さらに冷房付きの阿里山号が相次いで登場しました。",
+        "台風被害で長年運休していましたが、2024年に嘉義～阿里山の全線で運転が再開されました。"
+      ]
+    },
+    "ko": {
+      "notes": [
+        "아리산에서 벌목이 멈추면서 관광으로 방향을 바꿨고, 중싱호와 광푸호, 에어컨이 있는 아리산호가 차례로 등장했어요.",
+        "태풍 피해로 오랫동안 끊겼다가 2024년에 자이~아리산 전 구간 운행이 다시 시작됐어요."
+      ]
+    }
+  }
 },
 };

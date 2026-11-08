@@ -147,6 +147,15 @@ html[data-theme=dark] #trainGarage{--g-hdr:var(--paper-tr);--g-hdr-ink:var(--ink
 /* 介紹（train-garage-intros.js）：兌換視窗、場景頁的介紹卡、車款詳情各一段，比下面那行灰字說明大一號、用內文色。 */
 #trainGarage .g-redeem-intro,#trainGarage .g-about-text{margin-top:4px;margin-bottom:0;font-size:14px;line-height:1.75;color:var(--g-ink)}
 #trainGarage .g-car-intro{margin:12px 0 6px;font-size:14px;line-height:1.75}
+/* 車款檔案：標題、綽號與規格兩欄對齊、書上的小故事、最後一行灰字資料參考。 */
+#trainGarage .g-car-file{margin:14px 0 4px;padding:12px 14px;border:1px solid var(--g-line);border-radius:8px}
+#trainGarage .g-car-file-title{margin:0 0 8px;font-size:13px;font-weight:800;letter-spacing:2px;color:var(--ink-strong)}
+#trainGarage .g-car-file-rows{display:grid;grid-template-columns:max-content 1fr;gap:4px 12px;margin:0;font-size:13px;line-height:1.6}
+#trainGarage .g-car-file-rows dt{color:var(--g-muted);font-weight:700}
+#trainGarage .g-car-file-rows dd{margin:0;color:var(--g-ink)}
+#trainGarage .g-car-file-notes{margin:10px 0 0;padding-left:1.2em;font-size:13px;line-height:1.7;color:var(--g-ink)}
+#trainGarage .g-car-file-notes li+li{margin-top:4px}
+#trainGarage .g-car-file-src{margin:10px 0 0;font-size:11px;color:var(--g-muted)}
 #trainGarage .g-redeem-desc{margin-top:4px;margin-bottom:0;font-size:13px;line-height:1.6;color:var(--g-muted)}
 #trainGarage .g-redeem-msg{margin:0;font-size:15px;line-height:1.6;font-variant-numeric:tabular-nums}
 #trainGarage .g-redeem-card[data-state=warn] .g-redeem-msg{padding:9px 12px;border:1px solid var(--warn-line);border-radius:8px;background:var(--warn-bg);color:var(--warn-ink);font-size:14px;font-weight:600}

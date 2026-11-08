@@ -373,6 +373,7 @@
       action.onclick=()=>{const rule=row.rule;close();host.launch(rule);};}
     ownTrainDetail(row);
     const carIntro=$('.g-car-intro');carIntro.textContent=introOf('cars',row.id);carIntro.hidden=!carIntro.textContent;
+    carFile(row.id);
     $('.g-source-body').replaceChildren();
     for(const text of [tr('模型製作：軌島（Q 版示意）'),tr('收藏的是紀念模型，不代表曾搭乘這個實際車型或車號。'),tr('外觀依公開照片參考繪製；照片僅連結，未作為模型貼圖。')]) {
       const p=document.createElement('p');p.textContent=text;$('.g-source-body').append(p);
@@ -438,6 +439,20 @@
   let redeemScene='',redeemAction=null,redeemStored=false,redeemAck='',redeemResent='',redeemOpener=null;
   // 場景與車款的介紹（train-garage-intros.js，四語寫在同一份；韓文缺就用英文，同翻譯表）。沒有介紹的回空字串，畫面就不出那一段。
   const introOf=(kind,id)=>{const m=globalThis.RailGarageIntros?.[kind]?.[id];if(!m)return '';const lang=host.lang();return m[lang]||(lang==='ko'?m.en:'')||m['zh-TW']||'';};
+  // 車款檔案（同一份檔的 profiles／profileLabels，取語言同 introOf）：綽號與規格逐列、書上的小故事、最後一行資料參考。
+  // 內容已是目前語言，整塊 data-i18n-skip，免得剛好跟字典鍵同字的值又被翻一次。沒有檔案的車款整塊不出。
+  const FILE_ROWS=['nick','maker','year','count','formation','power','speed'];
+  const langOf=m=>{if(!m)return null;const lang=host.lang();return m[lang]||(lang==='ko'?m.en:null)||m['zh-TW']||null;};
+  function carFile(id){
+    const box=$('.g-car-file'),p=langOf(globalThis.RailGarageIntros?.profiles?.[id]),l=langOf(globalThis.RailGarageIntros?.profileLabels);
+    box.hidden=!p||!l;if(box.hidden)return;
+    $('.g-car-file-title').textContent=l.title;
+    const rows=$('.g-car-file-rows');rows.replaceChildren();
+    for(const k of FILE_ROWS)if(p[k]){const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=l[k];dd.textContent=p[k];rows.append(dt,dd);}
+    rows.hidden=!rows.childElementCount;
+    const notes=$('.g-car-file-notes');notes.replaceChildren(...(p.notes||[]).map(text=>{const li=document.createElement('li');li.textContent=text;return li;}));notes.hidden=!notes.childElementCount;
+    $('.g-car-file-src').textContent=l.source;
+  }
   // 介紹檔四語約 200 KB，只有打開車庫才載入（首頁不載）；載完 refresh() 補上詳情、場景頁「介紹」鈕與開著的兌換視窗。失敗就下次打開再試。
   let introsLoading=false;
   function loadIntros(){
@@ -742,7 +757,7 @@
       <section class="g-showcase" aria-label="${esc(tr('車型展示'))}"><div class="g-stage"><div class="g-scene-bar"><div class="g-scene-tabs">${[['model','近看小車'],['loop','環形試跑'],['track','海岸行旅'],['scene','場景']].map(([id,label])=>`<button data-view="${id}" aria-pressed="${mode===id}">${esc(tr(label))}</button>`).join('')}</div><button class="g-reverse" hidden aria-pressed="false" title="${esc(tr('反向行駛'))}" aria-label="${esc(tr('反向行駛'))}">⇄</button></div>
       <div class="g-viewport"><canvas class="g-view" tabindex="0" role="img" aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown"></canvas><div class="g-zoom"><button class="g-zoom-in" title="${esc(tr('放大場景'))}" aria-label="${esc(tr('放大場景'))}">+</button><output class="g-zoom-level" aria-label="${esc(tr('縮放比例'))}">100%</output><button class="g-zoom-out" title="${esc(tr('縮小場景'))}" aria-label="${esc(tr('縮小場景'))}">−</button></div><button class="g-fs" type="button" aria-pressed="false" title="${esc(tr('全畫面觀看'))}" aria-label="${esc(tr('全畫面觀看'))}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${FS_PATH.off}"/></svg></button></div><div class="g-fallback" hidden>${esc(tr('這個裝置暫時無法顯示 3D，收藏紀錄與來源仍可查看。'))}</div>
       <div class="g-stage-foot"><span class="g-view-hint"></span><div class="g-controls"><button class="g-auto" aria-label="${esc(tr('自動旋轉'))}" aria-pressed="false">▷</button><button class="g-reset-view" title="${esc(tr('重設視角'))}" aria-label="${esc(tr('重設視角'))}">⌂</button><button class="g-swap" type="button" hidden aria-haspopup="true" aria-expanded="false">${esc(tr('換列車'))}</button><label class="g-period" hidden><span>${esc(tr('天色'))}</span><select class="g-period-select">${PERIOD_CHOICES.map(([id,label])=>`<option value="${id}">${esc(tr(label))}</option>`).join('')}</select></label><button class="g-retry" hidden aria-label="${esc(tr('重新載入小車'))}">↻</button></div></div><div class="g-swap-menu" hidden><p>${esc(tr('選擇車款'))}</p><div class="g-sf-car-list"></div></div></div>
-      <div class="g-detail"><span class="g-status"></span><h2 class="g-name"></h2><p class="g-system"></p><p class="g-reason"></p><p class="g-goal"></p><p class="g-date"></p><button class="g-cta"></button><button class="mt-g-plan" type="button" data-mt-g="schedule" hidden></button><p class="mt-g-note" data-mt-g="note" hidden></p><div class="mt-g-mine" hidden><p class="mt-g-status" data-mt-g="status" data-i18n-skip></p><button class="mt-g-view" type="button" data-mt-g="view"></button></div><p class="g-car-intro" hidden></p><details class="g-sources"><summary>${esc(tr('車型與來源'))} ↗</summary><div class="g-source-body"></div></details></div></section>
+      <div class="g-detail"><span class="g-status"></span><h2 class="g-name"></h2><p class="g-system"></p><p class="g-reason"></p><p class="g-goal"></p><p class="g-date"></p><button class="g-cta"></button><button class="mt-g-plan" type="button" data-mt-g="schedule" hidden></button><p class="mt-g-note" data-mt-g="note" hidden></p><div class="mt-g-mine" hidden><p class="mt-g-status" data-mt-g="status" data-i18n-skip></p><button class="mt-g-view" type="button" data-mt-g="view"></button></div><p class="g-car-intro" hidden></p><section class="g-car-file" data-i18n-skip hidden><h3 class="g-car-file-title"></h3><dl class="g-car-file-rows"></dl><ul class="g-car-file-notes"></ul><p class="g-car-file-src"></p></section><details class="g-sources"><summary>${esc(tr('車型與來源'))} ↗</summary><div class="g-source-body"></div></details></div></section>
       <p class="g-result" role="status" aria-live="polite"></p><div class="g-grid"></div>
       <footer class="g-footer"><span class="g-catalog"></span> · ${esc(tr('模型製作：軌島（Q 版示意）'))}<br>${esc(tr('進度沿用旅程護照；62 款有收集條件、另 5 款用島民點數兌換，既有車種章自動帶入。'))}<br>${esc(tr('收藏的是紀念模型，不代表曾搭乘這個實際車型或車號。'))}</footer></main>
       <section class="g-sf" hidden aria-labelledby="gSfTitle"><div class="g-sf-bar"><button class="g-sf-leave" type="button">${esc(tr('離開'))}</button><button class="g-sf-title" type="button" aria-expanded="false"><b id="gSfTitle"></b><small></small></button><button class="g-sf-about" type="button" hidden aria-haspopup="dialog">${esc(tr('介紹'))}</button>${musicButton()}</div>
