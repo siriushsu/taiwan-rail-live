@@ -11,7 +11,7 @@ vm.runInContext(read('train-garage-catalog.js').toString(),box);vm.runInContext(
 const catalog=box.window.RailGarageCatalog,{collection,goals}=box.TrainGarage,ids=Object.keys(catalog);
 const assert=(ok,msg)=>{if(!ok)throw Error(msg);};
 const redeem=ids.filter(id=>goals[id].metric==='redeem'),passport=ids.length-redeem.length;
-assert(ids.length===74&&redeem.length===12&&JSON.stringify(ids.slice().sort())===JSON.stringify(Object.keys(goals).sort()),'74 款車型（含 12 款點數兌換）與規則應一一對應');
+assert(ids.length===79&&redeem.length===17&&JSON.stringify(ids.slice().sort())===JSON.stringify(Object.keys(goals).sort()),'79 款車型（含 17 款點數兌換）與規則應一一對應');
 let bytes=0;
 for(const id of ids){
  const meta=JSON.parse(read('rail-3d/assets/garage-blender-v1/'+id+'.json')),zip=read('rail-3d/assets/garage-blender-v1/'+id+'.bin.gz'),raw=gunzipSync(zip);bytes+=zip.length;

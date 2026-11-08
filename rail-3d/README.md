@@ -4,7 +4,7 @@
 
 - `../rail-3d.js` 將台鐵／高鐵、捷運分頁、全台同框裝飾路網，以及即時／班表車輛轉成共用影格；車體仍在原班表位置。
 - MapLibre 固定 5.9.0；Three.js 固定 0.170.0。外觀更換前釋放舊 renderer，非同步載入以世代取消，站房只操作自己擁有的 source。
-- 引擎縮放 14 起按近景載入列車網格。74 款車型、126 個衍生網格來自原型已驗證的 Blender 地圖資產。每件核對 SHA-256，閒置幾何快取上限 18 件。
+- 引擎縮放 14 起按近景載入列車網格。79 款車型、133 個衍生網格來自原型已驗證的 Blender 地圖資產。每件核對 SHA-256，閒置幾何快取上限 18 件。
 - 完整編組使用車型／路線標準，並非即時派車實測。未知當班編組明示三節示意；三節模式可隨時切換。
 - `integration/display-profiles.json` 為原型的固定平滑地表取樣。地形只表示地表起伏，不代表隧道、高架或實測軌面高程；`railElevationM` 仍為 null。沒有相符線形取樣時回到原標記。
 - 地形 PMTiles 位元組原封拆成 8 MiB 片，見 `terrain/manifest.json`。`terrain-source.js` 只取需要的 Range，支援跨片與伺服器回整片的情況；模型與地形不在首頁全部下載。來源及署名在 `terrain/source.json`、`terrain-attribution.json`。

@@ -618,6 +618,36 @@ cars: {
     "ja": "五分車（ウーフェンチャー）は台湾の糖業鉄道の小さな列車で、軌間はわずか762ミリメートル、車両もこぢんまりしています。糖鉄の最盛期には全路線を合わせて3,000キロメートル近くに達し、中南部一帯に広がっていました。甘蔗の輸送のほか、一部の区間では旅客も乗せましたが、最後の旅客営業線は1982年に運行を終えています。その後、一部の路線は観光用に生まれ変わり、いまは5つの糖鉄路線で観光列車が楽しめます。渓湖糖廠では、黒い密閉式の客車が346号蒸気機関車に牽かれ、昔の製糖所の景色の中をゆっくり進みます。",
     "ko": "우펀처(五分車)는 대만 제당 철도의 작은 열차로, 궤간이 762mm밖에 안 되고 객차도 아담해요. 전성기에는 모든 노선을 합치면 3,000km에 가까워 중남부 곳곳으로 뻗었고, 사탕수수를 나르는 한편 일부 구간에서는 승객도 태웠어요. 마지막 여객 영업선은 1982년에 운행을 멈췄어요. 이후 일부 노선이 관광용으로 바뀌어 지금은 다섯 개 제당 철도 노선에서 관광 열차를 탈 수 있어요. 시후 제당소에서는 검은색 밀폐형 객차를 346호 증기기관차가 끌고 옛 제당소 풍경 속을 천천히 달려요.",
   },
+  "s400": {
+    "zh-TW": "S400 是台鐵為七堵駝峰調車場特別引進的柴電調車機車，由美國 GM-EMD 製造，原廠型號 GA18，1969 年一次進口 5 輛，編號 S401 到 S405，抵台測試後立刻派上駝峰。它和 S300 長得很像，認人的訣竅在駕駛窗下方：S400 的號碼牌是外凸的，S300 則是嵌進車身。原廠塗裝是海軍藍配白線與虎紋端梁，後來改成橘色系，現在只有 S405 保存下來。",
+    "en": "The S400 is a diesel-electric shunting locomotive that Taiwan Railway brought in specially for the Qidu hump yard. Built by GM-EMD of the United States as model GA18, five were imported in 1969, numbered S401 to S405, and they went straight onto the hump after testing in Taiwan. It looks much like the S300, and the trick to telling them apart is below the cab windows: the S400’s number plate sticks out, while the S300’s is set into the body. The original livery was navy blue with white lines and tiger-striped end beams, later changed to orange, and only S405 is preserved today.",
+    "ja": "S400は、台鉄が七堵の「ハンプヤード（駝峰調車場）」のために特別に導入したディーゼル電気式の入換機関車で、アメリカのGM-EMDが製造しました。原型の形式はGA18で、1969年に5両をまとめて輸入し、番号はS401からS405です。台湾に着いて試験を終えるとすぐハンプでの作業に入りました。S300とよく似ていますが、見分けるコツは運転窓の下にあります。S400のナンバープレートは外に張り出していて、S300は車体に埋め込まれています。登場時の塗装は紺色に白線、端梁にトラ縞でしたが、のちに橙色系へ変わり、いま保存されているのはS405だけです。",
+    "ko": "S400은 대만철도가 치두의 험프 조차장(駝峰調車場)을 위해 특별히 들여온 디젤전기 입환 기관차로, 미국 GM-EMD가 제작했어요. 원래 형식은 GA18이고, 1969년에 5량을 한꺼번에 수입해 S401부터 S405까지 번호를 붙였어요. 대만에 도착해 시험을 마치자마자 곧바로 험프 작업에 투입되었지요. S300과 닮았지만 구분하는 요령은 운전창 아래에 있어요. S400은 번호판이 밖으로 튀어나와 있고, S300은 차체에 안으로 들어가 있어요. 출고 당시 도색은 짙은 남색에 흰 선, 끝보에 호랑이 줄무늬였다가 나중에 주황색 계열로 바뀌었고, 지금 보존된 것은 S405 한 량뿐이에요.",
+  },
+  "emu400": {
+    "zh-TW": "EMU400 是台鐵買的第一代通勤電聯車，車體由南非 UC&W 製造，電機設備來自英國 GEC，4 輛一組，共 12 組 48 輛，1990 年 11 月正式上線，最初主要跑新竹到基隆一帶。它用來取代老舊、沒有冷氣的柴油快車，每輛有 60 個座位，站位可容納約 120 人。後來車身改成深藍色系，2015 年 3 月全數退出定期營運，現在國家鐵道博物館保存了其中一輛。",
+    "en": "The EMU400 is the first generation of commuter electric multiple units that Taiwan Railway bought. Its bodies were built by UC&W of South Africa and its electrical equipment came from GEC of Britain. It runs in 4-car sets, 12 sets and 48 cars in all, and entered regular service in November 1990, mainly between Hsinchu and Keelung at first. It was meant to replace the aging diesel express trains that had no air conditioning, with 60 seats per car and room for about 120 standing passengers. The bodies were later repainted in dark blue, all units left scheduled service in March 2015, and the National Railway Museum now preserves one of them.",
+    "ja": "EMU400は台鉄が初めて導入した通勤型電車で、車体は南アフリカのUC&W社が製造し、電機設備はイギリスのGECが供給しました。4両1編成で、全部で12編成48両、1990年11月に営業運転を始め、当初は主に新竹から基隆の間を走りました。冷房のない古いディーゼル急行を置き換えるための電車で、1両の座席は60席、立ち席には約120人が乗れます。のちに車体は濃い青色系に塗り替えられ、2015年3月にすべてが定期運行から退き、いまは国立鉄道博物館に1両が保存されています。",
+    "ko": "EMU400은 대만철도가 처음 들여온 통근형 전동차로, 차체는 남아프리카의 UC&W사가 만들고 전기 장비는 영국 GEC에서 공급했어요. 4량 1편성으로 모두 12편성 48량이며, 1990년 11월에 영업 운행을 시작해 처음에는 주로 신주에서 지룽 사이를 달렸어요. 에어컨이 없는 낡은 디젤 급행열차를 대신하려고 들여왔고, 한 량에 좌석 60석, 서서 타는 자리는 약 120명이에요. 나중에 차체가 짙은 파란색 계열로 바뀌었고, 2015년 3월에 모든 편성이 정기 운행에서 물러났으며, 지금은 국립철도박물관에 한 편성이 보존되어 있어요.",
+  },
+  "pc32701": {
+    "zh-TW": "35PC32701 是台鐵的客廳車，由 1957 年自日本進口的 35SP32700 型客車改造，1972 年在唐榮鐵工廠完工，後來改塗莒光號的米黃配橘色白線。它的特色是尾端有開放式的瞭望台，旅客可以站在欄杆旁看鐵軌向後延伸。車內分成臥椅區、附吧台的餐室和客廳室，只有 30 個座位，現在主要供團體包租，會掛在莒光號列車的尾端；車庫裡它跟在 E200 電力機車和莒光號客車後面，瞭望台朝外。",
+    "en": "The 35PC32701 is a Taiwan Railway parlor car, converted from a 35SP32700-type coach that was imported from Japan in 1957. The conversion was finished in 1972 at the Tangrong Ironworks, and it was later repainted in the Chu-Kuang scheme of cream with orange and white lines. Its distinctive feature is an open observation platform at the rear, where passengers can stand at the railing and watch the track stretch away behind. Inside are a reclining-seat area, a dining room with a bar, and a lounge, with only 30 seats in all. Today it is mostly chartered by groups and coupled at the rear of Chu-Kuang trains; in the depot it trails an E200 electric locomotive and Chu-Kuang coaches, with the observation platform facing out.",
+    "ja": "35PC32701は台鉄の客廳車（パーラーカー）で、1957年に日本から輸入された35SP32700型客車を改造したものです。1972年に唐榮鉄工廠で完成し、のちに莒光号の標準色であるクリーム色にオレンジ色と白線の塗装になりました。特徴は後端にある開放式の展望台で、乗客は手すりのそばに立って、後ろへ伸びていく線路を眺められます。車内はリクライニング席の区画、バーカウンター付きの食堂、客間に分かれ、座席は30席だけです。いまは主に団体の貸切に使われ、莒光号の列車の最後尾につながれます。ガレージではE200電気機関車と莒光号の客車の後ろにつながり、展望台は外側を向いています。",
+    "ko": "35PC32701은 대만철도의 객청차(파를러 카)로, 1957년 일본에서 수입한 35SP32700형 객차를 개조한 차량이에요. 1972년 탕룽 철공장에서 완성했고, 나중에 쥐광호 표준색인 연한 노랑에 주황색과 흰 선 도색으로 바뀌었어요. 가장 큰 특징은 뒤쪽 끝에 있는 개방형 전망대로, 난간 옆에 서서 뒤로 뻗어 가는 선로를 바라볼 수 있어요. 객실은 리클라이닝 좌석 칸, 바가 딸린 식당 칸, 객청 칸으로 나뉘고 좌석은 30석뿐이에요. 지금은 주로 단체 대절용으로 쓰이며 쥐광호 열차의 맨 뒤에 연결돼요. 차고에서는 E200 전기기관차와 쥐광호 객차 뒤에 붙어 전망대가 바깥쪽을 향해요.",
+  },
+  "sa32820": {
+    "zh-TW": "35SA32820 是台鐵的總統花車。這裡的「花車」不是載花，而是專供國家元首搭乘的貴賓車，英文叫 Salon Car，所以編號才寫成 SA。車內有男女臥室和接待賓客的客廳室。它在 1991 年南迴線通車後第一次出勤，載著總統環島視察，後來很少上正線；現在塗成莒光號的米黃配橘色白線，在車庫裡掛在 E200 電力機車和莒光號客車後面。",
+    "en": "The 35SA32820 is Taiwan Railway’s presidential saloon car. Here a “flower car” (huache) doesn’t carry flowers: it is a VIP car reserved for a head of state, known in English as a salon car, which is why its number carries the letters SA. Inside are bedrooms for men and women and a lounge for receiving guests. Its first service came in 1991, after the South Link Line opened, carrying the president on a tour of the island’s railways, and it has rarely run on the main line since. It is now painted in the Chu-Kuang scheme of cream with orange and white lines, and in the depot it trails an E200 electric locomotive and Chu-Kuang coaches.",
+    "ja": "35SA32820は台鉄の総統花車です。ここでの「花車」は花を運ぶ車ではなく、国家元首が乗るための貴賓車のことで、英語ではサロンカー（Salon Car）と呼ぶため、番号にSAの文字が入っています。車内には男性用と女性用の寝室と、客を迎える客間があります。1991年に南廻線が開通したあと初めて運行し、総統を乗せて島を一周する視察に使われ、その後は本線を走ることはまれでした。いまは莒光号の標準色であるクリーム色にオレンジ色と白線に塗られ、ガレージではE200電気機関車と莒光号の客車の後ろにつながっています。",
+    "ko": "35SA32820은 대만철도의 총통 화처(花車)예요. 여기서 ‘화처’는 꽃을 싣는 차가 아니라 국가 원수만 타는 귀빈차를 뜻하고, 영어로는 살롱 카(Salon Car)라서 번호에 SA가 들어가요. 안에는 남녀 침실과 손님을 맞는 객실이 있어요. 1991년 난후이선이 개통한 뒤 처음 출동해 총통을 태우고 섬을 한 바퀴 도는 시찰에 쓰였고, 그 뒤로는 본선을 달리는 일이 드물었어요. 지금은 쥐광호 표준색인 연한 노랑에 주황색과 흰 선으로 칠해져 있고, 차고에서는 E200 전기기관차와 쥐광호 객차 뒤에 연결돼요.",
+  },
+  "shinkansen0": {
+    "zh-TW": "這是日本新幹線 0 系的 21-5035 號車廂，展示在高鐵台南站前的地景公園。0 系是世界上第一代高速鐵路列車，全球只有兩輛留在日本境外，其中一輛 2001 年捐給英國的鐵道博物館，另一輛是台灣高鐵公司在興建期間，於 2004 年引進，當作量測限界用的工程車，鐵道迷習慣叫它「花魁車」。如今它靜靜停在站旁，讓人看見高速鐵路最早的模樣。",
+    "en": "This is car 21-5035 of the Japanese Shinkansen Series 0, on display in the landscape park in front of Taiwan High Speed Rail’s Tainan Station. The Series 0 was the world’s first generation of high-speed trains, and only two cars survive outside Japan. One was donated in 2001 to a railway museum in Britain; the other was brought to Taiwan in 2004 by Taiwan High Speed Rail during construction, to serve as a clearance-measuring work car, and railfans commonly call it the “Huakui car”. It now rests quietly beside the station, showing what the earliest high-speed trains looked like.",
+    "ja": "これは日本の新幹線0系の21-5035号車で、台湾高速鉄道の台南駅前にある地景公園に展示されています。0系は世界で最初の世代の高速鉄道車両で、日本国外に残るのは世界でも2両だけです。うち1両は2001年にイギリスの鉄道博物館へ寄贈され、もう1両は台湾高速鉄道が建設中の2004年に台湾へ導入し、建築限界を測る工事用の車両として使われました。鉄道ファンのあいだでは「花魁車」と呼ばれています。いまは駅のそばで静かに休み、高速鉄道の最初の姿を伝えています。",
+    "ko": "이 차는 일본 신칸센 0계의 21-5035호 차량으로, 대만 고속철도 타이난역 앞 지경 공원에 전시되어 있어요. 0계는 세계 최초 세대의 고속철도 열차이고, 일본 밖에 남은 것은 전 세계에서 두 량뿐이에요. 한 량은 2001년 영국의 철도박물관에 기증되었고, 다른 한 량은 대만 고속철도회사가 건설 중이던 2004년에 들여와 건축한계를 재는 공사용 차량으로 썼어요. 철도 팬들은 이 차를 ‘화쿠이 차(花魁車)’라고 흔히 불러요. 지금은 역 옆에서 조용히 쉬면서 고속철도의 가장 이른 모습을 전하고 있어요.",
+  },
 },
 profileLabels: {
   "zh-TW": {
@@ -3125,6 +3155,186 @@ profiles: {
       "notes": [
         "설탕 철도는 사탕수수와 설탕을 나르는 것 외에도 예전에는 학생들의 통학길이자 마조 사당 참배길이었고, 대만의 중요한 외화 수입원 가운데 하나이기도 했어요.",
         "전성기 노선은 전체 길이가 약 3,000km였고, 전용선 외에 여객과 화물을 나르는 약 600km의 대외 영업선이 있었어요. 도로 운송이 늘면서 마지막 노선이 1982년에 운행을 멈췄어요."
+      ]
+    }
+  },
+  "s400": {
+    "zh-TW": {
+      "maker": "美國 GM-EMD（原廠型號 GA18）",
+      "year": "1969 年",
+      "count": "5 輛（S401～S405）",
+      "power": "1,100 匹馬力",
+      "speed": "75 km/h",
+      "notes": [
+        "1969 年用世界銀行貸款採購的 44 輛柴電機車裡，39 輛是本線大型機車，另外這 5 輛專門給七堵駝峰調車場使用，抵台測試後馬上上工。",
+        "外觀承襲 S200、S300，無鼻端罩、前端三片駕駛窗；最大特色是駕駛窗下方的號碼牌外凸，S300 則是內嵌式。原廠塗裝是海軍藍配白線與虎紋裙板，電氣化後逐漸改成橘色系。"
+      ]
+    },
+    "en": {
+      "maker": "GM-EMD, USA (original model GA18)",
+      "year": "1969",
+      "count": "5 units (S401–S405)",
+      "power": "1,100 hp",
+      "speed": "75 km/h",
+      "notes": [
+        "Of the 44 diesel-electric locomotives bought in 1969 with World Bank loans, 39 were large mainline locomotives, and these 5 were reserved for the Qidu hump yard, going to work right after testing in Taiwan.",
+        "The look follows the S200 and S300, with no nose hood and a three-piece cab window at the front. Its best-known feature is the number plate under the cab windows, which sticks out, while the S300’s is set in. The original livery was navy blue with white lines and tiger-striped skirts, gradually changed to orange tones after electrification."
+      ]
+    },
+    "ja": {
+      "maker": "アメリカ GM-EMD（原型の形式はGA18）",
+      "year": "1969年",
+      "count": "5両（S401～S405）",
+      "power": "1,100馬力",
+      "speed": "75 km/h",
+      "notes": [
+        "1969年に世界銀行の融資で購入した44両のディーゼル電気機関車のうち、39両は本線用の大型機で、この5両は七堵のハンプヤード専用でした。台湾に着いて試験を終えるとすぐ作業に入っています。",
+        "外観はS200、S300を受け継ぎ、ノーズのボンネットがなく、前面に3枚組の運転窓があります。いちばんの特徴は運転窓の下のナンバープレートが外に張り出していることで、S300は埋め込み式です。登場時の塗装は紺色に白線とトラ縞のスカートで、電化後は徐々に橙色系へ変わりました。"
+      ]
+    },
+    "ko": {
+      "maker": "미국 GM-EMD(원래 형식 GA18)",
+      "year": "1969년",
+      "count": "5량(S401～S405)",
+      "power": "1,100마력",
+      "speed": "75 km/h",
+      "notes": [
+        "1969년 세계은행 차관으로 구입한 디젤전기 기관차 44량 가운데 39량은 본선용 대형 기관차였고, 이 5량은 치두 험프 조차장 전용이었어요. 대만에 도착해 시험을 마치자마자 일에 투입되었어요.",
+        "외관은 S200, S300을 이어받아 앞쪽 보닛이 없고 앞면에 3장으로 나뉜 운전창이 있어요. 가장 큰 특징은 운전창 아래 번호판이 밖으로 튀어나온 것이고, S300은 안으로 들어간 방식이에요. 출고 당시 도색은 짙은 남색에 흰 선과 호랑이 줄무늬 스커트였고, 전철화 뒤 점차 주황색 계열로 바뀌었어요."
+      ]
+    }
+  },
+  "emu400": {
+    "zh-TW": {
+      "maker": "南非 UC&W（車體）、英國 GEC（電機）",
+      "year": "1990 年",
+      "count": "12 組 48 輛",
+      "formation": "4 輛一組",
+      "power": "1,920 kW（2,574 匹馬力）",
+      "speed": "110 km/h（營運）",
+      "notes": [
+        "1980 年代末，台鐵為了取代北部老舊、沒有冷氣的柴油快車，開始規劃新一代通勤電車；1990 年抵台試車，初期狀況不少，調整後 11 月正式上線，成為台鐵第一代通勤電車。",
+        "車體設計和 EMU200 很像，主要差別是車側下緣改成往內斜切。車門是一側兩組雙扇門，座椅以長條塑膠椅為主；車身後來改成深藍色系，服役二十多年，跑遍北部與中部。"
+      ]
+    },
+    "en": {
+      "maker": "UC&W, South Africa (bodies); GEC, UK (electrical equipment)",
+      "year": "1990",
+      "count": "12 sets, 48 cars",
+      "formation": "4 cars per set",
+      "power": "1,920 kW (2,574 hp)",
+      "speed": "110 km/h (in service)",
+      "notes": [
+        "In the late 1980s, Taiwan Railway planned a new generation of commuter trains to replace the aging diesel expresses in the north that had no air conditioning. The units arrived for testing in 1990, had a number of early problems, and after adjustments entered service in November as Taiwan Railway’s first-generation commuter EMU.",
+        "The body design is very close to the EMU200, the main difference being a lower body edge that slopes inward. Each side has two sets of double doors and the seats are mostly long plastic benches. The body was later repainted in dark blue, and it served for more than twenty years across the north and center."
+      ]
+    },
+    "ja": {
+      "maker": "南アフリカ UC&W（車体）、イギリス GEC（電機）",
+      "year": "1990年",
+      "count": "12編成48両",
+      "formation": "4両1編成",
+      "power": "1,920 kW（2,574馬力）",
+      "speed": "110 km/h（営業）",
+      "notes": [
+        "1980年代末、台鉄は北部の古くて冷房のないディーゼル急行を置き換えるため、新しい世代の通勤電車を計画しました。1990年に台湾へ着いて試運転を行い、最初は不具合も多かったものの、調整を経て11月に営業を始め、台鉄の第一世代の通勤電車になりました。",
+        "車体設計はEMU200とよく似ていて、主な違いは車体側面の下縁が内側へ斜めに切られていることです。ドアは片側に両開き2組、座席は長い樹脂製のベンチが中心でした。車体はのちに濃い青色系へ塗り替えられ、20年あまり北部から中部を走り続けました。"
+      ]
+    },
+    "ko": {
+      "maker": "남아프리카 UC&W(차체), 영국 GEC(전기 장비)",
+      "year": "1990년",
+      "count": "12편성 48량",
+      "formation": "4량 1편성",
+      "power": "1,920 kW(2,574마력)",
+      "speed": "110 km/h(영업)",
+      "notes": [
+        "1980년대 말 대만철도는 북부의 낡고 에어컨 없는 디젤 급행열차를 대신할 새로운 세대의 통근 전동차를 계획했어요. 1990년 대만에 도착해 시험 운전을 했고 초기에는 문제가 적지 않았지만, 조정을 거쳐 11월에 영업을 시작해 대만철도의 1세대 통근 전동차가 되었어요.",
+        "차체 설계는 EMU200과 매우 닮았고, 주된 차이는 차체 옆면 아랫부분이 안쪽으로 비스듬히 깎인 것이에요. 문은 한쪽에 양쪽으로 열리는 문이 두 쌍이고, 좌석은 긴 플라스틱 벤치가 중심이었어요. 차체는 나중에 짙은 파란색 계열로 바뀌었고, 20년 넘게 북부와 중부를 누볐어요."
+      ]
+    }
+  },
+  "pc32701": {
+    "zh-TW": {
+      "maker": "台灣唐榮鐵工廠（改造）",
+      "year": "1972 年（改造）",
+      "count": "1 輛",
+      "speed": "110 km/h",
+      "notes": [
+        "原本是 1957 年自日本進口的 35SP32700 型客車，1972 年改成客廳車並加裝瞭望台；1993 年窗戶改為六個不等距的大窗，並塗上莒光號標準色。",
+        "車內分三個隔間：前端 10 個坐臥椅、中段 12 座附吧台的餐室、後端 8 張旋轉椅配小桌的客廳室，走道鋪著地毯。現役時只供團體租用。"
+      ]
+    },
+    "en": {
+      "maker": "Tangrong Ironworks, Taiwan (conversion)",
+      "year": "1972 (conversion)",
+      "count": "1 car",
+      "speed": "110 km/h",
+      "notes": [
+        "It began as a 35SP32700-type coach imported from Japan in 1957. In 1972 it was converted into a parlor car with an observation platform added, and in 1993 the windows were changed to six unevenly spaced large ones and it received the standard Chu-Kuang colors.",
+        "Inside are three compartments: 10 reclining seats at the front, a dining room with a bar and 12 seats in the middle, and a lounge at the rear with 8 swivel chairs and small tables, with carpet in the aisle. In service it is only for group charter."
+      ]
+    },
+    "ja": {
+      "maker": "台湾 唐榮鉄工廠（改造）",
+      "year": "1972年（改造）",
+      "count": "1両",
+      "speed": "110 km/h",
+      "notes": [
+        "もとは1957年に日本から輸入された35SP32700型客車で、1972年に客廳車へ改造されて展望台が付きました。1993年には窓が6つの不等間隔の大窓に改められ、莒光号の標準色に塗り替えられました。",
+        "車内は3つの区画に分かれ、前端にリクライニング席10席、中央にバーカウンター付きの食堂12席、後端に回転椅子8脚と小さなテーブルを置いた客間があり、通路にはカーペットが敷かれています。現役では団体の貸切専用です。"
+      ]
+    },
+    "ko": {
+      "maker": "대만 탕룽 철공장(개조)",
+      "year": "1972년(개조)",
+      "count": "1량",
+      "speed": "110 km/h",
+      "notes": [
+        "원래는 1957년 일본에서 수입한 35SP32700형 객차였고, 1972년 객청차로 개조되며 전망대가 달렸어요. 1993년에는 창문이 간격이 서로 다른 큰 창 여섯 개로 바뀌었고 쥐광호 표준색으로 칠해졌어요.",
+        "객실은 세 칸으로 나뉘어요. 앞쪽에는 리클라이닝 좌석 10석, 가운데에는 바가 딸린 12석 식당, 뒤쪽에는 회전의자 8개와 작은 탁자가 있는 객청이고, 통로에는 카펫이 깔려 있어요. 현역으로는 단체 대절 전용이에요."
+      ]
+    }
+  },
+  "sa32820": {
+    "zh-TW": {
+      "maker": "台灣 台鐵台北機廠（改造）",
+      "count": "1 輛",
+      "speed": "100 km/h",
+      "nick": "花車",
+      "notes": [
+        "台鐵所稱的「花車」不是運送花朵，而是專供元首搭乘的貴賓車。台鐵歷史上共有三輛：木造的 20SA4101、20SA4102，以及由觀光號改造的這輛鋼體空調花車。",
+        "內裝由退輔會的木工施作，有男、女臥室和接待賓客的客廳室，窗戶有多層窗簾保護隱私。除了 1991 年總統環島使用，很少上正線；2024 年曾在花東線行駛展示。"
+      ]
+    },
+    "en": {
+      "maker": "Taipei Workshop, Taiwan Railway (conversion)",
+      "count": "1 car",
+      "speed": "100 km/h",
+      "nick": "Huache (“flower car”)",
+      "notes": [
+        "What Taiwan Railway calls a “flower car” does not carry flowers: it is a VIP car reserved for a head of state. There have been three in all: the wooden 20SA4101 and 20SA4102, and this steel air-conditioned one converted from a Sightseeing Express coach.",
+        "The interior was fitted out by carpenters of the Veterans Affairs Council, with separate bedrooms for men and women and a lounge for receiving guests, and the windows have layered curtains for privacy. Apart from the president’s island tour in 1991, it rarely ran on the main line; in 2024 it ran on the Hualien–Taitung line as a display."
+      ]
+    },
+    "ja": {
+      "maker": "台湾 台鉄台北機廠（改造）",
+      "count": "1両",
+      "speed": "100 km/h",
+      "nick": "花車",
+      "notes": [
+        "台鉄でいう「花車」は花を運ぶ車ではなく、国家元首だけが乗る貴賓車のことです。台鉄の歴史では全部で3両あり、木造の20SA4101と20SA4102、そして観光号から改造されたこの鋼製冷房付きの1両です。",
+        "内装は退輔会の大工が手がけ、男性用と女性用の寝室と、客を迎える客間があり、窓には何重ものカーテンがあってプライバシーを守ります。1991年の総統の島一周を除くと本線を走ることはまれで、2024年には花東線で運行展示されました。"
+      ]
+    },
+    "ko": {
+      "maker": "대만 대만철도 타이베이 공장(개조)",
+      "count": "1량",
+      "speed": "100 km/h",
+      "nick": "화처(花車)",
+      "notes": [
+        "대만철도가 말하는 ‘화처’는 꽃을 나르는 차가 아니라 국가 원수만 타는 귀빈차예요. 대만철도 역사에는 모두 세 량이 있었는데, 목조 20SA4101과 20SA4102, 그리고 관광호 객차를 개조한 이 강철 차체 에어컨 화처예요.",
+        "내장은 퇴역군인 위원회 목수들이 맡았고, 남녀 침실과 손님을 맞는 객실이 있으며, 창문에는 여러 겹의 커튼이 있어 사생활을 지켜 줘요. 1991년 총통의 섬 일주를 빼면 본선을 달리는 일이 드물었고, 2024년에는 화둥선에서 운행 전시를 했어요."
       ]
     }
   }

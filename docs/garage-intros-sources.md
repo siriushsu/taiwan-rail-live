@@ -1,6 +1,6 @@
 # 車庫介紹的出處
 
-`train-garage-intros.js` 裡 28 座場景、74 款車的介紹，查證日 2026-11-07。年份、數量、車號與「最早／唯一」這類說法都從下面的頁面來；
+`train-garage-intros.js` 裡 28 座場景、79 款車的介紹，查證日 2026-11-07。年份、數量、車號與「最早／唯一」這類說法都從下面的頁面來；
 大多數只有中文維基一個來源，部分有新聞或官方頁佐證。出處互相矛盾、或只有單一來源又不重要的說法就不寫進介紹（例如福森號的啟用日只寫「2024 年夏天」）。
 重大事故不寫進介紹。
 
@@ -8,7 +8,7 @@
 
 ## 車款檔案（profiles）與列車卡小知識（2026-11-09）
 
-`train-garage-intros.js` 的 `profiles`（59 款車的綽號、製造、引進、數量、編組、出力、最高速度與小故事）和
+`train-garage-intros.js` 的 `profiles`（63 款車的綽號、製造、引進、數量、編組、出力、最高速度與小故事）和
 `data/tra_special_trains.json` 8 個車種各新增的最後一則 facts，資料取自《台灣鐵道車輛完全圖鑑》（使用者翻拍的書頁），
 畫面上整塊最後一行寫「資料參考：《台灣鐵道車輛完全圖鑑》」。文字是重新改寫，不照抄書。
 
@@ -19,6 +19,10 @@
   E101 的保存地點（書：封存彰化機務段、維基：2022～23 年移苗栗展示）不寫；Shay 31 製造年份各說法不一，只寫「1910 年代」；
   書稱溪湖是唯一定期行駛蒸汽火車的地方，但維基說糖鐵仍有數部蒸汽機車能跑，不寫「唯一」；糖廠 42 座、「五分車」名稱由來（維基說明有多種說法）、2001 年起的觀光五分車不寫。
   這 7 款的塗裝描述（EMU200 棕色系與黃橘警戒色、E100 橘白 V 字帶、S200 橘色白帶灰車頂）只有書可查，寫在車款檔案與 E100、EMU200 的介紹裡。
+- 2026-11-09 再補 5 款（S400、EMU400、35PC32701、35SA32820、0 系 21-5035）：
+  35SA32820 的完成／改造年份書寫 1969、新聞寫 1967，矛盾所以不寫年份；「最後一輛」也不寫。EMU400 初期塗裝書寫天藍、維基寫群青藍，只寫「後來改深藍色系」。
+  0 系 21-5035 的出廠年份（1978）只有書可查，不寫進介紹，車款檔案也不放（書上資料太少，沒有製造、數量等欄位）；「花魁車」稱呼、2004 年引進、當限界測量車有新聞出處，介紹寫成「鐵道迷習慣叫它」。
+  S400 外凸號碼牌、虎紋端梁塗裝只有書可查；35PC32701 的座位、隔間、1993 年改窗與塗裝，35SA32820 的內裝與三輛花車史，只在車款檔案寫（書的來源）。
 - 重大事故一樣不寫（頭前溪、楠梓、清水、新馬、台中塔吊等）。
 - 列車卡只加 facts、不改 story：App 的圖鑑執行時抓網站這份檔、用中文 story 當翻譯鍵，改 story 會讓已安裝的 App 翻譯失效。
 
@@ -371,3 +375,25 @@
 ### 五分車（wufen）
 - [維基：臺灣糖業鐵路](https://zh.wikipedia.org/wiki/%E8%87%BA%E7%81%A3%E7%B3%96%E6%A5%AD%E9%90%B5%E8%B7%AF)（軌距 762 mm、約 2,964.6 公里、營業線約 627 公里、最後一條客運線 1982 年停駛、五條觀光路線）
 - [維基：溪湖糖廠](https://zh.wikipedia.org/wiki/%E6%BA%AA%E6%B9%96%E7%B3%96%E5%BB%A0)
+
+### S400（s400）
+- [維基：台鐵S400型柴電機車](https://zh.wikipedia.org/wiki/%E5%8F%B0%E9%90%B5S400%E5%9E%8B%E6%9F%B4%E9%9B%BB%E6%A9%9F%E8%BB%8A)（GM-EMD GA18、1969 年 5 輛 S401～S405、七堵駝峰調車場專用、S405 保存）
+- [Commons：TRA S405 at Miaoli Railway Museum](https://commons.wikimedia.org/wiki/File:TRA_S405_at_Miaoli_Railway_Museum_20160102.jpg)（外觀）
+
+### EMU400（emu400）
+- [維基：台鐵EMU400型電聯車](https://zh.wikipedia.org/wiki/%E5%8F%B0%E9%90%B5EMU400%E5%9E%8B%E9%9B%BB%E8%81%AF%E8%BB%8A)（UCW 與 GEC、4 輛一組共 12 組 48 輛、每輛 60 座約 120 站位、1990 年 11 月 9 日上線、首款通勤電聯車、後改深藍色、2015 年 3 月全數退出定期營運、EMC410 保存於國家鐵道博物館）
+- [Commons：TRA EMU410 at Zhunan Station](https://commons.wikimedia.org/wiki/File:TRA_EMU410_at_Zhunan_Station_20160915.jpg)（外觀）
+
+### 35PC32701 客廳車（pc32701）
+- [維基：台鐵客廳車](https://zh.wikipedia.org/wiki/%E5%8F%B0%E9%90%B5%E5%AE%A2%E5%BB%B3%E8%BB%8A)（1957 年日本進口 35SP32700 型、1972 年唐榮鐵工廠改造、瞭望台、1993 年改窗與莒光號塗裝、供旅行社與民眾租用）
+- [Commons：TRA Parlor Car at Balin Station](https://commons.wikimedia.org/wiki/File:TRA_Parlor_Car_at_Balin_Station_20160117.jpg)（外觀）
+
+### 35SA32820 總統花車（sa32820）
+- [台灣英文新聞：台鐵首次開放民眾搭乘總統花車](https://www.taiwannews.com.tw/zh/news/5936450)（1991 年南迴鐵路竣工後首次任務、載送李登輝環島視察；年份 1967 與書的 1969 矛盾，不寫）
+- 「花車」指元首貴賓車、英文 Salon Car 縮寫 SA：只有書可查，已與新聞報導的用途（元首搭乘視察）不矛盾。
+- [Commons：TRA 35SA32820](https://commons.wikimedia.org/wiki/File:TRA_35SA32820_20240916.jpg)（外觀）
+
+### 0 系 21-5035（shinkansen0）
+- [中央社：高鐵台南站前花魁車地景公園](https://www.cna.com.tw/news/aipl/202310160286.aspx)（全球僅 2 輛在日本境外、一輛 2001 年捐英國鐵道博物館、另一輛 2004 年高鐵公司興建期間引進、限界測量車、俗稱「花魁車」、陳列於台南站前地景公園）
+- [維基：新幹線0系電車](https://zh.wikipedia.org/wiki/%E6%96%B0%E5%B9%B9%E7%B7%9A0%E7%B3%BB%E9%9B%BB%E8%BB%8A)（世界上第一種高速鐵路車輛、台南保存車號 21-5035）
+- [Commons：Shinkansen Series 0 car 21-5035 at THSR Tainan Station](https://commons.wikimedia.org/wiki/File:Shinkansen_Series_0_car_21-5035_THSR_Tainan_Station_20240413.jpg)（外觀與現況）

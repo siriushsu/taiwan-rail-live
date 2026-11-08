@@ -229,7 +229,7 @@ const OWN_FAMILY = { railcar: 'drivable', express: 'drivable', electric: 'drivab
   steam: 'drivable', metro: 'metro', tram: 'metro', coach: 'coach', forestcoach: 'coach' };
 const CATALOG_SYS = { '台鐵': 'tra_sched', '台灣高鐵': 'thsr_sched', '阿里山林鐵': 'afr_sched' };
 // 點數兌換的車款這一版還不能自己排班（車庫入口不出排班鈕），不進 MODELS 與車款表；要開放時從這裡拿掉，再補 MODELS 與車款表那一列。
-const NOT_SCHEDULED = ['ct250', 'dr3000', 'emu300', 'tengyun', 'emu200', 'dr2800', 'e100', 's200', 'shay31', 'tsc346'];
+const NOT_SCHEDULED = ['ct250', 'dr3000', 'emu300', 'tengyun', 'emu200', 'dr2800', 'e100', 's200', 'shay31', 'tsc346', 's400', 'emu400', 'shinkansen0'];
 function ownRow(word) {
   if (word === 'DR1000') return P.PERF_DR1000;
   if (word === 'HSR') return P.PERF_HSR;

@@ -3880,5 +3880,298 @@
    }
   ],
   "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "s400",
+  "name": "S400 柴電機車",
+  "label": "S400",
+  "detail": "海軍藍車身白帶 · 三片前窗駕駛室接長機房 · 凸出的車號牌與虎紋端梁",
+  "color": "#2743a3",
+  "source": "https://commons.wikimedia.org/wiki/File:TRA_S405_at_Miaoli_Railway_Museum_20160102.jpg",
+  "sources": [
+   {
+    "label": "Wikimedia Commons／ILOVES402（CC BY-SA 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_S405_at_Miaoli_Railway_Museum_20160102.jpg"
+   },
+   {
+    "label": "Wikimedia Commons／Hayato Chiou (QF2200DA)（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_S405_at_Miaoli_Railway_Museum_20100413.jpg"
+   },
+   {
+    "label": "Wikimedia Commons／billy1125（CC BY 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_S405_at_Miaoli_Railway_Museum_20130125_1.jpg"
+   }
+  ],
+  "features": [
+   "1969 年向美國 GM-EMD 購入的 GA18 型調車機車，共 5 輛（S401～S405），1,100 匹馬力、B-B 輪軸配置，最高時速 75 公里。",
+   "原本是為七堵駝峰調車場配置，專做編組站的推送與調車；跟外型相近的 S300 比，車號牌是凸出來的、S300 則是凹進去。",
+   "2006 年起陸續退役，S405 保存在苗栗鐵道文物展示館。車庫做的是出廠時的海軍藍白帶、端梁黃黑虎紋的樣子。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA S405 at Miaoli Railway Museum 20160102.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_S405_at_Miaoli_Railway_Museum_20160102.jpg",
+    "author": "ILOVES402",
+    "licence": "CC BY-SA 4.0",
+    "use": "斜前方（凸出車號牌、白帶 V 字、虎紋端梁）"
+   },
+   {
+    "file": "File:TRA S405 at Miaoli Railway Museum 20100413.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_S405_at_Miaoli_Railway_Museum_20100413.jpg",
+    "author": "Hayato Chiou (QF2200DA)",
+    "licence": "CC BY-SA 3.0",
+    "use": "正側面（駕駛室與長機房比例、百葉）"
+   },
+   {
+    "file": "File:TRA S405 at Miaoli Railway Museum 20130125 1.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_S405_at_Miaoli_Railway_Museum_20130125_1.jpg",
+    "author": "billy1125",
+    "licence": "CC BY 2.0",
+    "use": "駕駛室端面"
+   },
+   {
+    "file": "File:TRA S405 at Miaoli Railway Museum 20130125 2.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_S405_at_Miaoli_Railway_Museum_20130125_2.jpg",
+    "author": "billy1125",
+    "licence": "CC BY 2.0",
+    "use": "長機房端面"
+   },
+   {
+    "file": "File:TRA S401 abandoned at Taipei Railway Workshop 20070310.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_S401_abandoned_at_Taipei_Railway_Workshop_20070310.jpg",
+    "author": "Alex S.H. Lin",
+    "licence": "CC BY 2.0",
+    "use": "晚期塗裝對照（只看形狀）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "emu400",
+  "name": "EMU400 通勤電聯車",
+  "label": "EMU400",
+  "detail": "淺灰車身配深藍色帶 · 藍色車頭與貫通門 · 每側兩組雙開門",
+  "color": "#2340a0",
+  "source": "https://commons.wikimedia.org/wiki/File:TRA_EMU410_at_Zhunan_Station_20160915.jpg",
+  "sources": [
+   {
+    "label": "Wikimedia Commons／Cassiopeia sweet（Public domain）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU410_at_Zhunan_Station_20160915.jpg"
+   },
+   {
+    "label": "Wikimedia Commons／Lexcie（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:EMU400_EP403_Side_Profile_Taoyuan_DSC_0271.jpg"
+   },
+   {
+    "label": "Wikimedia Commons／Lexcie（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_UCW_EMU400_in_Taoyuan.jpg"
+   }
+  ],
+  "features": [
+   "1989 年由南非 UCW 得標製造車體、英國 GEC 提供機電，共 12 組 48 輛，四輛一組，1990 年 11 月上線，是台鐵第一代通勤電車，最高時速 110 公里。",
+   "車體跟 EMU200 同一個家族，車側下緣往內收；每側兩組雙開門，車廂排法近似 32200 型通勤客車。",
+   "早年是淺藍塗裝，後來改成較深的藍色帶；2014 年起被新型通勤車取代，2015 年全數退役。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA EMU410 at Zhunan Station 20160915.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU410_at_Zhunan_Station_20160915.jpg",
+    "author": "Cassiopeia sweet",
+    "licence": "Public domain",
+    "use": "正面（藍色車頭、貫通門、頭燈位置）"
+   },
+   {
+    "file": "File:EMU400 EP403 Side Profile Taoyuan DSC 0271.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:EMU400_EP403_Side_Profile_Taoyuan_DSC_0271.jpg",
+    "author": "Lexcie",
+    "licence": "CC BY-SA 3.0",
+    "use": "正側面（車門與窗的排列、下緣內收）"
+   },
+   {
+    "file": "File:TRA UCW EMU400 in Taoyuan.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_UCW_EMU400_in_Taoyuan.jpg",
+    "author": "Lexcie",
+    "licence": "CC BY-SA 3.0",
+    "use": "斜前方"
+   },
+   {
+    "file": "File:TRA EMU400 at Songshan Station 20080921.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU400_at_Songshan_Station_20080921.jpg",
+    "author": "蒼空　翔",
+    "licence": "CC BY-SA 3.0",
+    "use": "車側藍線走法"
+   },
+   {
+    "file": "File:TRA EMU400 at North Hsinchu Station 20121229.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMU400_at_North_Hsinchu_Station_20121229.jpg",
+    "author": "billy1125",
+    "licence": "CC BY 2.0",
+    "use": "晚期塗裝"
+   },
+   {
+    "file": "File:TRA EMC412 in Dingpu Station 20070705.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_EMC412_in_Dingpu_Station_20070705.jpg",
+    "author": "SElefant",
+    "licence": "CC BY-SA 3.0",
+    "use": "駕駛車車側"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "pc32701",
+  "name": "35PC32701 客廳車",
+  "label": "35PC32701",
+  "detail": "莒光號橘色配米白帶 · 一端是開放式瞭望台 · 車側六片不等寬大窗",
+  "color": "#ec7838",
+  "source": "https://commons.wikimedia.org/wiki/File:TRA_Parlor_Car_at_Balin_Station_20160117.jpg",
+  "sources": [
+   {
+    "label": "Wikimedia Commons／billy1125（CC BY 2.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_Parlor_Car_at_Balin_Station_20160117.jpg"
+   },
+   {
+    "label": "Wikimedia Commons／Winertai（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:%E7%B8%BD%E7%B5%B1%E5%AE%A2%E5%BB%B3%E8%BB%8A.jpg"
+   }
+  ],
+  "features": [
+   "1972 年由唐榮鐵工廠拿 35SP32712 改造而成，車尾留一個有欄杆的開放瞭望台，可以站在車外看後方的路線。",
+   "1993 年改成車側六片大小不一的觀景窗，並換上莒光號的橘色塗裝；車內只有 30 個座位，轉向架後來換成 TR-52 型空氣彈簧，最高時速 110 公里。",
+   "2020 年再改成無障礙車廂，目前只供團體包租。車庫讓它掛在莒光號後面，瞭望台朝外。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA Parlor Car at Balin Station 20160117.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_Parlor_Car_at_Balin_Station_20160117.jpg",
+    "author": "billy1125",
+    "licence": "CC BY 2.0",
+    "use": "瞭望台端與車側大窗"
+   },
+   {
+    "file": "File:總統客廳車.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:%E7%B8%BD%E7%B5%B1%E5%AE%A2%E5%BB%B3%E8%BB%8A.jpg",
+    "author": "Winertai",
+    "licence": "CC BY-SA 3.0",
+    "use": "瞭望台欄杆與尾燈"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "sa32820",
+  "name": "35SA32820 花車",
+  "label": "35SA32820",
+  "detail": "莒光號橘色配米白帶 · 一長排小方窗 · 端部手折門",
+  "color": "#ec7838",
+  "source": "https://commons.wikimedia.org/wiki/File:TRA_Railway_Saloon_Car_35SA32820_Kaohsiung_Sta_20170222_1.JPG",
+  "sources": [
+   {
+    "label": "Wikimedia Commons／Cassiopeia sweet（Public domain）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_Railway_Saloon_Car_35SA32820_Kaohsiung_Sta_20170222_1.JPG"
+   },
+   {
+    "label": "Wikimedia Commons／Cassiopeia sweet（Public domain）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_Railway_Saloon_Car_35SA32820_Kaohsiung_Sta_20170222_2.JPG"
+   },
+   {
+    "label": "Wikimedia Commons／臺灣鐵路公司（Attribution）",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_35SA32820_20240916.jpg"
+   }
+  ],
+  "features": [
+   "台北機廠用觀光號客車 35SP32820 改成的特別車廂，台鐵稱為花車，專給元首與貴賓出巡使用。",
+   "用 TR-29 轉向架與 AV 煞車，最高時速 100 公里；1991 年曾載當時的總統環島巡視。",
+   "平時停在七堵調車場的花車庫，2024 年曾開到花東線公開展示。車庫讓它掛在莒光號後面，手折門那端朝外。"
+  ],
+  "photos": [
+   {
+    "file": "File:TRA Railway Saloon Car 35SA32820 Kaohsiung Sta 20170222 1.JPG",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_Railway_Saloon_Car_35SA32820_Kaohsiung_Sta_20170222_1.JPG",
+    "author": "Cassiopeia sweet",
+    "licence": "Public domain",
+    "use": "車側（小窗排列、車門位置）"
+   },
+   {
+    "file": "File:TRA Railway Saloon Car 35SA32820 Kaohsiung Sta 20170222 2.JPG",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_Railway_Saloon_Car_35SA32820_Kaohsiung_Sta_20170222_2.JPG",
+    "author": "Cassiopeia sweet",
+    "licence": "Public domain",
+    "use": "端面與手折門"
+   },
+   {
+    "file": "File:TRA 35SA32820 20240916.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:TRA_35SA32820_20240916.jpg",
+    "author": "臺灣鐵路公司",
+    "licence": "Attribution",
+    "use": "近況（2024 年花東線展示）"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
+ },
+ {
+  "id": "shinkansen0",
+  "name": "0 系新幹線 21-5035",
+  "label": "21-5035",
+  "detail": "象牙白車身 · 圓鼻子配兩顆頭燈 · 藍色窗帶與藍色裙板",
+  "color": "#1e3b8c",
+  "source": "https://commons.wikimedia.org/wiki/File:Shinkansen_Series_0_car_21-5035_THSR_Tainan_Station_20240413.jpg",
+  "sources": [
+   {
+    "label": "Wikimedia Commons／Rsa（CC BY-SA 3.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:Shinkansen_Series_0_car_21-5035_THSR_Tainan_Station_20240413.jpg"
+   },
+   {
+    "label": "Wikimedia Commons／Tze Chiang Hao（CC BY 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:2024-01-12_TSHR_Structure_Gauge_Test_Car_in_Tainan_Oiran_Train_Scenic_Park_01.jpg"
+   },
+   {
+    "label": "Wikimedia Commons／Tze Chiang Hao（CC BY 4.0）",
+    "url": "https://commons.wikimedia.org/wiki/File:2024-01-12_TSHR_Structure_Gauge_Test_Car_in_Tainan_Oiran_Train_Scenic_Park_02.jpg"
+   }
+  ],
+  "features": [
+   "日本第一代新幹線 0 系的先頭車，這輛 21-5035 在 1978 年出廠。",
+   "台灣高鐵興建期間，2004 年由高鐵公司引進，當作工程用的限界測量車；0 系在日本以外只剩兩輛，台南這一輛相當難得。",
+   "現在停在高鐵台南站旁展示。車庫做的是它的圓鼻子、藍色窗帶和裙板。"
+  ],
+  "photos": [
+   {
+    "file": "File:Shinkansen Series 0 car 21-5035 THSR Tainan Station 20240413.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:Shinkansen_Series_0_car_21-5035_THSR_Tainan_Station_20240413.jpg",
+    "author": "Rsa",
+    "licence": "CC BY-SA 3.0",
+    "use": "斜前方（圓鼻、藍色窗帶、裙板）"
+   },
+   {
+    "file": "File:2024-01-12 TSHR Structure Gauge Test Car in Tainan Oiran Train Scenic Park 01.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:2024-01-12_TSHR_Structure_Gauge_Test_Car_in_Tainan_Oiran_Train_Scenic_Park_01.jpg",
+    "author": "Tze Chiang Hao",
+    "licence": "CC BY 4.0",
+    "use": "正側面"
+   },
+   {
+    "file": "File:2024-01-12 TSHR Structure Gauge Test Car in Tainan Oiran Train Scenic Park 02.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:2024-01-12_TSHR_Structure_Gauge_Test_Car_in_Tainan_Oiran_Train_Scenic_Park_02.jpg",
+    "author": "Tze Chiang Hao",
+    "licence": "CC BY 4.0",
+    "use": "車頭正面"
+   },
+   {
+    "file": "File:2024-01-12 TSHR Structure Gauge Test Car in Tainan Oiran Train Scenic Park 03.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:2024-01-12_TSHR_Structure_Gauge_Test_Car_in_Tainan_Oiran_Train_Scenic_Park_03.jpg",
+    "author": "Tze Chiang Hao",
+    "licence": "CC BY 4.0",
+    "use": "車側細部"
+   },
+   {
+    "file": "File:2024-01-12 TSHR Structure Gauge Test Car in Tainan Oiran Train Scenic Park 04.jpg",
+    "url": "https://commons.wikimedia.org/wiki/File:2024-01-12_TSHR_Structure_Gauge_Test_Car_in_Tainan_Oiran_Train_Scenic_Park_04.jpg",
+    "author": "Tze Chiang Hao",
+    "licence": "CC BY 4.0",
+    "use": "車尾"
+   }
+  ],
+  "photoUse": "只在本機比對外觀，不進交付包、不當貼圖"
  }
 ]
