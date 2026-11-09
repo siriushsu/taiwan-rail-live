@@ -171,7 +171,9 @@ const widths = [360, 375, 414, 768];
 // 11/06: fleet add 1 (586 -> 587).
 // 11/06: fit, short add 2 (587 -> 589).
 // 11/06: garage scene music add 1 (589 -> 590).
-const expectedHistoryCount = 590;
+// 11/08: Taichung MRT first train add 1 (590 -> 591).
+// 11/09: garage book cars and garage intros add 2 (591 -> 593).
+const expectedHistoryCount = 593;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

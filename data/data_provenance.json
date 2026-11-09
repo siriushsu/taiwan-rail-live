@@ -26,7 +26,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "38b93239090f927faef4701185f2802d"
+   "checksum": "bc66c45a83ab39e29cf974803e304982"
   },
   "data/crossings.json": {
    "sourceDescription": "官方 XML 共 801 筆,含座標 415 筆(src:tra;無座標 386 筆為已裁撤/立體化)。座標投影取沿線位置(d,km,haversine 弧長,算法與站點 d 一致);投影垂足離原點 >50m 的 4 筆(候選線不含實際路廊,如八股頭/光復路實在舊山線)改用官方原始座標標點。",
@@ -260,7 +260,7 @@
    "effectiveDateField": "generated",
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "399d0314e1e340fbf9c87130e7c9e2ba"
+   "checksum": "17730de577c0816c640cb4923a3f5015"
   },
   "data/tra_station_class.json": {
    "sourceDescription": "維基百科「臺灣鐵路車站列表」表格(scripts/fetch_station_class.mjs;台鐵官方 OpenData 車站基本資料集無站等欄位)",
