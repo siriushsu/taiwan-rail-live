@@ -191,13 +191,13 @@
    "checksum": "22aa721e920844331398a0421eae0574"
   },
   "data/tmrt_times.json": {
-   "sourceDescription": "台中捷運無公開逐班時刻表:以交通部TDX官方班距(各時段)與首末班車推算班次(2026-11-08 抓取),非公告時刻",
+   "sourceDescription": "台中捷運無公開逐班時刻表:以交通部TDX官方班距(各時段)與首末班車推算班次(2026-11-09 抓取),非公告時刻",
    "sourceField": "source_notes",
    "effectiveDate": null,
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "81538450eacf012be1db3761d1792429"
+   "checksum": "8eb3a3396ef5bbc8f5a06980edb52b83"
   },
   "data/tra.json": {
    "sourceDescription": "Overpass 節點來源：https://maps.mail.ru/osm/tools/overpass/api/interpreter（node railway~station|halt, operator~台鐵/臺灣鐵路/Taiwan Railway，bbox=21.9,120.0,25.3,122.0），共取得",

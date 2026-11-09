@@ -5894,9 +5894,9 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="tmrtfirst1109"><span class="d">11/09</span><span>台中捷運綠線首班車改回 06:00：交通部 TDX 資料已改回原本時刻，11/8 提早到 05:30 的那版不再採用，末班不變</span></li>
         <li data-cl-of="booknewcars1109"><span class="d">11/09</span><span>車庫新增 12 款車：EMU200、DR2800、S400、EMU400、0 系新幹線、總統花車等，各用 150 島民點數兌換</span></li>
         <li data-cl-of="garageinfo1109"><span class="d">11/09</span><span>車庫場景與車款加上介紹，車款詳情多了「車款檔案」，列車卡 8 個車種各補一則小知識</span></li>
-        <li data-cl-of="tmrtfirst1108"><span class="d">11/08</span><span>台中捷運綠線首班車照交通部 TDX 最新資料提前到 05:30，末班不變</span></li>
         <li data-cl-of="garagescenemusic1106"><span class="d">11/06</span><span>車庫音樂改到場景頁才放，只放慢版鋼琴，車跑起來還有鐵軌聲；車庫首頁不出聲，音符鈕留在場景頁</span></li>
         <li data-cl-of="garagefit1106"><span class="d">11/06</span><span>車庫場景頁的時段鈕、標題和車款選單放不下時改成換行，Safari 點車款也換得到車</span></li>
         <li data-cl-of="garageshort1106"><span class="d">11/06</span><span>手機橫放時，車庫的機務段入口排到展示台下面，第一屏看得到完整車模</span></li>
@@ -6473,7 +6473,7 @@
         <li><span class="d">7/13</span><span>新增「分享畫面」：把地圖位置、時間與路網打包成一條連結</span></li>
         <li><span class="d">7/11</span><span>可以安裝到主畫面（PWA），像 App 一樣全螢幕開啟</span></li>
         <li class="grp">資料校正</li>
-        <li data-cl="tmrtfirst1108"><span class="d">11/08</span><span>台中捷運綠線首班車照交通部 TDX 最新資料提前到 05:30，末班不變</span></li>
+        <li data-cl="tmrtfirst1109"><span class="d">11/09</span><span>台中捷運綠線首班車改回 06:00：交通部 TDX 資料已改回原本時刻，11/8 提早到 05:30 的那版不再採用，末班不變</span></li>
         <li data-cl="trcurl1030"><span class="d">10/30</span><span>台鐵官網改用新網址 www.trc.com.tw，活動公告與車庫裡的台鐵官方連結都換成新網址（謝謝網友回報）</span></li>
         <li data-cl="klrtja0929"><span class="d">9/29</span><span>日文版的高雄環狀輕軌改用高雄捷運官方日文路線名「ライトレール環状線」</span></li>
         <li data-cl="metrolead0929"><span class="d">9/29</span><span>捷運導言更正：「北北桃」與台北捷運的地圖導言，也改成台北捷運各線（含文湖線）的列車位置與車站倒數都來自官方逐班即時資料，不再把文湖線寫成班距推算</span></li>
@@ -7444,7 +7444,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1107a：資料來源標示校正：TDX 改標交通部運輸資料流通服務平臺與《資料授權利用條款》，頁尾補上高鐵。
 // v1108a：台中捷運綠線首班車照 TDX 提前到 05:30，末班不變。
 // v1109a：車庫開賣圖鑑 12 款車（chips.items 各 150 點，頁尾改「另 17 款」）；一併上線車庫場景與車款介紹、車款檔案、列車卡 8 個車種的小知識。
-const BUILD = 'v1109a';
+// v1109b：台中捷運綠線首班車照 TDX 改回 06:00（撤掉 v1108a 的 05:30），末班不變。
+const BUILD = 'v1109b';
 // v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
