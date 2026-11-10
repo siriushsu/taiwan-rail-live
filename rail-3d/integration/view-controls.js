@@ -44,7 +44,14 @@ export function mountViewControls({translate:t}) {
     // 側欄模式只有右側真的有卡片或跟車欄時才讓到它左邊（與 index.html 的 --rail-occupy 同一組狀態）；沒開卡片時留在右上工具列，否則 iPad 橫向會浮在畫面中間。
     const railBusy=['sheet-open','train-open','follow-on'].some(c=>document.body.classList.contains(c));
     const mobile=document.body.classList.contains('mobile-shell'),stage=document.querySelector('.stage').getBoundingClientRect();dock.classList.toggle('view-mobile',mobile);toggle.classList.toggle('view-side-entry',mobile&&sheetIsSideRail()&&railBusy);
-    const right=Math.min(innerWidth-16,stage.right-12),left=right-52;dock.style.right=(innerWidth-right)+'px';let top=Math.max(16,stage.top+16),ceil=top;
+    const right=Math.min(innerWidth-16,stage.right-12),left=right-52;dock.style.right=(innerWidth-right)+'px';
+    // 桌面非全畫面時整頁會捲：觀看欄是 fixed，原本頂端夾在 16px，地圖捲出去後它還留在視窗頂，壓在縮放鈕、控制列與地圖下方的頁面內容上。
+    // 桌面改成跟著地圖頂走（地圖捲走它就跟著出畫面）；手機殼與全畫面的 .stage 本來就固定在視窗裡，照舊。
+    let top=mobile?Math.max(16,stage.top+16):stage.top+16,ceil=top;
+    // 桌面右欄面板（看板、地點卡、公告）的右距要讓出觀看欄：寬度依語言而變，所以量實際的左緣，留 8px 間距，寫給 index.html 的 --view-clear。
+    // 觀看欄收起時（搜尋、更多、放空）沿用上一次的值，面板不跟著跳。
+    const stageEl=document.querySelector('.stage'),railBox=rail.getBoundingClientRect();
+    if(!mobile&&railBox.width)stageEl.style.setProperty('--view-clear',Math.ceil(stage.right-parseFloat(getComputedStyle(stageEl).borderRightWidth||0)-railBox.left+8)+'px');
     for(const q of document.querySelectorAll('#topbar,.badge,#randBtn,#nearBtn,#followLockBtn,#fsFab,.maplibregl-ctrl-top-right,#alertBanner,#alertDetail')){const r=q.getBoundingClientRect(),s=getComputedStyle(q);if(!r.width||!r.height||s.display==='none'||s.visibility==='hidden'||Number(s.opacity)<.5)continue;if(r.right>left&&r.left<right&&r.top<stage.top+220){top=Math.max(top,r.bottom+12);if(!q.closest('#mapActions'))ceil=Math.max(ceil,r.bottom+12);}}
     if(mobile){const actions=document.getElementById('mapActions').getBoundingClientRect();top=Math.max(top,actions.bottom+10);}
     let bottom=Math.min(innerHeight-88,stage.bottom-88);if(!mobile)for(const q of document.querySelectorAll('.maplibregl-ctrl-bottom-right')){const r=q.getBoundingClientRect();if(r.width&&r.height&&r.top>top)bottom=Math.min(bottom,r.top-12);}if(mobile){dock.style.right='10px';const c=document.querySelector('.controls')?.getBoundingClientRect();if(c?.height){pillH=Math.max(pillH,c.height);bottom=Math.min(bottom,c.bottom-pillH-8);}}
@@ -56,6 +63,7 @@ export function mountViewControls({translate:t}) {
   let scheduled=false;function schedule(){if(scheduled)return;scheduled=true;requestAnimationFrame(()=>{scheduled=false;layout();});}
   new ResizeObserver(schedule).observe(document.getElementById('mapActions'));
   new ResizeObserver(schedule).observe(document.getElementById('topbar'));
+  new ResizeObserver(schedule).observe(rail); // 換語言後分類名稱變寬，右欄面板的讓位要跟著重算
   // 只在這些狀態「剛出現」時收面板；已經開著的車站卡等底部卡片不算，否則在卡片上開觀看設定會立刻被自己關掉。
   let seen=new Set(document.body.classList);
   new MutationObserver(()=>{const now=document.body.classList,added=c=>now.contains(c)&&!seen.has(c);seen=new Set(now);if(opened&&['tools-open','search-open','train-open','explore-open','sheet-open','ambient'].some(added))close();schedule();}).observe(document.body,{attributes:true,attributeFilter:['class']});

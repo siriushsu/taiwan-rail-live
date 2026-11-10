@@ -76,10 +76,19 @@ groups = {
         "ct250",
         "fuxing",
         "emu300",
-        "tengyun"
+        "tengyun",
+        "emu200",
+        "dr2800",
+        "e100",
+        "s200",
+        "s400",
+        "emu400",
+        "pc32701",
+        "sa32820"
     ],
     "台灣高鐵": [
-        "700t"
+        "700t",
+        "shinkansen0"
     ],
     "阿里山林鐵": [
         "dl25",
@@ -89,7 +98,12 @@ groups = {
         "alicoach",
         "hinoki",
         "fushen",
-        "xuyue"
+        "xuyue",
+        "shay31"
+    ],
+    "台糖": [
+        "tsc346",
+        "wufen"
     ],
     "高雄輕軌": [
         "caf",

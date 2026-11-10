@@ -1044,6 +1044,18 @@ try {
     if (api.status !== 200) fail(`/api/trtc-live 回 ${api.status}——Worker 路由疑似壞了`
       + (api.status === 429 ? '（連續一分鐘 429：先手動 curl 確認是不是邊緣限流還沒退）' : ''));
     console.log(`✅ 出貨完成：railisland.tw 逐 byte＝stripped(${sha.slice(0, 8)})，${stripped.length} bytes，BUILD '${newBuild}'，API 200`);
+
+    // ── 8. 公開快照（2026-11-09）：開發在私有 repo（origin），公開 repo（public）只收每次上線的版本 ──
+    //    用出貨那顆自己的快照腳本（排除清單跟著那顆走），不經閘門帳本（每發都要跑）。失敗不回滾正式站：
+    //    快照只看 tree，下一發出貨會整包補上。
+    const snapScript = path.join(wt, 'scripts', 'publish_public_snapshot.mjs');
+    if (!fs.existsSync(snapScript)) console.log('（出貨那顆還沒有公開快照腳本，略過）');
+    else {
+      const snap = rawSpawnSync('node', [snapScript, '--ref', sha], { cwd: wt, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
+      process.stdout.write(snap.stdout || ''); process.stderr.write(snap.stderr || '');
+      if (snap.status !== 0) console.error('⚠️ 正式站已上線，但公開快照沒推成功（不影響正式站，下一發出貨會補上）。'
+        + `單獨重跑：npm run publish-public -- --ref ${sha}`);
+    }
   }
   ok = true;
 } finally {

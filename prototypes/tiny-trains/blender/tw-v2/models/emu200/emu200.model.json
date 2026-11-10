@@ -1,0 +1,321 @@
+{
+  "modelId": "emu200",
+  "name": "EMU200 原廠塗裝自強號",
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "family": "railcar",
+  "axes": {
+    "front": "+X",
+    "left": "+Y",
+    "up": "+Z",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ],
+    "units": "meters"
+  },
+  "gltfAxes": {
+    "front": "+X",
+    "left": "-Z",
+    "up": "+Y",
+    "toENU": "rotateX(+PI/2)"
+  },
+  "style": "Q-proportions-photo-informed",
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "numberIsLiveIdentity": false,
+  "identityMaterial": "可移除車型示意牌",
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -4.749000072479248,
+      -1.4932169914245605,
+      0.0
+    ],
+    "max": [
+      4.839000225067139,
+      1.4932169914245605,
+      3.7200000286102295
+    ]
+  },
+  "sizeM": [
+    9.588000297546387,
+    2.986433982849121,
+    3.7200000286102295
+  ],
+  "mesh": {
+    "file": "emu200.mesh.bin",
+    "sha256": "147f12ac5e792e0027e5669843518051d1d381d68116baf424d6f5bf9a43d446",
+    "encoding": "float32-le",
+    "strideBytes": 24,
+    "vertexCount": 205452,
+    "triangleCount": 68484,
+    "drawGroups": [
+      {
+        "name": "e2cream",
+        "start": 0,
+        "count": 2076,
+        "color": [
+          0.8069522380828857,
+          0.7230551242828369,
+          0.5149176716804504
+        ],
+        "metalness": 0.05999999865889549,
+        "roughness": 0.36000001430511475,
+        "clearcoat": 0.25
+      },
+      {
+        "name": "e2tan",
+        "start": 2076,
+        "count": 2904,
+        "color": [
+          0.35153260827064514,
+          0.2015562504529953,
+          0.08437620848417282
+        ],
+        "metalness": 0.05999999865889549,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.2199999988079071
+      },
+      {
+        "name": "e2roof",
+        "start": 4980,
+        "count": 1524,
+        "color": [
+          0.4564110338687897,
+          0.44520118832588196,
+          0.4019777774810791
+        ],
+        "metalness": 0.4000000059604645,
+        "roughness": 0.41999998688697815,
+        "clearcoat": 0.07999999821186066
+      },
+      {
+        "name": "e2or",
+        "start": 6504,
+        "count": 11904,
+        "color": [
+          0.8069522380828857,
+          0.09758734703063965,
+          0.027320891618728638
+        ],
+        "metalness": 0.05000000074505806,
+        "roughness": 0.3400000035762787,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "e2yel",
+        "start": 18408,
+        "count": 20436,
+        "color": [
+          0.8549926280975342,
+          0.5394794940948486,
+          0.03189603239297867
+        ],
+        "metalness": 0.05000000074505806,
+        "roughness": 0.3400000035762787,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "frame",
+        "start": 38844,
+        "count": 34848,
+        "color": [
+          0.008568125776946545,
+          0.016807375475764275,
+          0.022173885256052017
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "glass",
+        "start": 73692,
+        "count": 9576,
+        "color": [
+          0.009134058840572834,
+          0.03560131415724754,
+          0.05780543014407158
+        ],
+        "metalness": 0.25999999046325684,
+        "roughness": 0.1899999976158142,
+        "clearcoat": 0.41999998688697815
+      },
+      {
+        "name": "metal",
+        "start": 83268,
+        "count": 35184,
+        "color": [
+          0.30946892499923706,
+          0.38642942905426025,
+          0.4125426113605499
+        ],
+        "metalness": 0.6399999856948853,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "chassis",
+        "start": 118452,
+        "count": 40764,
+        "color": [
+          0.03433980792760849,
+          0.05448027700185776,
+          0.06847816705703735
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "roof",
+        "start": 159216,
+        "count": 12408,
+        "color": [
+          0.4677838087081909,
+          0.520995557308197,
+          0.5271151065826416
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "rubber",
+        "start": 171624,
+        "count": 9828,
+        "color": [
+          0.014443843625485897,
+          0.020288562402129173,
+          0.023153366521000862
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.7699999809265137,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "lamp",
+        "start": 181452,
+        "count": 6660,
+        "color": [
+          1.0,
+          0.8879231214523315,
+          0.5840784311294556
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "white",
+        "start": 188112,
+        "count": 3072,
+        "color": [
+          0.8713670969009399,
+          0.838798999786377,
+          0.6938717365264893
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "taillamp",
+        "start": 191184,
+        "count": 2664,
+        "color": [
+          0.43415364623069763,
+          0.0382043719291687,
+          0.03310476616024971
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "可移除車型示意牌",
+        "start": 193848,
+        "count": 11040,
+        "color": [
+          0.8069522380828857,
+          0.7529422044754028,
+          0.6038273572921753
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.0
+      },
+      {
+        "name": "yellow",
+        "start": 204888,
+        "count": 564,
+        "color": [
+          0.838798999786377,
+          0.533276379108429,
+          0.06301001459360123
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      }
+    ]
+  },
+  "nativeObjectCount": 268,
+  "features": {
+    "sideDoorGroups": 2,
+    "doorLeavesPerGroup": 1,
+    "pantographsOnThisAsset": 0,
+    "axlesPerBogie": 2,
+    "articulatedSections": 1,
+    "steamDriversPerSide": 0
+  },
+  "specification": {
+    "id": "emu200",
+    "family": "railcar",
+    "L": 8.7,
+    "W": 2.8,
+    "H": 3.5,
+    "doors": 2,
+    "doorLeaves": 1,
+    "doorW": 0.62,
+    "rearDoor": 0.62,
+    "frontDoor": 1.46,
+    "crewDoor": true,
+    "radiusTop": 0.45,
+    "winR": 0.08,
+    "winH": 0.8,
+    "winZ": 2.36,
+    "doorWinH": 0.76,
+    "doorWinZ": 2.36,
+    "doorTop": 2.92,
+    "body": "E8DDBE",
+    "accent": "E8582E",
+    "acUnits": [
+      [
+        -2.1,
+        1.5
+      ],
+      [
+        0.5,
+        1.5
+      ]
+    ],
+    "acMat": "e2roof",
+    "power": "overhead-other-car",
+    "label": "EMU200",
+    "bowPow": 6
+  },
+  "reference": {
+    "source": "https://commons.wikimedia.org/wiki/File:Taiwan_Railway_Administration_EMU_206_Banqiao_1989.jpg",
+    "detail": "橘紅頂帽黃色平頭車頭 · 中央黃色貫通門 · 米色上半與棕色下半車身",
+    "photoUse": "visual-study-only-not-redistributed"
+  },
+  "formation": {
+    "default": "single-vehicle",
+    "illustrative": true,
+    "liveAssignment": false,
+    "shortFormation": null
+  }
+}

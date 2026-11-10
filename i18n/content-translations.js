@@ -19,7 +19,13 @@
     "車庫新增 11 座台鐵特色車站場景：新竹、台南、台中舊站、嘉義、保安、集集、冬山、高雄、大山、勝興、台北地下月台": "The garage adds 11 TRA station scenes: Hsinchu, Tainan, old Taichung, Chiayi, Bao'an, Jiji, Dongshan, Kaohsiung, Dashan, Shengxing and Taipei underground platforms",
     "EMU3000 新自強號的 3D 車模重新製作，外型更接近實車": "Rebuilt the EMU3000 3D model to look closer to the real train",
     "Q 版列車從側面看時，並行的列車不再互相穿過": "Q-style trains running side by side no longer pass through each other when viewed from the side",
-    "台中捷運綠線首班車照交通部 TDX 最新資料提前到 05:30，末班不變": "Taichung MRT Green Line first trains now start at 05:30, following the latest MOTC TDX data; last trains unchanged",
+    "捷運：北捷列車在資料更新的瞬間不再往回跳一小段，落後時會在原地稍等再接著走": "Metro: Taipei MRT trains no longer jump back a little when the data refreshes; if a train falls behind, it waits in place and then carries on",
+    "台中捷運綠線首班車改回 06:00：交通部 TDX 資料已改回原本時刻，11/8 提早到 05:30 的那版不再採用，末班不變": "Taichung MRT Green Line first trains are back to 06:00: MOTC TDX data has returned to the original times, so the 11/8 version with a 05:30 start is no longer used; last trains unchanged",
+    "電腦版地圖的面板、卡片和右側觀看鈕不再互相疊住；存起來的地點星星改畫在面板下面，不會再蓋到對話框": "On desktop, map panels, cards and the View buttons on the right no longer overlap; saved-place stars now sit beneath panels instead of covering dialogs",
+    "車庫新增 12 款車：EMU200、DR2800、S400、EMU400、0 系新幹線、總統花車等，各用 150 島民點數兌換": "12 new trains join the garage, including EMU200, DR2800, S400, EMU400, the Shinkansen Series 0 and the presidential saloon car; each is redeemed for 150 Islander Points",
+    "車庫場景與車款加上介紹，車款詳情多了「車款檔案」，列車卡 5 個車種各補一則小知識": "Garage scenes and trains now come with introductions, train details add a Vehicle Profile, and train cards for 5 train types each get a new fun fact",
+    "台鐵單線區段原本畫成在站間錯身的對向列車，改成先到的那班進站停車，等對向列車通過再開（例如 410 次在東竹等 417 次）": "On single-track TRA sections, oncoming trains that used to be shown passing each other between stations now meet at a station: the first to arrive stops there until the other has passed (e.g. train 410 waits for 417 at Dongzhu)",
+    "車庫場景頁換車改成下面一排車款鈕直接點；有月台的場景列車輪流進站、停站再開走；鐵軌、電線等細線遠看不再忽隱忽現": "On garage scene pages, switch cars from the row of car buttons below; scenes with platforms now have trains taking turns to pull in, stop and leave; thin rails and wires no longer flicker from afar",
     "CK124、CT273、DT668 三款蒸汽機車的 3D 車模照實車重新製作": "Rebuilt the 3D models of the CK124, CT273 and DT668 steam locomotives to look closer to the real trains",
     "車庫裡的客車款跑起來會配上機車頭，復興號、莒光號不再沒有車頭": "Coach models in the garage now run with a locomotive, so the Fu-Hsing Express and Chu-Kuang Express no longer run without one",
     "22 款列車的 3D 車模對照實車照片修正，海風號、山嵐號、R200 改動最大": "Refined 22 train 3D models against real photos, with the biggest changes to Haifeng, Shanlan and the R200",
@@ -409,7 +415,13 @@
     "車庫新增 11 座台鐵特色車站場景：新竹、台南、台中舊站、嘉義、保安、集集、冬山、高雄、大山、勝興、台北地下月台": "車庫に台鉄の特色ある駅の情景を 11 か所追加：新竹、台南、台中旧駅、嘉義、保安、集集、冬山、高雄、大山、勝興、台北地下ホーム",
     "EMU3000 新自強號的 3D 車模重新製作，外型更接近實車": "EMU3000 の 3D モデルを作り直し、実車に近づけました",
     "Q 版列車從側面看時，並行的列車不再互相穿過": "デフォルメ列車を横から見たとき、並走する列車がすり抜けなくなりました",
-    "台中捷運綠線首班車照交通部 TDX 最新資料提前到 05:30，末班不變": "台中MRT緑線の始発を、交通部TDXの最新データに合わせて5:30に繰り上げました（終電は変わりません）",
+    "捷運：北捷列車在資料更新的瞬間不再往回跳一小段，落後時會在原地稍等再接著走": "MRT：台北MRTの列車がデータ更新の瞬間に少し後ろへ戻らなくなりました。遅れているときはその場で少し待ってから進みます",
+    "台中捷運綠線首班車改回 06:00：交通部 TDX 資料已改回原本時刻，11/8 提早到 05:30 的那版不再採用，末班不變": "台中MRT緑線の始発を6:00に戻しました。交通部TDXのデータが元の時刻に戻ったため、11/8の5:30始発版は使いません（終電は変わりません）",
+    "電腦版地圖的面板、卡片和右側觀看鈕不再互相疊住；存起來的地點星星改畫在面板下面，不會再蓋到對話框": "パソコン版の地図で、パネル・カード・右側の表示ボタンが重ならなくなりました。保存した地点の星はパネルの下に表示され、ダイアログに重なりません",
+    "車庫新增 12 款車：EMU200、DR2800、S400、EMU400、0 系新幹線、總統花車等，各用 150 島民點數兌換": "車庫に12車種を追加しました（EMU200、DR2800、S400、EMU400、新幹線0系、貴賓車（花車）など）。各150島民ポイントで交換できます",
+    "車庫場景與車款加上介紹，車款詳情多了「車款檔案」，列車卡 5 個車種各補一則小知識": "車庫のシーンと車両に紹介文を追加しました。車両の詳細に「車両データ」が加わり、列車カードは5車種に豆知識を1つずつ追加しました",
+    "台鐵單線區段原本畫成在站間錯身的對向列車，改成先到的那班進站停車，等對向列車通過再開（例如 410 次在東竹等 417 次）": "台鉄の単線区間で、駅間ですれ違うように表示されていた対向列車は、先に着いた列車が駅に停車し、対向列車の通過後に発車するようになりました（例：410列車が東竹で417列車を待つ）",
+    "車庫場景頁換車改成下面一排車款鈕直接點；有月台的場景列車輪流進站、停站再開走；鐵軌、電線等細線遠看不再忽隱忽現": "車庫の情景ページは下の車両ボタンの列から車両を切り替えられるようになりました。ホームのある情景では列車が順番に入線・停車・発車し、レールや架線などの細い線が遠くからでもちらつかなくなりました",
     "CK124、CT273、DT668 三款蒸汽機車的 3D 車模照實車重新製作": "蒸気機関車 CK124、CT273、DT668 の 3D モデルを実車に近づけて作り直しました",
     "車庫裡的客車款跑起來會配上機車頭，復興號、莒光號不再沒有車頭": "車庫の客車は機関車に牽かれて走るようになり、復興号や莒光号の先頭に機関車が付きます",
     "22 款列車的 3D 車模對照實車照片修正，海風號、山嵐號、R200 改動最大": "22 車種の 3D モデルを実車の写真と見比べて修正しました。海風号、山嵐号、R200 は特に大きく変わっています",
@@ -1501,7 +1513,7 @@
         puyuma: {
           name: 'TEMU2000 Puyuma Express',
           story: 'Named from a Puyuma word meaning unity, this second-generation Japanese tilting train uses air springs like the N700 Shinkansen. Since 2013 it has been a mainstay of eastern Taiwan services.',
-          facts: ['Its one-to-two-degree tilt is smaller than Taroko’s, but the mechanism is simpler and more reliable.', 'Eighteen sets remain in service, instantly recognisable by their streamlined red-and-black fronts.']
+          facts: ['Its one-to-two-degree tilt is smaller than Taroko’s, but the mechanism is simpler and more reliable.', 'Eighteen sets remain in service, instantly recognisable by their streamlined red-and-black fronts.', 'In 2016, the Year of the Monkey, the 18th and 19th batches of sets were painted with the Chinese character for “monkey” beside the nose.']
         },
         pp: {
           name: 'Push–pull Tze-Chiang（PP）',
@@ -1511,22 +1523,22 @@
         dr3100: {
           name: 'DR3100 diesel Tze-Chiang',
           story: 'Built in 1998 by Nippon Sharyo and Tang Eng, the stainless-steel DR3100 is TRA’s last diesel intercity multiple unit in regular service. Only a few Shulin–Hualien trains remain.',
-          facts: ['Contemporary DR2800, DR2900 and DR3000 fleets have retired; the younger DR3100 remains.', 'It was TRA’s first diesel intercity train delivered with automatic doors.']
+          facts: ['Contemporary DR2800, DR2900 and DR3000 fleets have retired; the younger DR3100 remains.', 'It was TRA’s first diesel intercity train delivered with automatic doors.', 'After the DR3100 took over some diesel railcar services, the sets it freed up could be added to other trains, easing to some extent the holiday scramble for tickets on the eastern trunk line.']
         },
         chukuang: {
           name: 'Chu-Kuang Express',
           story: 'Introduced in 1970 as TRA’s first air-conditioned reserved-seat train, the orange-and-cream locomotive-hauled service once ran 76 times a day. Only seven daily services remain after the July 2026 timetable change.',
-          facts: ['Slow acceleration from locomotive-hauled operation is a major reason electric multiple units replaced it.', 'Its cream-and-orange livery has been used since 1979.']
+          facts: ['Slow acceleration from locomotive-hauled operation is a major reason electric multiple units replaced it.', 'Its cream-and-orange livery has been used since 1979.', 'Chu-Kuang coaches added in the 1970s have carpet and velvet sofa-style seats inside.']
         },
         local: {
           name: 'Local train（commuter EMU）',
           story: 'The backbone of everyday TRA service. The newest EMU900 generation pairs curved “smiling” headlights with a bright green stripe and includes priority seating and upright bicycle racks.',
-          facts: ['Timetable data cannot distinguish EMU500, 700, 800 and 900 generations; smiling headlights identify an EMU900.', 'A ten-car EMU900 can carry nearly 1,800 passengers, TRA’s longest commuter formation.']
+          facts: ['Timetable data cannot distinguish EMU500, 700, 800 and 900 generations; smiling headlights identify an EMU900.', 'A ten-car EMU900 can carry nearly 1,800 passengers, TRA’s longest commuter formation.', 'The EMU500 is a TRA commuter EMU with a stainless-steel body; 344 cars were ordered from Daewoo Heavy Industries of South Korea, with the aim of fully replacing the ordinary coaches on the Western Trunk Line.']
         },
         'fast-local': {
           name: 'Fast Local',
           story: 'The quicker version of a local train uses similar commuter EMUs but skips smaller stations. On the map, its rhythm of passing stops makes it easy to recognise.',
-          facts: []
+          facts: ['The EMU700 entered service in August 2007, and from the next day it ran the Fast Local services; before that they were locomotive-hauled coach sets.']
         }
       },
       branchLines: {
@@ -1600,7 +1612,7 @@
         puyuma: {
           name: 'TEMU2000 普悠瑪号',
           story: 'プユマ語の「団結」にちなむ、日本車輌製造の第2世代振子式列車です。N700系と同様の空気ばね方式を採用し、2013年から東部幹線の主力を担っています。',
-          facts: ['傾斜角は太魯閣号より小さい1～2度ですが、機構が簡潔で信頼性に優れます。', '18編成が現役で、赤と黒の流線形先頭部が目印です。']
+          facts: ['傾斜角は太魯閣号より小さい1～2度ですが、機構が簡潔で信頼性に優れます。', '18編成が現役で、赤と黒の流線形先頭部が目印です。', '2016年の申年には、第18、19次の編成の先頭部の脇に「猴」（さる）の字が塗られました。']
         },
         pp: {
           name: 'プッシュプル自強号（PP）',
@@ -1610,22 +1622,22 @@
         dr3100: {
           name: 'DR3100 ディーゼル自強号',
           story: '1998年に日本車輌と唐栄が製造したステンレス製気動車で、台湾鉄路に残る最後の定期運行ディーゼル自強号です。現在は樹林―花蓮間の少数列車だけです。',
-          facts: ['同世代のDR2800・2900・3000は引退し、比較的新しいDR3100だけが残りました。', '台湾鉄路で初めて新製時から自動ドアを備えたディーゼル都市間列車です。']
+          facts: ['同世代のDR2800・2900・3000は引退し、比較的新しいDR3100だけが残りました。', '台湾鉄路で初めて新製時から自動ドアを備えたディーゼル都市間列車です。', 'DR3100がディーゼルカーの一部の列車を置き換えたことで、空いた編成を他の列車に増結できるようになり、休日の東部幹線の切符の取りにくさがある程度和らぎました。']
         },
         chukuang: {
           name: '莒光号',
           story: '1970年登場の台湾鉄路初の冷房付き指定席列車です。最盛期は1日76本あったクリームとオレンジの客車列車も、2026年7月改正後は1日7本だけになりました。',
-          facts: ['機関車牽引で加減速が遅いことが、電車に置き換えられた主因です。', 'クリームとオレンジの塗装は1979年から使われています。']
+          facts: ['機関車牽引で加減速が遅いことが、電車に置き換えられた主因です。', 'クリームとオレンジの塗装は1979年から使われています。', '1970年代に増備された莒光号の客車には、車内にじゅうたんとビロード張りのソファ風シートがあります。']
         },
         local: {
           name: '区間車（通勤電車）',
           story: '台湾鉄路の日常を支える列車です。最新のEMU900は「笑顔」のような前照灯と明るい緑の帯が特徴で、優先席や縦置き自転車ラックも備えます。',
-          facts: ['時刻表だけではEMU500・700・800・900を区別できません。笑顔のような前照灯がEMU900の目印です。', 'EMU900は10両で約1,800人を運べる、台湾鉄路最長の通勤編成です。']
+          facts: ['時刻表だけではEMU500・700・800・900を区別できません。笑顔のような前照灯がEMU900の目印です。', 'EMU900は10両で約1,800人を運べる、台湾鉄路最長の通勤編成です。', 'EMU500は台鉄の通勤電車でステンレス製の車体を持ち、韓国の大宇重工に344両を発注して、西部幹線の普通客車を全面的に置き換えることを目指しました。']
         },
         'fast-local': {
           name: '区間快車',
           story: '区間車と同じ通勤電車を使いながら小駅を通過する速達版です。地図では駅を飛ばして進む停車パターンで見分けられます。',
-          facts: []
+          facts: ['2007年8月にEMU700が営業を始め、翌日から区間快車はこの電車が走るようになりました。それまでは電気機関車が牽引する客車編成でした。']
         }
       },
       branchLines: {
@@ -1928,7 +1940,7 @@
     "田園小站免費，其他場景用島民點數兌換；在場景頁裡可以直接換場景、換車。": "Countryside Station is free; the other scenes are redeemed with Islander Points. On the scene page you can switch scenes and cars right there.",
     "登入軌島帳號後，「更多」→「我的車庫」，最上面的「車庫場景」第一格是免費的田園小站，後面是可以兌換的場景（例如南迴海岸、十分老街），旁邊有你目前的點數": "After signing in to your Rail Island account, open More → My garage. Garage scenes at the top starts with the free Countryside Station, followed by the scenes you can redeem (such as South Link Coast and Shifen Old Street), with your current points",
     "點田園小站或已解鎖的場景，直接打開場景頁；點鎖住的會打開兌換視窗，按「用 N 點兌換」，兌換後按「看場景」。點數不夠會寫「還差 N 點」": "Tap Countryside Station or an unlocked scene to open the scene page. A locked one opens the redeem window: press Redeem for N points, then View scene. If you’re short, it shows N points short",
-    "場景頁上方那排點別座場景就地換過去，鎖住的會打開兌換視窗；點場景名和車名那塊，換一台在這座跑的車。從舞台上的「場景」分頁也能進來": "On the scene page, tap another scene in the row at the top to switch right there; a locked one opens the redeem window. Tap the scene and car name to switch to another car that runs on this scene. The Scene tab on the stage opens the scene page too",
+    "場景頁上方那排點別座場景就地換過去，鎖住的會打開兌換視窗；下面那排車款點一下，就換成在這座跑的另一台車。從舞台上的「場景」分頁也能進來": "On the scene page, tap another scene in the row at the top to switch right there; a locked one opens the redeem window. Tap a car in the row below to switch to another car that runs on this scene. The Scene tab on the stage opens the scene page too",
     "島民點數靠 App 的「校正懸賞」錄旅程累積，照實際錄到的里程算；兌換一次就永久解鎖。沒登入時只有田園小站。": "Islander Points come from recording trips for Calibration bounties in the app, based on the distance actually recorded; a scene unlocks permanently once redeemed. Without signing in, only Countryside Station is available.",
     "點「開始收集」，從發車一路陪它到終點": "Choose Start collecting and follow from departure to the terminus",
     "舊有車種章自動帶入；收藏條件準備中的款式不計入完成比例。": "Existing train-type stamps count automatically. Models without collection rules are excluded from your completion total.",
@@ -1990,6 +2002,7 @@
     "已入庫 {count} 款，共可收集 {total} 款": "{count} collected out of {total} available",
     "台灣高鐵": "Taiwan High Speed Rail",
     "阿里山林鐵": "Alishan Forest Railway",
+    "台糖": "Taiwan Sugar Railway",
     "台北捷運": "Taipei Metro",
     "桃園捷運": "Taoyuan Metro",
     "新北捷運": "New Taipei Metro",
@@ -2010,7 +2023,7 @@
     "田園小站免費，其他場景用島民點數兌換；在場景頁裡可以直接換場景、換車。": "「田園の小駅」は無料、ほかの情景は島民ポイントで交換します。情景ページでは、その場で情景や車両を切り替えられます。",
     "登入軌島帳號後，「更多」→「我的車庫」，最上面的「車庫場景」第一格是免費的田園小站，後面是可以兌換的場景（例如南迴海岸、十分老街），旁邊有你目前的點數": "軌島アカウントにログインしてから「その他」→「マイ車庫」。一番上の「車庫の情景」は無料の「田園の小駅」が先頭で、続いて交換できる情景（南廻海岸、十分老街など）と、いまのポイントが表示されます",
     "點田園小站或已解鎖的場景，直接打開場景頁；點鎖住的會打開兌換視窗，按「用 N 點兌換」，兌換後按「看場景」。點數不夠會寫「還差 N 點」": "「田園の小駅」か解放済みの情景をタップすると情景ページが開きます。未解放の情景は交換画面が開くので「N ポイントで交換」を押し、交換したら「情景を見る」を押します。ポイントが足りないと「あと N ポイント」と表示されます",
-    "場景頁上方那排點別座場景就地換過去，鎖住的會打開兌換視窗；點場景名和車名那塊，換一台在這座跑的車。從舞台上的「場景」分頁也能進來": "情景ページ上部の列で別の情景をタップすると、その場で切り替わります。未解放の情景は交換画面が開きます。情景名と車両名の部分をタップすると、この情景を走る別の車両に変えられます。ステージの「情景」タブからも開けます",
+    "場景頁上方那排點別座場景就地換過去，鎖住的會打開兌換視窗；下面那排車款點一下，就換成在這座跑的另一台車。從舞台上的「場景」分頁也能進來": "情景ページ上部の列で別の情景をタップすると、その場で切り替わります。未解放の情景は交換画面が開きます。その下の車両の列をタップすると、この情景を走る別の車両に変えられます。ステージの「情景」タブからも開けます",
     "島民點數靠 App 的「校正懸賞」錄旅程累積，照實際錄到的里程算；兌換一次就永久解鎖。沒登入時只有田園小站。": "島民ポイントはアプリの「校正懸賞」で旅程を記録してたまり、実際に記録できた距離で計算します。一度交換すると永久に解放されます。ログインしていないときは「田園の小駅」だけです。",
     "點「開始收集」，從發車一路陪它到終點": "「収集を始める」を押し、始発から終点まで追いかけます",
     "舊有車種章自動帶入；收藏條件準備中的款式不計入完成比例。": "取得済みの車種スタンプを自動で反映します。収集条件を準備中の車両は達成率に含みません。",
@@ -2072,6 +2085,7 @@
     "已入庫 {count} 款，共可收集 {total} 款": "収集可能な {total} 種のうち {count} 種を収集済み",
     "台灣高鐵": "台湾高速鉄道",
     "阿里山林鐵": "阿里山森林鉄道",
+    "台糖": "台糖（糖業鉄道）",
     "台北捷運": "台北メトロ",
     "桃園捷運": "桃園メトロ",
     "新北捷運": "新北メトロ",
@@ -2093,9 +2107,9 @@
   "累積旅程，收藏小車。既有車種章與護照進度會自動帶入。": "Turn journeys into little trains. Your existing stamps and passport progress carry over.",
   "重新載入小車": "Reload train",
   "車型與來源": "Model and references",
-  "進度沿用旅程護照；62 款有收集條件、另 5 款用島民點數兌換，既有車種章自動帶入。": "62 trains have collection goals; the other 5 are redeemed with Islander Points. Progress comes from your journey passport, including existing train-type stamps.",
+  "進度沿用旅程護照；62 款有收集條件、另 17 款用島民點數兌換，既有車種章自動帶入。": "62 trains have collection goals; the other 17 are redeemed with Islander Points. Progress comes from your journey passport, including existing train-type stamps.",
   "累積完乘、里程、車站與支線章，解鎖 62 款紀念模型": "Complete journeys, cover distance, collect stations and branch-line stamps to unlock 62 keepsakes",
-  "既有車種章自動帶入，62 款車也能透過護照里程碑收集；另 5 款用島民點數兌換。": "Existing train-type stamps carry over. The 62 models can also be collected through passport milestones; the other 5 are redeemed with Islander Points.",
+  "既有車種章自動帶入，62 款車也能透過護照里程碑收集；另 17 款用島民點數兌換。": "Existing train-type stamps carry over. The 62 models can also be collected through passport milestones; the other 17 are redeemed with Islander Points.",
   "新增收藏車庫，62 款精修小車可旋轉欣賞；還沒收集到的是灰色車體，累積旅程進度解鎖後才有塗裝，舊護照自動帶入": "New collection garage with 62 detailed trains to rotate and admire. Trains you haven't collected yet appear as plain grey models — their livery arrives once your journey progress unlocks them. Existing passport progress carries over.",
   "完乘 {count} 趟": "Complete {count} journeys",
   "累積旅程 {count} 公里": "Travel {count} km in your passport",
@@ -2114,9 +2128,9 @@
   "累積旅程，收藏小車。既有車種章與護照進度會自動帶入。": "旅を重ねて小さな車両を集めましょう。取得済みスタンプとパスポートの進捗を引き継ぎます。",
   "重新載入小車": "車両を再読み込み",
   "車型與來源": "車両モデルと出典",
-  "進度沿用旅程護照；62 款有收集條件、另 5 款用島民點數兌換，既有車種章自動帶入。": "62種類に収集条件があり、ほかの5種類は島民ポイントで交換できます。既存の車種スタンプを含む旅程パスポートの進捗を反映します。",
+  "進度沿用旅程護照；62 款有收集條件、另 17 款用島民點數兌換，既有車種章自動帶入。": "62種類に収集条件があり、ほかの17種類は島民ポイントで交換できます。既存の車種スタンプを含む旅程パスポートの進捗を反映します。",
   "累積完乘、里程、車站與支線章，解鎖 62 款紀念模型": "完乗・距離・駅・支線スタンプを積み重ね、62種類の記念モデルを収集",
-  "既有車種章自動帶入，62 款車也能透過護照里程碑收集；另 5 款用島民點數兌換。": "既存の車種スタンプを引き継ぎます。62種類はパスポートの達成目標でも収集でき、ほかの5種類は島民ポイントで交換できます。",
+  "既有車種章自動帶入，62 款車也能透過護照里程碑收集；另 17 款用島民點數兌換。": "既存の車種スタンプを引き継ぎます。62種類はパスポートの達成目標でも収集でき、ほかの17種類は島民ポイントで交換できます。",
   "新增收藏車庫，62 款精修小車可旋轉欣賞；還沒收集到的是灰色車體，累積旅程進度解鎖後才有塗裝，舊護照自動帶入": "62種類の精密なミニ車両を回して楽しめる車庫を追加。まだ集めていない車両はグレーの車体で並び、旅の記録が条件を満たすと塗装が現れます。既存のパスポートの記録はそのまま引き継がれます。",
   "完乘 {count} 趟": "{count} 回完乗する",
   "累積旅程 {count} 公里": "旅程を {count} km 達成する",
@@ -2965,7 +2979,24 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
   "復興號・客車": "Fu-Hsing Express · coach",
   "EMU300 義大利製自強號": "EMU300 Italian-built Tze-Chiang",
   "騰雲號・1887 年蒸汽機車": "Teng-Yun · 1887 steam locomotive",
+  "EMU200 原廠塗裝自強號": "EMU200 Tze-Chiang · original livery",
+  "DR2800 柴聯自強號": "DR2800 diesel Tze-Chiang",
+  "E100 電力機車": "E100 electric locomotive",
+  "S200 柴電機車": "S200 diesel-electric locomotive",
+  "Shay 31 號蒸汽機車": "Shay No. 31 steam locomotive",
+  "台糖 346 號蒸汽機車": "Taisugar No. 346 steam locomotive",
+  "五分車觀光客車": "Sugar railway tourist coach",
+  "Wikimedia Commons／玄史生（CC0）": "Wikimedia Commons / Xuan Shisheng (CC0)",
+  "Wikimedia Commons／黃 zero159（CC BY-SA 2.0）": "Wikimedia Commons / Huang zero159 (CC BY-SA 2.0)",
+  "Wikimedia Commons／阿里山林業鐵路及文化資產管理處（零件圖）": "Wikimedia Commons / Alishan Forest Railway and Cultural Heritage Office (parts diagram)",
+  "維基百科「溪湖糖廠」": "Wikipedia: Xihu Sugar Factory",
   "Wikimedia Commons／臺灣鐵路管理局（Attribution）": "Wikimedia Commons / Taiwan Railway Administration (Attribution)",
+  "S400 柴電機車": "S400 diesel-electric locomotive",
+  "EMU400 通勤電聯車": "EMU400 commuter EMU",
+  "35PC32701 客廳車": "35PC32701 parlor car",
+  "35SA32820 花車": "35SA32820 presidential saloon car",
+  "0 系新幹線 21-5035": "Shinkansen Series 0 car 21-5035",
+  "Wikimedia Commons／臺灣鐵路公司（Attribution）": "Wikimedia Commons / Taiwan Railway Corporation (Attribution)",
   "淡海輕軌・行武者": "Danhai Light Rail · Xingwuzhe",
   "安坑輕軌・光耀金": "Ankeng Light Rail · gold livery",
   "高雄輕軌・CAF": "Kaohsiung Light Rail · CAF",
@@ -3040,7 +3071,24 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   "復興號・客車": "復興号・客車",
   "EMU300 義大利製自強號": "EMU300 イタリア製自強号",
   "騰雲號・1887 年蒸汽機車": "騰雲号・1887 年製蒸気機関車",
+  "EMU200 原廠塗裝自強號": "EMU200 自強号・登場時塗装",
+  "DR2800 柴聯自強號": "DR2800 ディーゼル自強号",
+  "E100 電力機車": "E100 電気機関車",
+  "S200 柴電機車": "S200 ディーゼル電気機関車",
+  "Shay 31 號蒸汽機車": "シェイ 31 号蒸気機関車",
+  "台糖 346 號蒸汽機車": "台糖 346 号蒸気機関車",
+  "五分車觀光客車": "五分車（糖業鉄道）観光客車",
+  "Wikimedia Commons／玄史生（CC0）": "Wikimedia Commons／玄史生（CC0）",
+  "Wikimedia Commons／黃 zero159（CC BY-SA 2.0）": "Wikimedia Commons／黃 zero159（CC BY-SA 2.0）",
+  "Wikimedia Commons／阿里山林業鐵路及文化資產管理處（零件圖）": "Wikimedia Commons／阿里山林業鉄道及び文化資産管理処（部品図）",
+  "維基百科「溪湖糖廠」": "ウィキペディア「渓湖糖廠」",
   "Wikimedia Commons／臺灣鐵路管理局（Attribution）": "Wikimedia Commons／台湾鉄路管理局（Attribution）",
+  "S400 柴電機車": "S400 ディーゼル電気機関車",
+  "EMU400 通勤電聯車": "EMU400 通勤形電車",
+  "35PC32701 客廳車": "35PC32701 展望客車",
+  "35SA32820 花車": "35SA32820 貴賓車（花車）",
+  "0 系新幹線 21-5035": "新幹線0系 21-5035",
+  "Wikimedia Commons／臺灣鐵路公司（Attribution）": "Wikimedia Commons／台湾鉄路公司（Attribution）",
   "淡海輕軌・行武者": "淡海ライトレール・行武者",
   "安坑輕軌・光耀金": "安坑ライトレール・光耀金",
   "高雄輕軌・CAF": "高雄ライトレール・CAF",
@@ -4806,6 +4854,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.en, {
   '讀取失敗，請稍後再試。': 'Couldn’t load. Please try again later.',
   '暫時無法兌換。': 'Redeeming isn’t available right now.',
   '看場景': 'View scene',
+  '介紹': 'About',
   '重試': 'Retry',
   '重試儲存': 'Retry saving',
   '重新讀取': 'Reload',
@@ -4872,6 +4921,7 @@ Object.assign(window.RAIL_I18N_MESSAGES.ja, {
   '讀取失敗，請稍後再試。': '読み込めませんでした。しばらくしてからもう一度お試しください。',
   '暫時無法兌換。': '現在は交換できません。',
   '看場景': '情景を見る',
+  '介紹': '紹介',
   '重試': '再試行',
   '重試儲存': '保存を再試行',
   '重新讀取': '再読み込み',

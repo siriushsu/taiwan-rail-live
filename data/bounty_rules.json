@@ -15,7 +15,7 @@
     "dailyChipCap": 500,
     "cloud": { "minSec": 600, "dailyMax": 1, "perChip": 1, "points": 20 },
     "prices": [200, 300],
-    "items": { "train:dr3000": 150, "train:ct250": 150, "train:fuxing": 150, "train:emu300": 150, "train:tengyun": 150 },
+    "items": { "train:dr3000": 150, "train:ct250": 150, "train:fuxing": 150, "train:emu300": 150, "train:tengyun": 150, "train:emu200": 150, "train:dr2800": 150, "train:e100": 150, "train:s200": 150, "train:shay31": 150, "train:tsc346": 150, "train:wufen": 150, "train:s400": 150, "train:emu400": 150, "train:pc32701": 150, "train:sa32820": 150, "train:shinkansen0": 150 },
     "chipToPoints": 50,
     "plusBonusPct": 50,
     "scenes": ["south-coast", "shifen", "viaduct", "alishan", "duoliang", "crossing", "guanghua", "taipei-metro", "wenhu", "airport-mrt", "ntpc-metro", "ntpc-lrt", "taichung-metro", "kaohsiung-metro", "kaohsiung-lrt", "thsr", "hsinchu", "tainan", "taichung-old", "chiayi", "baoan", "jiji", "dongshan", "kaohsiung-old", "haixian", "shengxing", "taipei-under"],

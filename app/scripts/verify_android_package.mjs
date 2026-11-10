@@ -35,8 +35,8 @@ for (const arg of process.argv.slice(2)) {
       if (name.startsWith('rail-3d/assets/garage-blender-v1/')) garageGzipCount++;
     }
   }
-  // 台南歷史重播新增 30 份壓縮素材；車庫 67 份（62 款加 5 款經典退役車），兩者都要逐檔驗封裝。
-  if (garageGzipCount !== 67) throw Error(`車庫壓縮模型應有 67 份，來源只有 ${garageGzipCount}`);
+  // 台南歷史重播新增 30 份壓縮素材；車庫 79 份（62 款加 5 款經典退役車、11/09 補進的 12 款），兩者都要逐檔驗封裝。
+  if (garageGzipCount !== 79) throw Error(`車庫壓縮模型應有 79 份，來源只有 ${garageGzipCount}`);
   if (failures.length) throw Error(`${archive}：${failures.length} 項錯誤\n${failures.slice(0, 8).join('\n')}`);
   console.log(`Android 成品核對通過：${archive}，${files.length} 檔逐 byte 一致，${gzipCount} 份 gzip 素材完整保留（車庫 ${garageGzipCount} 份）。`);
 }

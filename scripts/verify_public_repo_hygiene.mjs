@@ -40,9 +40,9 @@ const ARGV = process.argv.slice(2);
 // 無法辨識的旗標直接 exit 2,不要當成 base 吃下去:`-allow-history-hits=30`(少打一個 `-`)
 // 原本會被 `!a.startsWith('--')` 判成 base,`git merge-base` 再吐一個看不懂的錯——
 // 打錯字的懲罰應該是一句清楚的用法說明,不是一個假的掃描基準。
-const badFlags = ARGV.filter(a => a.startsWith('-') && !/^--allow-history-hits=/.test(a));
+const badFlags = ARGV.filter(a => a.startsWith('-') && !/^--(allow-history-hits|tree-diff)=/.test(a));
 if (badFlags.length) {
-  console.error(`無法辨識的參數:${badFlags.join(' ')}\n用法:node scripts/verify_public_repo_hygiene.mjs [base] [--allow-history-hits=<N>]`);
+  console.error(`無法辨識的參數:${badFlags.join(' ')}\n用法:node scripts/verify_public_repo_hygiene.mjs [base] [--allow-history-hits=<N>]\n      node scripts/verify_public_repo_hygiene.mjs --tree-diff=<from>..<to>`);
   process.exit(2);
 }
 const BASE = ARGV.find(a => !a.startsWith('-')) || 'origin/main';
@@ -208,9 +208,9 @@ function filesChangedNameOnly(args) {
 // 浮點網格的第一個 NUL 可能在 8KB 之後；既然已讀完整 blob，就檢查完整內容。
 // 仍以位元組判定，不能靠副檔名或 .gitattributes 豁免文字。
 const hasBinaryNul = buf => buf.includes(0);
-function looksBinaryAtHead(p) {
+function looksBinaryAtHead(p, rev = 'HEAD') {
   try {
-    const buf = git(['show', `HEAD:${p}`], { encoding: 'buffer', maxBuffer: 16 * 1024 * 1024 });
+    const buf = git(['show', `${rev}:${p}`], { encoding: 'buffer', maxBuffer: 16 * 1024 * 1024 });
     return hasBinaryNul(buf);
   } catch (e) { return false; } // 取不到就當文字:寧可為此紅一次,也不要靜默放過一個沒被掃到的檔
 }
@@ -263,6 +263,37 @@ function coverageGap(seen, expected, zeroAdded) {
 if (failed) {
   console.log('\n🔴 pattern 自身壞掉,主掃描的「零命中」沒有意義,直接中止。');
   process.exit(1);
+}
+
+// ── 快照模式(2026-11-09):--tree-diff=<from>..<to> ──────────────────────────────
+// 開發改在私有 repo 之後,公開 repo 只收 publish_public_snapshot.mjs 推的快照,commit 訊息與 docs/
+// 不再公開,真正會公開的是「上一顆公開快照 → 這次快照」兩棵樹之間的新增行。這個模式只掃那一段:
+// 同一組 RULES、同一個解析器(上面的對照與自檢已經跑過),加上同樣的豁免來源與檔案覆蓋自檢。
+// <to> 可以是 tree(快照還沒建 commit 時就要掃)。新增行為 0 是合法的(例如只拿掉內部檔案的那一顆)。
+const TREE_DIFF = (ARGV.find(a => a.startsWith('--tree-diff=')) || '').slice('--tree-diff='.length);
+if (TREE_DIFF) {
+  const [from, to] = TREE_DIFF.split('..');
+  if (!from || !to) { console.error(`--tree-diff 要寫成 <from>..<to>,收到:${TREE_DIFF}`); process.exit(2); }
+  console.log(`\n── 快照掃描:${from.slice(0, 10)} → ${to.slice(0, 10)}(要推上公開 repo 的新增行) ──`);
+  // 刪掉的檔不會新增任何公開內容(二進位的刪除也沒有 `+++ /dev/null` 可認),從期望集合拿掉。
+  let text = '', expected = new Set(), zero = new Set(), deleted = new Set();
+  try {
+    text = git(['diff', from, to, '-U0'], { encoding: 'utf8', maxBuffer: 512 * 1024 * 1024 });
+    expected = filesChangedNameOnly([from, to]);
+    zero = zeroAddedPaths([from, to]);
+    deleted = filesChangedNameOnly(['--diff-filter=D', from, to]);
+  } catch (e) { ok(false, `取不到快照 diff:${String(e).slice(0, 120)}`); process.exit(1); }
+  const r = scanDiffText(text);
+  const elsewhere = r.allowedFiles.filter(f => !String(f).endsWith('scripts/verify_public_repo_hygiene.mjs'));
+  ok(elsewhere.length === 0, `豁免標記只出現在本檔的對照樣本裡 — 豁免 ${r.allowed} 行`
+    + (elsewhere.length ? `,違規來源:${[...new Set(elsewhere)].join(', ')}` : '(零違規)'));
+  const gap = [...expected].filter(f => !r.files.has(f) && !zero.has(f) && !deleted.has(f) && !looksBinaryAtHead(f, to));
+  ok(gap.length === 0, `快照掃描看進去的檔案集合涵蓋兩棵樹之間動過的所有文字檔 — 期望 ${expected.size} 檔(其中刪除 ${deleted.size}) / 實看 ${r.files.size} 檔`
+    + (gap.length ? ` / 🔴 沒被掃到:${gap.slice(0, 8).join('、')}${gap.length > 8 ? ` …共 ${gap.length} 檔` : ''}` : ''));
+  for (const h of r.found) console.log(`      ${h.file} [${h.rule}] ${h.text}`);
+  ok(r.found.length === 0, `快照新增行沒有內部成本／金鑰字樣 — 新增 ${r.addedLines} 行、命中 ${r.found.length} 筆`);
+  console.log(`\n──────── ${failed ? 'FAIL' : 'ALL PASS'} ／ 快照命中 ${r.found.length} 筆 ────────`);
+  process.exit(failed ? 1 : 0);
 }
 
 // 主掃描比對「合併基準 → **工作樹**」,不是 `BASE...HEAD`。

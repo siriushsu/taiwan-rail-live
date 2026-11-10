@@ -30,3 +30,23 @@ export function createStopTimetable({pathLength,speed,...options}){
   phases:{brake:o.brake,openStart,openEnd,closeStart,closeEnd,departAt,cruiseAt},
   showcase:openEnd+(closeStart-openEnd)*.6};
 }
+
+// 穿越的場景進站：車從一端開進來，在 at 停一下再從另一端開走，下一趟換下一列。路徑長 length、車心 s 從 −length/2 走到 length/2。
+// 時間 0 是第 0 列開始減速前 lead 秒；回傳第幾列（n）與車心位置。
+export const CALL_DEFAULTS=Object.freeze({brake:5,dwell:14,accel:6,lead:3});
+export function createCallingPass({length,speed,at=0,...options}){
+ const o={...CALL_DEFAULTS,...options},brakeDist=speed*o.brake/2,accelDist=speed*o.accel/2,half=length/2;
+ const brakeAt=(at-brakeDist+half)/speed,stopAt=brakeAt+o.brake,departAt=stopAt+o.dwell,cruiseAt=departAt+o.accel,cycle=cruiseAt+(half-at-accelDist)/speed;
+ if(!(brakeAt>0)||!(cycle>cruiseAt))throw Error('calling pass: path too short');
+ const start=brakeAt-o.lead;
+ function state(t){
+  const clock=t+start,n=Math.floor(clock/cycle),u=clock-n*cycle;let s;
+  if(u<brakeAt)s=-half+speed*u;
+  else if(u<stopAt){const w=u-brakeAt;s=at-brakeDist+speed*w-speed*w*w/(2*o.brake);}
+  else if(u<departAt)s=at;
+  else if(u<cruiseAt){const w=u-departAt;s=at+speed*w*w/(2*o.accel);}
+  else s=at+accelDist+speed*(u-cruiseAt);
+  return{n,s,stopped:u>=stopAt&&u<departAt};
+ }
+ return{state,cycle};
+}

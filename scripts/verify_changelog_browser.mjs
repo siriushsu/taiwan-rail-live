@@ -171,7 +171,10 @@ const widths = [360, 375, 414, 768];
 // 11/06: fleet add 1 (586 -> 587).
 // 11/06: fit, short add 2 (587 -> 589).
 // 11/06: garage scene music add 1 (589 -> 590).
-const expectedHistoryCount = 590;
+// 11/09: v1109c desktop overlap + metro core hold; 54e3499b7 actually renders 593 (the constant there still said 592).
+// 11/09: v1109d garage new cars, garage intros, garage scene fixes add 3 (593 -> 596).
+// 11/10: v1110a TRA single-track meet-in-station adds 1 (596 -> 597).
+const expectedHistoryCount = 597;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

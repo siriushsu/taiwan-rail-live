@@ -1,0 +1,288 @@
+{
+  "modelId": "e100",
+  "name": "E100 電力機車",
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "family": "electric",
+  "axes": {
+    "front": "+X",
+    "left": "+Y",
+    "up": "+Z",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ],
+    "units": "meters"
+  },
+  "gltfAxes": {
+    "front": "+X",
+    "left": "-Z",
+    "up": "+Y",
+    "toENU": "rotateX(+PI/2)"
+  },
+  "style": "Q-proportions-photo-informed",
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "numberIsLiveIdentity": false,
+  "identityMaterial": "可移除車型示意牌",
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -4.178999900817871,
+      -1.4902169704437256,
+      0.0
+    ],
+    "max": [
+      4.178999900817871,
+      1.4902174472808838,
+      4.691999912261963
+    ]
+  },
+  "sizeM": [
+    8.357999801635742,
+    2.9804344177246094,
+    4.691999912261963
+  ],
+  "mesh": {
+    "file": "e100.mesh.bin",
+    "sha256": "0d52925d5607cda96f175f33e362c083397979fa60d4cc73103317d95a336c70",
+    "encoding": "float32-le",
+    "strideBytes": 24,
+    "vertexCount": 183888,
+    "triangleCount": 61296,
+    "drawGroups": [
+      {
+        "name": "e1red",
+        "start": 0,
+        "count": 5160,
+        "color": [
+          0.7835378050804138,
+          0.08650045841932297,
+          0.027320891618728638
+        ],
+        "metalness": 0.05000000074505806,
+        "roughness": 0.3400000035762787,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "e1white",
+        "start": 5160,
+        "count": 7908,
+        "color": [
+          0.8879231214523315,
+          0.8549926280975342,
+          0.7758222222328186
+        ],
+        "metalness": 0.05999999865889549,
+        "roughness": 0.3400000035762787,
+        "clearcoat": 0.25999999046325684
+      },
+      {
+        "name": "e1roof",
+        "start": 13068,
+        "count": 4848,
+        "color": [
+          0.34191441535949707,
+          0.35153260827064514,
+          0.3613067865371704
+        ],
+        "metalness": 0.4000000059604645,
+        "roughness": 0.44999998807907104,
+        "clearcoat": 0.07999999821186066
+      },
+      {
+        "name": "e1rubber",
+        "start": 17916,
+        "count": 24192,
+        "color": [
+          0.01032982300966978,
+          0.012983032502233982,
+          0.015208514407277107
+        ],
+        "metalness": 0.20000000298023224,
+        "roughness": 0.30000001192092896,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "glass",
+        "start": 42108,
+        "count": 6816,
+        "color": [
+          0.009134058840572834,
+          0.03560131415724754,
+          0.05780543014407158
+        ],
+        "metalness": 0.25999999046325684,
+        "roughness": 0.1899999976158142,
+        "clearcoat": 0.41999998688697815
+      },
+      {
+        "name": "metal",
+        "start": 48924,
+        "count": 40716,
+        "color": [
+          0.30946892499923706,
+          0.38642942905426025,
+          0.4125426113605499
+        ],
+        "metalness": 0.6399999856948853,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "frame",
+        "start": 89640,
+        "count": 15888,
+        "color": [
+          0.008568125776946545,
+          0.016807375475764275,
+          0.022173885256052017
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "taillamp",
+        "start": 105528,
+        "count": 5328,
+        "color": [
+          0.43415364623069763,
+          0.0382043719291687,
+          0.03310476616024971
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "yellow",
+        "start": 110856,
+        "count": 4200,
+        "color": [
+          0.838798999786377,
+          0.533276379108429,
+          0.06301001459360123
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "可移除車型示意牌",
+        "start": 115056,
+        "count": 11472,
+        "color": [
+          0.8069522380828857,
+          0.7529422044754028,
+          0.6038273572921753
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.0
+      },
+      {
+        "name": "e1fit",
+        "start": 126528,
+        "count": 9216,
+        "color": [
+          0.5271151065826416,
+          0.021219009533524513,
+          0.012983032502233982
+        ],
+        "metalness": 0.05000000074505806,
+        "roughness": 0.3400000035762787,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "rubber",
+        "start": 135744,
+        "count": 9744,
+        "color": [
+          0.014443843625485897,
+          0.020288562402129173,
+          0.023153366521000862
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.7699999809265137,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "lamp",
+        "start": 145488,
+        "count": 5328,
+        "color": [
+          1.0,
+          0.8879231214523315,
+          0.5840784311294556
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "chassis",
+        "start": 150816,
+        "count": 22848,
+        "color": [
+          0.03433980792760849,
+          0.05448027700185776,
+          0.06847816705703735
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "cream",
+        "start": 173664,
+        "count": 10224,
+        "color": [
+          0.8148465752601624,
+          0.7304607629776001,
+          0.5149176716804504
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      }
+    ]
+  },
+  "nativeObjectCount": 357,
+  "features": {
+    "sideDoorGroups": 0,
+    "doorLeavesPerGroup": 2,
+    "pantographsOnThisAsset": 2,
+    "axlesPerBogie": 2,
+    "articulatedSections": 1,
+    "steamDriversPerSide": 0
+  },
+  "specification": {
+    "id": "e100",
+    "family": "electric",
+    "L": 7.9,
+    "W": 2.85,
+    "H": 3.45,
+    "pantos": 2,
+    "axles": 2,
+    "radiusTop": 0.42,
+    "radiusBottom": 0.12,
+    "power": "overhead",
+    "body": "F2EEE4",
+    "accent": "E5532E",
+    "label": "E100",
+    "bowPow": 4
+  },
+  "reference": {
+    "source": "https://commons.wikimedia.org/wiki/File:E101_electric_locomotive.jpg",
+    "detail": "白色上半橘紅下半 · 正面 V 字白帶 · 雙駕駛室兩組受電弓",
+    "photoUse": "visual-study-only-not-redistributed"
+  },
+  "formation": {
+    "default": "single-vehicle",
+    "illustrative": true,
+    "liveAssignment": false,
+    "shortFormation": null
+  }
+}

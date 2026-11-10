@@ -69,9 +69,9 @@ for(const id of alishan){const primary=await loadGarageModel(id),consist=await c
  // 直線比對的對照：反向擺好之後每節再原地轉 π（舊擺法），跟 straight(-1) 必須差得出來。
  consist.follow(line,0,-1);for(const c of consist.cars)c.car.rotation.z+=Math.PI;const g=snapshot(consist);consist.straight(-1);
  if(differ(g,snapshot(consist))<.5)failures.push('直線比對的對照沒有紅：量不到每節原地轉 π');consist.dispose();primary.dispose();}
-// 9/26 素材：62 款裡有 79 節頭尾車的車燈只在一端；11/03 加 5 款點數兌換車款後 67 款 89 節。少於此數＝車燈材質被拿掉或改名，判準會無聲變少。
-if(models!==67)failures.push('車款數 '+models+'，應為 67');
-if(clearEnds<89)failures.push('有明確車頭端的頭尾車 '+clearEnds+' 節 < 89（覆蓋率縮水）');
+// 9/26 素材：62 款裡有 79 節頭尾車的車燈只在一端；11/03 加 5 款點數兌換車款後 67 款 89 節；11/09 再加 7 款後 74 款 100 節，同日再加 5 款後 79 款 104 節。少於此數＝車燈材質被拿掉或改名，判準會無聲變少。
+if(models!==79)failures.push('車款數 '+models+'，應為 79');
+if(clearEnds<104)failures.push('有明確車頭端的頭尾車 '+clearEnds+' 節 < 104（覆蓋率縮水）');
 console.log('車款 '+models+'，有明確車頭端的頭尾車 '+clearEnds+' 節，受檢 '+checked+' 次，失敗 '+failures.length);
 // 同一款同一種錯在環形八個位置都會出現，依車款彙總（位置改記次數）。
 const byModel=new Map();for(const f of failures){const [id,...rest]=f.split(' '),kind=rest.join(' ').replace(/ s=[\d.]+/,'');const m=byModel.get(id)||new Map();m.set(kind,(m.get(kind)||0)+1);byModel.set(id,m);}

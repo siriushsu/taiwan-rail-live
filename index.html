@@ -400,6 +400,10 @@
 
   /* 底部整欄(縮放/跟隨鎖/版權字)抬到站台帶上方。 */
   .maplibregl-ctrl-bottom-right { bottom: 78px; }
+  /* 角落控制項(縮放/跟隨鎖/版權字)要在地點釘(590/595,見 pinIcon)之上、.stage 面板(600 起)之下。
+     vendor 預設 z-index:2 會讓釘與列車畫布(500)畫在縮放鈕上面。 */
+  .stage .maplibregl-ctrl-top-left, .stage .maplibregl-ctrl-top-right,
+  .stage .maplibregl-ctrl-bottom-left, .stage .maplibregl-ctrl-bottom-right { z-index: 598; }
   /* 跟隨鎖鈕(縮放鈕上方):鎖定=小方鈕;解鎖後變品牌紅「回到列車」膠囊 */
   .follow-lock-ctl button {
     display: block; cursor: pointer; font: 700 13px/1.2 var(--font); font-size: calc(13px * var(--ui));
@@ -418,8 +422,12 @@
   .maplibregl-ctrl-bottom-right .maplibregl-ctrl-attrib { margin-right: var(--sa-r); }
   .maplibregl-ctrl-attrib a { color: var(--muted); }
   @media (min-width: 1025px) and (min-height: 501px) and (pointer: fine) {
+    /* 署名列要停在中央隨機跟隨鈕的右邊。鈕寬跟著語言與字級變(英文超大字級約 300px),
+       所以由 randBtn 的 ResizeObserver 量「地圖右緣到鈕右緣再留 16px」寫進 --attr-max;鈕藏起來時不寫,回到原本的寬度。
+       一般底圖平常放得下,只有英文等較長的署名才會被限寬,放不下就換行(整段仍看得到)。 */
+    .maplibregl-ctrl.maplibregl-ctrl-attrib { max-width: var(--attr-max, none); }
     /* 地景多了來源署名，固定在右半側橫捲，留出中央隨機跟隨鈕。 */
-    .landscape-map .maplibregl-ctrl-attrib { max-width: calc(50vw - 90px); white-space: nowrap; overflow-x: auto; overflow-y: hidden; }
+    .landscape-map .maplibregl-ctrl-attrib { max-width: min(calc(50vw - 90px), var(--attr-max, 100vw)); white-space: nowrap; overflow-x: auto; overflow-y: hidden; }
   }
   /* MapLibre 已經在正北且無俯角時不需要占一格；一旋轉或傾斜就立即現形成為回北出口。 */
   .maplibregl-map:not(.map-orient-active) .maplibregl-ctrl-compass { display: none; }
@@ -3853,6 +3861,8 @@
       max-width: 38vw; white-space: nowrap;
       overflow: hidden; text-overflow: ellipsis;
     }
+    /* 桌面窄視窗(901～1024)的隨機鈕仍是置中帶字的膠囊,英文較寬,38vw 不夠讓;再用量到的 --attr-max 夾一次(見 randBtn 的 ResizeObserver)。 */
+    body:not(.mobile-shell) .maplibregl-ctrl-attrib { max-width: min(38vw, var(--attr-max, 38vw)); }
   }
 
   /* ── 手機／觸控平板殼(議題1主案:上限 640→900;iPad/Android 平板改拿 tab bar＋「更多」抽屜＋速度膠囊,不再吃桌面帶) ──
@@ -5195,9 +5205,19 @@
     body:not(.mobile-shell) .ms-row[data-act="flow"], body:not(.mobile-shell) #msAboutSec,
     body:not(.mobile-shell) #msAbout, body:not(.mobile-shell) .ms-aeo-links,
     body:not(.mobile-shell) .ms-about-links { display: none !important; }
+    /* 右欄面板(看板、地點卡、公告…)要讓出右側的觀看欄。觀看欄的寬度跟著分類名稱的語言變(英文比中文寬)、
+       全畫面時離右緣的距離也不同,固定的 64px 會讓面板右框壓進觀看欄底下。
+       view-controls.js 的 layout() 量觀看欄左緣到地圖右緣的距離(含 8px 間距)寫進 --view-clear;這裡保底原本的 64px。 */
     body:not(.mobile-shell) .alert-banner, body:not(.mobile-shell) .alert-detail,
     body:not(.mobile-shell) .upd-banner, body:not(.mobile-shell) .xing-card,
-    body:not(.mobile-shell) .board { right: 64px; }
+    body:not(.mobile-shell) .board { right: max(64px, var(--view-clear, 64px)); }
+    /* 左下的跟車卡、捷運卡、公車旅程卡是下錨(bottom 86px)往上長,原本上限只留 12px,大字級或英文時會長到左上時刻徽章(#statBadge)上面。
+       上緣改成跟全畫面同一個保留量(160px = 下錨 86 + 徽章頂 12 + 徽章高 + 間距,超大字級徽章 55px 時仍留約 7px),放不下就卡內捲動。 */
+    /* 自製列車的面板(.fp-own)不套：它比一般跟車卡高很多(1280×900 約 515px)，截短後最下面的編輯／刪除、光環／大小兩排要捲才點得到；
+       貼底固定其中一排又會蓋住另一排。所以它維持原本的上限，矮視窗時仍可能蓋到時刻徽章。 */
+    body:not(.mobile-shell):not(.fs) .follow-panel:not(.fp-own), body:not(.mobile-shell):not(.fs) .bus-journey-panel,
+    body:not(.mobile-shell) .freq-card { max-height: calc(100% - 160px); }
+    body:not(.mobile-shell) .freq-card { overflow-y: auto; }
     /* 音樂控制收合:帶內常駐只留 #musicBtn(♪ 音樂),#musicNextBtn＋#musicVol 移進 hover/focus 彈出面板 */
     body:not(.mobile-shell) #musicCtl { position: relative; }
     /* v0718m 修:原設計「帶上方 8px」absolute 上彈被 .controls 的 overflow-y:hidden 滾動盒裁掉(結構性不可見,雙引擎皆然);
@@ -5886,7 +5906,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/11/08</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/11/10</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -5894,14 +5914,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
-        <li data-cl-of="tmrtfirst1108"><span class="d">11/08</span><span>台中捷運綠線首班車照交通部 TDX 最新資料提前到 05:30，末班不變</span></li>
+        <li data-cl-of="trameetin1110"><span class="d">11/10</span><span>台鐵單線區段原本畫成在站間錯身的對向列車，改成先到的那班進站停車，等對向列車通過再開（例如 410 次在東竹等 417 次）</span></li>
+        <li data-cl-of="garagenewcars1109"><span class="d">11/09</span><span>車庫新增 12 款車：EMU200、DR2800、S400、EMU400、0 系新幹線、總統花車等，各用 150 島民點數兌換</span></li>
+        <li data-cl-of="garageinfo1109"><span class="d">11/09</span><span>車庫場景與車款加上介紹，車款詳情多了「車款檔案」，列車卡 5 個車種各補一則小知識</span></li>
+        <li data-cl-of="garagefix1109"><span class="d">11/09</span><span>車庫場景頁換車改成下面一排車款鈕直接點；有月台的場景列車輪流進站、停站再開走；鐵軌、電線等細線遠看不再忽隱忽現</span></li>
+        <li data-cl-of="trtchold1109"><span class="d">11/09</span><span>捷運：北捷列車在資料更新的瞬間不再往回跳一小段，落後時會在原地稍等再接著走</span></li>
+        <li data-cl-of="deskoverlap1109"><span class="d">11/09</span><span>電腦版地圖的面板、卡片和右側觀看鈕不再互相疊住；存起來的地點星星改畫在面板下面，不會再蓋到對話框</span></li>
+        <li data-cl-of="tmrtfirst1109"><span class="d">11/09</span><span>台中捷運綠線首班車改回 06:00：交通部 TDX 資料已改回原本時刻，11/8 提早到 05:30 的那版不再採用，末班不變</span></li>
         <li data-cl-of="garagescenemusic1106"><span class="d">11/06</span><span>車庫音樂改到場景頁才放，只放慢版鋼琴，車跑起來還有鐵軌聲；車庫首頁不出聲，音符鈕留在場景頁</span></li>
-        <li data-cl-of="garagefit1106"><span class="d">11/06</span><span>車庫場景頁的時段鈕、標題和車款選單放不下時改成換行，Safari 點車款也換得到車</span></li>
-        <li data-cl-of="garageshort1106"><span class="d">11/06</span><span>手機橫放時，車庫的機務段入口排到展示台下面，第一屏看得到完整車模</span></li>
-        <li data-cl-of="fleet22-1106"><span class="d">11/06</span><span>22 款列車的 3D 車模對照實車照片修正，海風號、山嵐號、R200 改動最大</span></li>
-        <li data-cl-of="steam1106"><span class="d">11/06</span><span>CK124、CT273、DT668 三款蒸汽機車的 3D 車模照實車重新製作</span></li>
-        <li data-cl-of="coachlead1106"><span class="d">11/06</span><span>車庫裡的客車款跑起來會配上機車頭，復興號、莒光號不再沒有車頭</span></li>
-        <li data-cl-of="emu3000new1106"><span class="d">11/06</span><span>EMU3000 新自強號的 3D 車模重新製作，外型更接近實車</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5935,6 +5955,7 @@
         <li data-cl="weatherapp1023"><span class="d">10/23</span><span>修正 App 颱風資訊整份重複顯示，改為各系統公告；補上新北環狀線、三鶯線 10/23 約 15 分鐘班距，淡海與安坑仍待確認</span></li>
         <li data-cl="weather1022"><span class="d">10/22</span><span>新增颱風期間全台鐵道營運提醒與官方來源，明確標示停駛、調整班距及待確認資訊；地圖有車不代表實際開行；開啟颱風公告時跟車卡暫時隱藏</span></li>
         <li class="grp">路網與車站</li>
+        <li data-cl="trameetin1110"><span class="d">11/10</span><span>台鐵單線區段原本畫成在站間錯身的對向列車，改成先到的那班進站停車，等對向列車通過再開（例如 410 次在東竹等 417 次）</span></li>
         <li data-cl="jianshanpu1105"><span class="d">11/05</span><span>平交道補上鶯歌到鳳鳴之間的尖山埔路，全台共 347 處（謝謝網友回報）</span></li>
         <li data-cl="kometro1105"><span class="d">11/05</span><span>新增韓文捷運路線圖：台北、桃園、新北、台中、高雄各線的車站、轉乘與首末班車都有韓文版</span></li>
         <li data-cl="kostatic1105"><span class="d">11/05</span><span>新增韓文網頁：30 個車站的時刻表與轉乘，還有介紹、準確度、資料來源頁都有韓文版</span></li>
@@ -6123,6 +6144,7 @@
         <li><span class="d">7/10</span><span>高鐵、桃園機捷、淡海輕軌、安坑輕軌加入路網</span></li>
         <li><span class="d">7/10</span><span>環島觀光列車一分為二：往東「山海號」、往西「平原號」</span></li>
         <li class="grp">即時動態與誤點</li>
+        <li data-cl="trtchold1109"><span class="d">11/09</span><span>捷運：北捷列車在資料更新的瞬間不再往回跳一小段，落後時會在原地稍等再接著走</span></li>
         <li data-cl="delayframe1105"><span class="d">11/05</span><span>「觀看」→「列車」新增誤點外框：台鐵車牌與圓點外加一圈，顏色照現在誤點幾分鐘由綠轉紅，車種色保留</span></li>
         <li data-cl="delaypins1105"><span class="d">11/05</span><span>誤點重播的站牌靠近畫面邊緣時會換邊擺，手機上不再蓋到時間</span></li>
         <li data-cl="delayreplay1105"><span class="d">11/05</span><span>誤點趨勢改成誤點重播：選一天，看誤點從哪裡開始、怎麼一路傳開，還能跳到這天的重點時刻</span></li>
@@ -6317,6 +6339,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="deskoverlap1109"><span class="d">11/09</span><span>電腦版地圖的面板、卡片和右側觀看鈕不再互相疊住；存起來的地點星星改畫在面板下面，不會再蓋到對話框</span></li>
         <li data-cl="garageshort1106"><span class="d">11/06</span><span>手機橫放時，車庫的機務段入口排到展示台下面，第一屏看得到完整車模</span></li>
         <li data-cl="garagefit1106"><span class="d">11/06</span><span>車庫場景頁的時段鈕、標題和車款選單放不下時改成換行，Safari 點車款也換得到車</span></li>
         <li data-cl="qclip1106"><span class="d">11/06</span><span>Q 版列車從側面看時，並行的列車不再互相穿過</span></li>
@@ -6441,6 +6464,9 @@
         <li><span class="d">7/10</span><span>夜間與衛星模式視覺升級；「軌」軌道顯示三段切換：自動／淡化／隱藏</span></li>
         <li><span class="d">7/9</span><span>站名移到軌道側邊不再互相壓住；雙欄版面：搜尋／最愛／旅程收集移到右側欄</span></li>
         <li class="grp">分享與個人化</li>
+        <li data-cl="garagenewcars1109"><span class="d">11/09</span><span>車庫新增 12 款車：EMU200、DR2800、S400、EMU400、0 系新幹線、總統花車等，各用 150 島民點數兌換</span></li>
+        <li data-cl="garageinfo1109"><span class="d">11/09</span><span>車庫場景與車款加上介紹，車款詳情多了「車款檔案」，列車卡 5 個車種各補一則小知識</span></li>
+        <li data-cl="garagefix1109"><span class="d">11/09</span><span>車庫場景頁換車改成下面一排車款鈕直接點；有月台的場景列車輪流進站、停站再開走；鐵軌、電線等細線遠看不再忽隱忽現</span></li>
         <li data-cl="garagescenemusic1106"><span class="d">11/06</span><span>車庫音樂改到場景頁才放，只放慢版鋼琴，車跑起來還有鐵軌聲；車庫首頁不出聲，音符鈕留在場景頁</span></li>
         <li data-cl="fleet22-1106"><span class="d">11/06</span><span>22 款列車的 3D 車模對照實車照片修正，海風號、山嵐號、R200 改動最大</span></li>
         <li data-cl="coachlead1106"><span class="d">11/06</span><span>車庫裡的客車款跑起來會配上機車頭，復興號、莒光號不再沒有車頭</span></li>
@@ -6471,7 +6497,7 @@
         <li><span class="d">7/13</span><span>新增「分享畫面」：把地圖位置、時間與路網打包成一條連結</span></li>
         <li><span class="d">7/11</span><span>可以安裝到主畫面（PWA），像 App 一樣全螢幕開啟</span></li>
         <li class="grp">資料校正</li>
-        <li data-cl="tmrtfirst1108"><span class="d">11/08</span><span>台中捷運綠線首班車照交通部 TDX 最新資料提前到 05:30，末班不變</span></li>
+        <li data-cl="tmrtfirst1109"><span class="d">11/09</span><span>台中捷運綠線首班車改回 06:00：交通部 TDX 資料已改回原本時刻，11/8 提早到 05:30 的那版不再採用，末班不變</span></li>
         <li data-cl="trcurl1030"><span class="d">10/30</span><span>台鐵官網改用新網址 www.trc.com.tw，活動公告與車庫裡的台鐵官方連結都換成新網址（謝謝網友回報）</span></li>
         <li data-cl="klrtja0929"><span class="d">9/29</span><span>日文版的高雄環狀輕軌改用高雄捷運官方日文路線名「ライトレール環状線」</span></li>
         <li data-cl="metrolead0929"><span class="d">9/29</span><span>捷運導言更正：「北北桃」與台北捷運的地圖導言，也改成台北捷運各線（含文湖線）的列車位置與車站倒數都來自官方逐班即時資料，不再把文湖線寫成班距推算</span></li>
@@ -7441,7 +7467,13 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1106c：車庫音樂改到場景頁才放，只放鋼琴（通行證再加花蓮山海兩首），車在跑時墊車聲。
 // v1107a：資料來源標示校正：TDX 改標交通部運輸資料流通服務平臺與《資料授權利用條款》，頁尾補上高鐵。
 // v1108a：台中捷運綠線首班車照 TDX 提前到 05:30，末班不變。
-const BUILD = 'v1108a';
+// v1109b：台中捷運綠線首班車照 TDX 改回 06:00（撤掉 v1108a 的 05:30），末班不變。
+// v1109c：北捷 Core 列車換包時新位置落後就停在原地等，不再往回跳（最多等 1 站、90 秒）。
+// v1109c：電腦版地圖浮動面板彼此讓位，已存地點釘改畫在面板下層。
+// v1109d：車庫開賣 11/09 補進的 12 款車（chips.items 各 150 點，頁尾改「另 17 款」）；一併上線車庫場景與車款介紹、車款檔案、列車卡 5 個車種的小知識（只用公開來源；v1109a 書本版沒上線、已退掉）；車庫三項（場景頁常駐車款鈕列、有月台場景輪流進站、同平面分層＋細構件淡出），使用說明換車步驟跟著改。
+// v1109e：車庫 60 款四語介紹刪掉車款檔案已有的製造、年份、數量、編組、出力、速度（只刪不加）。
+// v1110a：台鐵單線區段兩班都通過的對向列車，改成先到的那班在站內停等對向車通過（planPassStationMeets，bd4b4f9df；例 410 在東竹等 417）。
+const BUILD = 'v1110a';
 // v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
@@ -12368,7 +12400,7 @@ function attachOvertakePeers(trains) {
 // _meetStop＝對向車次（給出貨閘門把它跟同向待避分開驗）；對向車當天有開才掛 _overtakeBy，閘門才找得到它。
 const MEET_STOP_MIN_SEC = 60;                   // 推晚不到一分鐘維持慢爬（班表 30 秒解析度，剖面本身也有誤差）
 function planPassStationMeets(trains, union, sections, tracks) {
-  const stats = { planned: 0, otherDay: 0, noTrack: 0, unbuildable: 0, approach: 0, log: [] };
+  const stats = { planned: 0, otherDay: 0, noTrack: 0, unbuildable: 0, approach: 0, cross: 0, crossYield: 0, crossTooLong: 0, crossWorse: 0, log: [] };
   if (!tracks || !sections) return stats;
   const single = (a, b) => { const p = sections[traSectionKey(a, b)]; return !!p && p.tracks === 1; };
   const keyOf = tr => tr.train + ':' + tr.stops[0].depSec + ':' + tr.stops[tr.stops.length - 1].arrSec;
@@ -12418,6 +12450,58 @@ function planPassStationMeets(trains, union, sections, tracks) {
       if (tA < t0) stats.approach++;
       reassignTrainProfile(tr); inferMeetPassTimes([tr], union, sections);   // 待避站成了跑段邊界，前後兩段重建後再夾一次交會
       stats.planned++; stats.log.push({ no, station: st.name, by: peer, otherDay: !by, arr: Math.round(tA), dep: Math.round(tS), ...(tA < t0 && { arr0: Math.round(t0) }) });
+    }
+  }
+  // 兩班都在這一站通過、交會卻落在單線區間中間（2026-11-10 用懸賞乘客 GPS 對答案）：上面那條只在交會推論把通過時刻推晚
+  // 時才排停車，而交會推論只認對向車的【官方停靠】當交會點，兩班都不停的站它看不到。現行班表每天重現三組（2D 與立體實體層都是）：
+  // 410×417 在離東竹 1.6 km、164×415 在離枋山 1.7 km、411×408 在離吉安 0.6 km 的單線上錯身；實際都是先到的那班在站內停等：
+  // 410 在東竹停 222 秒（11-07）、164 在枋山停 165 秒（11-05）、411 在吉安停 195 秒（11-02）。
+  // 判法只用今日名冊現算的時刻：X 從本站 S 開進單線區間 S→N 時，對向 Y 已從 N 開出、還沒到 S（同一段單線同時有兩班）。
+  // 解法有兩種——X 在 S 等 Y 到站，或 Y 在 N 等 X 到站——取等得短的那邊（三組實際都是這一邊；同秒比車次號，結果不依名冊順序）；
+  // Y 那邊比較短就留給 Y 自己這一輪（N 對 Y 也要是通過站才排得出來，否則維持原狀）。對向車今天沒開就沒有交會，不看聯集。
+  // 停等＝照現在的步調到站、最後一班對向車到站後 OVERTAKE_CLEAR_SEC 再開；空股、跑段檢查與上面同一套。延後開車可能讓 X 在
+  // 下游撞上別班，所以套完 X 的單線對向重疊沒有變少就整班還原（只動了 X，這個數的增減就是全域的增減；同向待避 crossingsOf 同一個理由）。
+  const singleClashes = tr => {
+    const s = tr.stops; let n = 0;
+    for (let j = 0; j < s.length - 1; j++) {
+      if (!single(s[j].name, s[j + 1].name)) continue;
+      for (const [o, x, k] of at.get(s[j].name) || []) {
+        if (o === tr || o.loop || k < 1 || o.stops[k - 1].name !== s[j + 1].name) continue;
+        if (s[j].depSec < x.arrSec && o.stops[k - 1].depSec < s[j + 1].arrSec) n++;
+      }
+    }
+    return n;
+  };
+  for (const tr of trains) {
+    if ((tr.sys && tr.sys !== 'tra_sched') || tr.loop || !tr.stops || tr.stops.length < 3) continue;
+    const s = tr.stops, no = String(tr.train);
+    for (let j = 1; j < s.length - 1; j++) {
+      const st = s[j], N = s[j + 1].name;
+      if (st.stop !== false || st._plannedDwell || !single(st.name, N)) continue;
+      const tX = st.arrSec, tXN = s[j + 1].arrSec;
+      let dep = -Infinity, peer = null, yields = 0;
+      for (const [o, x, k] of at.get(st.name) || []) {
+        if (o === tr || o.loop || k < 1 || o.stops[k - 1].name !== N) continue;
+        const tYN = o.stops[k - 1].depSec, tY = x.arrSec;
+        if (!(tX < tY && tYN < tXN)) continue;
+        const waitX = tY - tX, waitY = tXN - tYN;
+        if (waitX > waitY || (waitX === waitY && no > String(o.train))) { yields++; continue; }
+        if (tY + OVERTAKE_CLEAR_SEC > dep) { dep = tY + OVERTAKE_CLEAR_SEC; peer = String(o.train); }
+      }
+      if (!peer) { if (yields) stats.crossYield++; continue; }
+      const rec = { no, station: st.name, by: peer, cross: true, arr: Math.round(tX), dep: Math.round(dep) };
+      if (dep - tX > OVERTAKE_MAX_WAIT_SEC) { stats.crossTooLong++; stats.log.push({ ...rec, skip: 'tooLong' }); continue; }
+      if (!overtakeTrackFree(tracks, at, tr, j, tX - OVERTAKE_CLEAR_SEC, dep + OVERTAKE_CLEAR_SEC)) { stats.noTrack++; stats.log.push({ ...rec, skip: 'noTrack' }); continue; }
+      if (!overtakeRunBuildable(tr, j, dep)) { stats.unbuildable++; stats.log.push({ ...rec, skip: 'unbuildable' }); continue; }
+      const before = singleClashes(tr), snap = s.map(x => [x.arrSec, x.depSec, x.rp, x.rpDep, x.rpOff, x.rpSegKm]);
+      st.depSec = dep; st._plannedDwell = true; st._meetStop = peer; st._overtakeBy = peer;
+      reassignTrainProfile(tr); inferMeetPassTimes([tr], union, sections);
+      if (singleClashes(tr) >= before) {
+        s.forEach((x, i) => { [x.arrSec, x.depSec, x.rp, x.rpDep, x.rpOff, x.rpSegKm] = snap[i]; });
+        delete st._plannedDwell; delete st._meetStop; delete st._overtakeBy;
+        stats.crossWorse++; stats.log.push({ ...rec, skip: 'worse' }); continue;
+      }
+      stats.planned++; stats.cross++; stats.log.push(rec);
     }
   }
   return stats;
@@ -19054,7 +19138,12 @@ function pinIcon(saved) { // Google Maps 風格圓點:草稿=藏青、已存最�
   const html = '<svg viewBox="0 0 30 30" width="30" height="30" aria-hidden="true">' +
       '<circle class="ph" cx="15" cy="15" r="12.5" fill="' + c + '"/>' +
       '<circle cx="15" cy="15" r="7.6" fill="#fff"/><circle cx="15" cy="15" r="5.4" fill="' + c + '"/>' + star + '</svg>';
-  return maplibreMarkerElement(className, html, saved ? 900 : 1000);
+  // z-index 落在 560～600 之間是刻意的。Marker 掛在 #map 裡，而 #map 沒有自己的層疊環境，
+  // 所以這個數字是直接跟 .stage 裡的浮動面板比大小（全畫面時 .stage 自成一層，比法一樣）。
+  // 下界：要高過列車畫布 #overlay(500)、天色 #skyTint(550)、轉場遮罩 #veil(560)，釘照舊浮在地圖與列車之上。
+  // 上界：要低過 .stage 裡最低的面板 #statBadge(600)；原本的 900／1000 會把釘畫在跟車卡、看板、控制列、
+  // 搜尋下拉上面。MapLibre 的角落控制項墊在 598（見 .maplibregl-ctrl-* 那條），也在釘之上。
+  return maplibreMarkerElement(className, html, saved ? 590 : 595);
 }
 function maplibreMarkerElement(className, html, zIndex) {
   const el = document.createElement('div');
@@ -31465,10 +31554,41 @@ function metroCoreBoardFlatIndex(ln, stationIndex, direction) {
   return metroCoreKlrtLoop(ln) && index === 0 && Number(direction) === 1
     ? ln.stations.length : index;
 }
+// 🔴 2026-11-09 換包不倒退。Core 每一包只保證在自己的 generatedAt 那一刻跟上一包接得上；用戶端卻是
+// 收到才換（出包延遲 2～20 秒＋15 秒輪詢），之間新包多半已把停站延長，換包那一刻同一台車就往回跳；
+// 一包被下一包蓋掉沒拿到時，跳得更大（11-09 早尖峰正式站：每次換包常有 25～40 台退 15～40 m，
+// 漏包那 9 次一次最多 52 台、最大 221 m）。
+// 照舊模型顯示層的契約（trtcOfficialDisplayPosition）「跑過頭的停下來等、絕不倒退」：新包把車放在剛才
+// 畫的位置後面，就停在畫面上的位置，等新軌跡追上再跟著走。落後超過一站或等了 90 秒還沒追上，就不是
+// ETA 後修（換位、認車改了），直接接上新包。
+// 拿 11-09 08:08–09:35 用戶端實際收到的 262 包逐秒重播：倒退 2514 → 2 次（最大 35 m），停等中位 2 秒、
+// 九成 10 秒內，同向 <100 m 秒數 964 → 957。改成「放慢走向會合點」反而更差（停等一再被延長、領先越積越多）。
+const METRO_CORE_HOLD_MAX_UNITS = 1;
+const METRO_CORE_HOLD_MAX_SEC = 90;
+const _metroCoreHold = new Map();
+function metroCoreHeldProgress(ln, train, progress, epoch) {
+  if (!ln || !train || metroCoreKlrtLoop(ln) || !Number.isFinite(progress) || !Number.isFinite(epoch)) return progress;
+  const key = `${ln.id}|${train.vehicleId}`, sign = Number(train.direction) === 2 ? 1 : -1, raw = sign * progress;
+  const prior = _metroCoreHold.get(key);
+  if (prior && prior.sign === sign && epoch <= prior.epoch) {
+    // 同一畫格裡各讀者的時刻差幾毫秒，要拿到同一個位置；方向箭頭回看 DIR_DT_SEC 秒前那種查詢照原軌跡答、不動狀態。
+    return prior.epoch - epoch < 2 ? sign * Math.max(prior.shown, raw) : progress;
+  }
+  let shown = raw, since = null;
+  if (prior && prior.sign === sign && raw < prior.shown - 1e-9) {
+    since = prior.since == null ? prior.epoch : prior.since;
+    if (prior.shown - raw <= METRO_CORE_HOLD_MAX_UNITS && epoch - since <= METRO_CORE_HOLD_MAX_SEC) shown = prior.shown;
+    else since = null;
+  }
+  _metroCoreHold.set(key, { sign, shown, epoch, since });
+  if (_metroCoreHold.size > 4000) for (const [k, v] of _metroCoreHold) if (epoch - v.epoch > 600) _metroCoreHold.delete(k);
+  return sign * shown;
+}
 function metroCorePositionAt(ln, train, epoch) {
   const sampled = metroCoreSampleTrain(train, epoch);
   if (!sampled || !ln || !Array.isArray(ln.stations) || !ln.stations.length) return null;
-  const max = metroCoreFlatMax(ln), progress = Math.max(0, Math.min(max, Number(sampled.progress)));
+  const max = metroCoreFlatMax(ln);
+  const progress = Math.max(0, Math.min(max, metroCoreHeldProgress(ln, train, Number(sampled.progress), Number(epoch))));
   const stationIndex = Math.round(progress);
   const station = metroCoreStationAt(ln, stationIndex);
   if (Math.abs(progress - stationIndex) < 1e-9 && station) {
@@ -39881,12 +40001,12 @@ const HELP_GROUPS = [
     { key: 'garage', ic: '庫', nm: '我的車庫',
       one: '把旅程護照裡的收集章，變成可以旋轉欣賞的小車。',
       steps: ['「更多」或「旅程護照」→「我的車庫」', '選一款車，拖曳移動，右鍵拖曳或雙指扭轉換個角度，查看外觀與來源', '累積完乘、里程、車站與支線章，解鎖 62 款紀念模型'],
-      tip: '既有車種章自動帶入，62 款車也能透過護照里程碑收集；另 5 款用島民點數兌換。', try: 'garage' },
+      tip: '既有車種章自動帶入，62 款車也能透過護照里程碑收集；另 17 款用島民點數兌換。', try: 'garage' },
     { key: 'garagescene', ic: '景', nm: '車庫場景',
       one: '田園小站免費，其他場景用島民點數兌換；在場景頁裡可以直接換場景、換車。',
       steps: ['登入軌島帳號後，「更多」→「我的車庫」，最上面的「車庫場景」第一格是免費的田園小站，後面是可以兌換的場景（例如南迴海岸、十分老街），旁邊有你目前的點數',
         '點田園小站或已解鎖的場景，直接打開場景頁；點鎖住的會打開兌換視窗，按「用 N 點兌換」，兌換後按「看場景」。點數不夠會寫「還差 N 點」',
-        '場景頁上方那排點別座場景就地換過去，鎖住的會打開兌換視窗；點場景名和車名那塊，換一台在這座跑的車。從舞台上的「場景」分頁也能進來'],
+        '場景頁上方那排點別座場景就地換過去，鎖住的會打開兌換視窗；下面那排車款點一下，就換成在這座跑的另一台車。從舞台上的「場景」分頁也能進來'],
       tip: '島民點數靠 App 的「校正懸賞」錄旅程累積，照實際錄到的里程算；兌換一次就永久解鎖。沒登入時只有田園小站。', try: 'garage' },
     { key: 'myTrain', ic: '製', nm: '自製列車',
       one: '需要通行證。車庫裡已入庫的台鐵、高鐵、林鐵列車，都可以自己排一班路線、選停站方式、車牌顏色與名字，每天照那個時刻在地圖上跑——這班車是你自己排的，不在官方時刻表上。',
@@ -43252,6 +43372,17 @@ document.getElementById('tcDelayHist').onclick = (e) => { e.stopPropagation(); o
 document.getElementById('tcDelayHist').onkeydown = e => boardRowKey(e, '#tcDelayHist');
 // 每按一次跳一班隨機列車(已在隨機模式再按=立刻換車,不是關閉);結束靠小卡 ×/點跟隨中的列車/手動選車
 document.getElementById('randBtn').onclick = () => state.autoTour ? nextTourTrain(undefined, true) : setAutoTour(true, true);
+// 右下的署名列要停在這顆置中鈕的右邊：鈕寬隨語言與字級變，量「地圖內緣右邊到鈕右緣再留 16px」寫給 CSS 的 --attr-max。
+// 鈕或地圖尺寸一變就重量(換語言、換字級、全畫面、視窗縮放)；鈕藏起來時拿掉，署名列回到原本的寬度。
+if (window.ResizeObserver) {
+  const rb = document.getElementById('randBtn'), stageEl = document.querySelector('.stage');
+  const ro = new ResizeObserver(() => {
+    if (!rb.offsetWidth) { stageEl.style.removeProperty('--attr-max'); return; }
+    const inner = stageEl.getBoundingClientRect().right - (parseFloat(getComputedStyle(stageEl).borderRightWidth) || 0);
+    stageEl.style.setProperty('--attr-max', Math.max(120, Math.floor(inner - rb.getBoundingClientRect().right - 16)) + 'px');
+  });
+  ro.observe(rb); ro.observe(stageEl);
+}
 document.getElementById('ambientStyleBtn').onclick = () =>
   setAmbientStyle(state.ambientStyle === 'hotspot' ? 'follow' : 'hotspot');
 document.getElementById('rideBtn').onclick = () => {

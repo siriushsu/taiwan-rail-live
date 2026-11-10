@@ -45,6 +45,9 @@ body.mobile-shell #viewSettingsBtn{display:flex}
 .view-mobile .view-tab{flex:1;min-width:44px;min-height:44px;padding:7px 3px;gap:0}.view-mobile .view-tabs .view-symbol{display:none}.view-mobile .view-head{padding-top:0;padding-bottom:0}
 body.mobile-shell.view-open #followPanel,body.mobile-shell.view-open #freqCard{visibility:hidden}
 body:is(.ambient,.tools-open,.search-open,.rec-panel,.collect-map) .view-dock{display:none}
+/* 桌面的搜尋下拉從頁首往下蓋到地圖右上角，正好在觀看欄的位置；觀看欄 1050 高過下拉 720，會把結果右側（線色點、系統標）壓住。
+   比照手機打字搜尋時收起觀看入口：下拉開著就先收起觀看欄，關掉就回來。 */
+body:not(.mobile-shell):has(#searchDrop:not([hidden])) .view-dock{display:none}
 body:is(.rec-panel,.collect-map) #viewSettingsBtn{display:none}
 @media(prefers-reduced-motion:reduce){.view-dock *{scroll-behavior:auto}}
 .view-body .seg button{min-height:44px;min-width:44px}

@@ -1,0 +1,247 @@
+{
+  "modelId": "pc32701",
+  "name": "35PC32701 客廳車",
+  "version": 1,
+  "application": "5.2.1 LTS",
+  "family": "coach",
+  "axes": {
+    "front": "+X",
+    "left": "+Y",
+    "up": "+Z",
+    "groundAnchor": [
+      0,
+      0,
+      0
+    ],
+    "units": "meters"
+  },
+  "gltfAxes": {
+    "front": "+X",
+    "left": "-Z",
+    "up": "+Y",
+    "toENU": "rotateX(+PI/2)"
+  },
+  "style": "Q-proportions-photo-informed",
+  "sourcePhotosIncluded": false,
+  "operatorLogoIncluded": false,
+  "numberIsLiveIdentity": false,
+  "identityMaterial": null,
+  "engineeringDimensionsM": null,
+  "bounds": {
+    "min": [
+      -4.968999862670898,
+      -1.440000057220459,
+      0.0
+    ],
+    "max": [
+      4.968999862670898,
+      1.440000057220459,
+      3.5450000762939453
+    ]
+  },
+  "sizeM": [
+    9.937999725341797,
+    2.880000114440918,
+    3.5450000762939453
+  ],
+  "mesh": {
+    "file": "pc32701.mesh.bin",
+    "sha256": "c60a489094fcf735ac3773173a80672b8d31ac95cc150f0f838d89613ba8044c",
+    "encoding": "float32-le",
+    "strideBytes": 24,
+    "vertexCount": 107760,
+    "triangleCount": 35920,
+    "drawGroups": [
+      {
+        "name": "gecream",
+        "start": 0,
+        "count": 246,
+        "color": [
+          0.8879231214523315,
+          0.8549926280975342,
+          0.715693473815918
+        ],
+        "metalness": 0.05999999865889549,
+        "roughness": 0.3400000035762787,
+        "clearcoat": 0.25999999046325684
+      },
+      {
+        "name": "georange",
+        "start": 246,
+        "count": 4278,
+        "color": [
+          0.838798999786377,
+          0.18782077729701996,
+          0.039546236395835876
+        ],
+        "metalness": 0.05000000074505806,
+        "roughness": 0.3400000035762787,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "jgwhite",
+        "start": 4524,
+        "count": 12,
+        "color": [
+          0.9046611785888672,
+          0.8962693810462952,
+          0.8631572127342224
+        ],
+        "metalness": 0.05999999865889549,
+        "roughness": 0.3400000035762787,
+        "clearcoat": 0.25999999046325684
+      },
+      {
+        "name": "jgroof",
+        "start": 4536,
+        "count": 4848,
+        "color": [
+          0.4564110338687897,
+          0.48514994978904724,
+          0.4969329833984375
+        ],
+        "metalness": 0.4000000059604645,
+        "roughness": 0.4000000059604645,
+        "clearcoat": 0.07999999821186066
+      },
+      {
+        "name": "chassis",
+        "start": 9384,
+        "count": 32904,
+        "color": [
+          0.03433980792760849,
+          0.05448027700185776,
+          0.06847816705703735
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "frame",
+        "start": 42288,
+        "count": 9888,
+        "color": [
+          0.008568125776946545,
+          0.016807375475764275,
+          0.022173885256052017
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "glass",
+        "start": 52176,
+        "count": 4968,
+        "color": [
+          0.009134058840572834,
+          0.03560131415724754,
+          0.05780543014407158
+        ],
+        "metalness": 0.25999999046325684,
+        "roughness": 0.1899999976158142,
+        "clearcoat": 0.41999998688697815
+      },
+      {
+        "name": "metal",
+        "start": 57144,
+        "count": 24636,
+        "color": [
+          0.30946892499923706,
+          0.38642942905426025,
+          0.4125426113605499
+        ],
+        "metalness": 0.6399999856948853,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "taillamp",
+        "start": 81780,
+        "count": 4560,
+        "color": [
+          0.43415364623069763,
+          0.0382043719291687,
+          0.03310476616024971
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "rubber",
+        "start": 86340,
+        "count": 15216,
+        "color": [
+          0.014443843625485897,
+          0.020288562402129173,
+          0.023153366521000862
+        ],
+        "metalness": 0.10000000149011612,
+        "roughness": 0.7699999809265137,
+        "clearcoat": 0.18000000715255737
+      },
+      {
+        "name": "gerubber",
+        "start": 101556,
+        "count": 5076,
+        "color": [
+          0.01032982300966978,
+          0.012983032502233982,
+          0.015208514407277107
+        ],
+        "metalness": 0.20000000298023224,
+        "roughness": 0.30000001192092896,
+        "clearcoat": 0.30000001192092896
+      },
+      {
+        "name": "roof",
+        "start": 106632,
+        "count": 1128,
+        "color": [
+          0.4677838087081909,
+          0.520995557308197,
+          0.5271151065826416
+        ],
+        "metalness": 0.3700000047683716,
+        "roughness": 0.3799999952316284,
+        "clearcoat": 0.18000000715255737
+      }
+    ]
+  },
+  "nativeObjectCount": 192,
+  "features": {
+    "sideDoorGroups": 1,
+    "doorLeavesPerGroup": 1,
+    "pantographsOnThisAsset": 0,
+    "axlesPerBogie": 2,
+    "articulatedSections": 1,
+    "steamDriversPerSide": 0
+  },
+  "specification": {
+    "id": "pc32701",
+    "family": "coach",
+    "L": 9.0,
+    "W": 2.8,
+    "H": 3.4,
+    "doors": 1,
+    "doorLeaves": 1,
+    "doorW": 0.6,
+    "gutter": 3.0,
+    "body": "EC7838",
+    "accent": "F2EEDC",
+    "label": "35PC32701"
+  },
+  "reference": {
+    "source": "https://commons.wikimedia.org/wiki/File:TRA_Parlor_Car_at_Balin_Station_20160117.jpg",
+    "detail": "莒光號橘色配米白帶 · 一端是開放式瞭望台 · 車側六片不等寬大窗",
+    "photoUse": "visual-study-only-not-redistributed"
+  },
+  "formation": {
+    "default": "single-vehicle",
+    "illustrative": true,
+    "liveAssignment": false,
+    "shortFormation": null
+  }
+}
