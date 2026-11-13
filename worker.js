@@ -402,6 +402,30 @@ async function thsrAlert(request, env) {
   }
 }
 
+// 台鐵營運通阻公告歷史（schema/0024 tra_alert_log）：給誤點原因分析用。TDX 只給「現在」的公告，沒存到就補不回來。
+// 由 WEATHER_CRON 那一發每 5 分鐘呼叫（一個月約 8,600 次、約 6 點）。只比 Alerts 陣列（頂層 UpdateTime 每次都變）：
+// 內容沒變、距上次看到又不到 ALERT_LOG_GAP_MS，就只延長 last_ms；否則新增一列，漏抓的時段不會被當成「一直是這份公告」。
+// 「全線營運正常」那筆也照存，才分得出公告什麼時候解除。body 存 TDX 原文。
+const ALERT_LOG_GAP_MS = 15 * 60e3;
+async function archiveTraAlert(env, now = Date.now()) {
+  const db = env.DELAY_DB;
+  const r = await fetch(ALERT_URL, { headers: { authorization: 'Bearer ' + await getToken(env) }, redirect: 'manual' });
+  if (r.status === 401) { tok = null; throw new Error('tdx 401'); }
+  if (!r.ok) throw new Error('tdx api ' + r.status);
+  const text = await r.text();
+  const alerts = JSON.parse(text).Alerts;
+  if (!Array.isArray(alerts)) throw new Error('tdx alert 沒有 Alerts 陣列');
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(alerts)));
+  const hash = [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
+  const last = await db.prepare('SELECT first_ms, last_ms, hash FROM tra_alert_log ORDER BY first_ms DESC LIMIT 1').first();
+  if (last && last.hash === hash && now - last.last_ms <= ALERT_LOG_GAP_MS) {
+    await db.prepare('UPDATE tra_alert_log SET last_ms = ? WHERE first_ms = ?').bind(now, last.first_ms).run();
+    return { alerts: alerts.length, extended: last.first_ms };
+  }
+  await db.prepare('INSERT INTO tra_alert_log (first_ms, last_ms, hash, body) VALUES (?, ?, ?, ?)').bind(now, now, hash, text).run();
+  return { alerts: alerts.length, inserted: now };
+}
+
 // 災害示警觸發器:NCDR 官方「生效中的示警」總 JSON,免 key、每分鐘更新。
 // 這層只回答「現在有沒有值得加強監看的外部事件」；不把災害推定成鐵路異常，更不會改列車名冊或位置。
 // 用總 feed 一次抓回再篩選，避免颱風/地震/降雨/雷雨四支各打一次而放大 NCDR 流量。
@@ -11405,6 +11429,9 @@ export default {
     if (event && event.cron === WEATHER_CRON) {
       try { console.log('[cron weather]', JSON.stringify(await weatherScheduled(event, env))); }
       catch (e) { console.error('[cron weather] 失敗:', (e && e.stack) || String(e)); }
+      // 同一發順便存台鐵營運通阻公告歷史；不另開 cron（ship-web 不會登記新 cron，見 check_deploy_config）。
+      try { console.log('[cron tra-alert-log]', JSON.stringify(await archiveTraAlert(env, (event && event.scheduledTime) || Date.now()))); }
+      catch (e) { console.error('[cron tra-alert-log] 失敗:', (e && e.stack) || String(e)); }
       return;
     }
     // 路段懸賞的判定時段（BOUNTY_CRON）：只跑估值與驗證，然後就 return——不可落進下面的每日 ingest。
@@ -11608,6 +11635,7 @@ export const _hazard = {
 };
 // 純函式導出,供離線回歸測試 import:逐站事件 diff 與 mem.at→台北日換算。
 export const _stationEvents = { diffTrains, twDayFromMemAt };
+export const _traAlertLog = { archiveTraAlert, ALERT_LOG_GAP_MS };
 // 公車轉乘全臺台鐵站：核心 resolver 在 scripts/bus_transfer_core.mjs，這裡導出 IO 編排供 fixture 測試。
 // resetBusTransferCaches 只清本 isolate 記憶體；正式路由不會呼叫。
 export const _busTransfer = {

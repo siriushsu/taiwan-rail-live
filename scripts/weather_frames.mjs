@@ -9,7 +9,9 @@
 
 export const WEATHER_CRON = '2-59/5 * * * *';
 export const WEATHER_IDS = { radar: 'O-A0059-001', obs: 'O-A0003-001', rain: 'O-A0002-001' };
-const KEEP_MS = 90 * 86400e3;
+// 2026-11-13 自 90 天拉長到 365 天：要拿來跟誤點對照（逐站事件 tra_station_events 也留 365 天）。
+// 實測一筆平均 22 KB、一天約 142 筆，一年約 1.1 GB（DELAY_DB 單庫上限 10 GB）。
+const KEEP_MS = 365 * 86400e3;
 const PRUNE_AT = '03:02'; // 台北時間；落在 WEATHER_CRON 的觸發分鐘上
 
 // 本島＋外圍一格的範圍（WGS84）。澎湖、金門、馬祖沒有鐵道，不收。
