@@ -175,7 +175,8 @@ const widths = [360, 375, 414, 768];
 // 11/09: v1109d garage new cars, garage intros, garage scene fixes add 3 (593 -> 596).
 // 11/10: v1110a TRA single-track meet-in-station adds 1 (596 -> 597).
 // 11/13: v1113a TRA station-to-station GPS run curves add 1 (597 -> 598).
-const expectedHistoryCount = 598;
+// 11/13: v1113b Airport MRT car crowding adds 1 (598 -> 599).
+const expectedHistoryCount = 599;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

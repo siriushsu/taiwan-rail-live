@@ -814,7 +814,9 @@ async function metroLive(request, env, sys) {
 // 失敗時前端自動退回時刻表推演,零損害。不用 stale-while-revalidate 延長舊倒數;上游失敗仍回原 at,前端自行判定過期。
 // Map/Set 而非物件字面量:物件的 in/[] 查表吃原型鏈(sys='constructor'/'__proto__'/'toString' 會誤判 truthy),
 // Set.has() 只認自身成員,擋掉用原型成員名繞過白名單、把本 proxy 打成對新北捷官網的未快取放大代理。
-const NTM_LIVE_MIN_GAP_MS = new Map([['danhai', 55e3], ['ankeng', 55e3], ['circular', 60e3]]);
+// tymc(2026-11-13):桃園機捷官網的列車動態也走這同一套把關與集中出口,做法見下方 tymcLiveSrc。
+// 30 秒＝桃捷官網那一頁自己的更新間隔,全站合計不比一個開著那一頁的訪客多。
+const NTM_LIVE_MIN_GAP_MS = new Map([['danhai', 55e3], ['ankeng', 55e3], ['circular', 60e3], ['tymc', 30e3]]);
 const NTM_LIVE_SYS = new Set(NTM_LIVE_MIN_GAP_MS.keys());
 // 上游逾時:要短於前端 pollNtmLive 的 12 秒 abort,發起的訪客才拿得到結果;計時一路蓋到讀完 body。
 const NTM_LIVE_FETCH_TIMEOUT_MS = 8e3;
@@ -822,6 +824,131 @@ const ntmLiveMem = new Map(); // sys → { data: { at, src }, tried }:tried=最�
 // a 的資料比 b 新:比 at(向官網取回那一批的時刻,前端也照它判斷新舊);src 是 null 的(還沒有資料)一律最舊。
 // 撐一輪與直打佔位的 tried 是那次嘗試的時間,資料卻可能是上一份,新舊要比資料、不能比 tried。
 const ntmNewer = (a, b) => !!(a && a.src != null) && (!b || b.src == null || Date.parse(a.at) > Date.parse(b.at));
+// ── 桃園機捷官網列車動態(www.tymetro.com.tw「列車動態資訊」頁自用的資料,免金鑰,未文件化) ──
+// 目前只用來顯示車廂擁擠度。官方每列車給四節車廂的等級(1 舒適～5 擁擠,官網把 4、5 畫成同一個紅色)。
+// 我們的機捷班次是時刻表推演的,沒有官方車號,所以這裡替每列車附一個「指紋」fp=[站序, 官方表定發車秒],
+// 前端拿它找出同方向、同車種、在那一站時刻相符的那一班(逐班對;對不到就留白,不借別班的值)。
+// 看板上的官方到站倒數列(TDX,整分、沒有車號)不經過時刻表:另外附 calls(這列車接下來各站的官方預估到站秒),
+// 前端拿倒數列的站、方向、終點與到站時間直接對到列車。
+// 兩份上游:
+//   getimmediatestatus_cache.php  每列車一筆:車組號 train_no、運行號 train_seq、位置、方向(S=往老街溪／N=往台北)、四節擁擠度。
+//   PIDS_cache.php                每個月台接下來的班次:運行號 SetNum、趟次 SetTripNum、起訖站、車種、該站表定發車時間。
+// 運行號把兩份接起來。月台資料只列「還沒到的站」,所以:
+//   ・同一個運行號常同時列著好幾趟(現在這趟、折返後那趟、再下一趟),現在這趟是趟次編號最小、方向與列車相同的那一趟;
+//   ・停在起點等發車時,編號最小的就是即將要跑的那一趟(方向欄可能還是剛跑完那一趟的);
+//   ・快到終點、或月台資料沒有的區段(A21 往南的月台、A22),沿用上一輪對到的那一趟(上一輪要夠新,見 tymcOfficialSrc)。
+// 站序與 data/tymc.json 的 stations 同序(22 站;官方的 A14 是還沒啟用的站,不在內,A14a 才是機場旅館站)。
+const TYMC_LIVE_BASE = 'https://www.tymetro.com.tw/tymetro-new/tw/_pages/travel-guide/';
+// 整理出來的結果整份存進 Durable Object(單值有大小上限):實際約 20 列車、每趟最多 22 站,上游回離譜的大小時截掉。
+const TYMC_MAX_TRAINS = 64, TYMC_MAX_CALLS = 24;
+const TYMC_CODES = ['A01', 'A02', 'A03', 'A04', 'A05', 'A06', 'A07', 'A08', 'A09', 'A10', 'A11', 'A12', 'A13', 'A14A',
+  'A15', 'A16', 'A17', 'A18', 'A19', 'A20', 'A21', 'A22'];
+// 列車清單的終點寫成 A1／A13／A22(沒有補零),月台資料寫成 A01;機場旅館站有 A14a、A14A 兩種寫法:都收。
+const tymcIdx = c => TYMC_CODES.indexOf(String(c == null ? '' : c).trim().toUpperCase().replace(/^A(\d)$/, 'A0$1'));
+const tymcSec = s => {
+  const m = /^(\d\d):(\d\d):(\d\d)$/.exec(String(s == null ? '' : s));
+  return m ? Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]) : null;
+};
+// 純函式(scripts/verify_tymc_live.mjs 直接測):imm／pids 是上游兩份 JSON,prevSrc 是上一輪的結果(可為 null)。
+// 列車清單不成形就回 null(呼叫端當成本輪沒資料);月台資料缺了只是少指紋,擁擠度本身照給。
+function tymcLiveSrc(imm, pids, prevSrc) {
+  const list = imm && Array.isArray(imm.Payload) ? imm.Payload : null;
+  if (!list) return null;
+  // 運行號 → 趟次 → { trip, d, k, end, fp, near, calls }。fp 取該趟次「最近的下一個停靠站」:往老街溪取站序最小的,往台北取最大的。
+  // calls＝這一趟接下來各停靠站的官方預估到站秒 [站序, 秒];已經停在月台上的那一站多帶一個 1(官方此時的預估到站時間是過去的事)。
+  const bySeq = new Map();
+  if (pids && typeof pids === 'object') {
+    for (const key of Object.keys(pids)) {
+      const rows = pids[key];
+      if (!Array.isArray(rows)) continue;
+      for (const r of rows) {
+        if (!r || !r.SetNum || !r.SetTripNum || !r.StartStation || !r.EndStation) continue;
+        const si = tymcIdx(r.Station), sec = tymcSec(r.ScheduleTime);
+        const d = r.Direction === 1 ? 1 : r.Direction === 0 ? -1 : 0;
+        if (si < 0 || sec == null || !d) continue;
+        // 通過不停的站,我們的班次沒有這一站。機場旅館站自己的月台給的停靠站清單是空的,空清單不當成「不停」。
+        if (Array.isArray(r.StopStation) && r.StopStation.length && !r.StopStation.some(c => tymcIdx(c) === si)) continue;
+        const seq = String(r.SetNum), trip = String(r.SetTripNum);
+        const trips = bySeq.get(seq) || bySeq.set(seq, new Map()).get(seq);
+        const cur = trips.get(trip) || trips.set(trip, { trip, d, near: Infinity, fp: null, start: tymcIdx(r.StartStation), end: tymcIdx(r.EndStation), calls: [],
+          k: r.TrainType === 'Express' ? 'exp' : r.TrainType === 'Commuter' ? 'com' : null }).get(trip);
+        const near = d * si;
+        if (near < cur.near) { cur.near = near; cur.fp = [si, sec]; }
+        const arr = tymcSec(r.EstArrivalTime);
+        if (arr != null && cur.calls.length < TYMC_MAX_CALLS) cur.calls.push(Number(r.EstArrivalCountdown) === 0 && r.ActArrivalTime ? [si, arr, 1] : [si, arr]);
+      }
+    }
+    for (const trips of bySeq.values()) for (const x of trips.values()) x.calls.sort((p, q) => x.d * (p[0] - q[0]));
+  }
+  const prevByKey = new Map();
+  for (const p of (prevSrc && Array.isArray(prevSrc.trains) ? prevSrc.trains : [])) prevByKey.set(p.no + '|' + p.seq, p);
+  const trains = [];
+  for (const t of list) {
+    if (!t) continue;
+    if (trains.length >= TYMC_MAX_TRAINS) break;
+    const no = String(t.train_no == null ? '' : t.train_no).trim(), seq = String(t.train_seq == null ? '' : t.train_seq).trim();
+    const at = String(t.location == null ? '' : t.location).split('-');
+    const a = tymcIdx(at[0]), b = tymcIdx(at[1]);
+    const d = t.direction === 'S' ? 1 : t.direction === 'N' ? -1 : 0;
+    if (!no || !seq || a < 0 || b < 0 || !d) continue;
+    const out = { no, seq, loc: [a, b], d, k: t.CAR_TYPE === 'EXP' ? 'exp' : t.CAR_TYPE === 'COM' ? 'com' : null };
+    const to = tymcIdx(t.DESTINATION);
+    if (to >= 0) out.to = to;
+    // 任何一節出界就整份不帶(同北捷 carsOf 的理由:少一格會整條左移,指到錯的車廂)。
+    const cars = [t.car01_level, t.car02_level, t.car03_level, t.car04_level].map(Number);
+    if (cars.every(v => Number.isInteger(v) && v >= 1 && v <= 5)) out.cars = cars;
+    // 現在這一趟＝這個運行號還列在月台資料上、趟次編號最小的那一趟(跑完的趟次不會再列),而且方向要跟列車相同。
+    // 方向不同＝現在這一趟已經沒有站可列(快到終點),那一趟是折返後的:只有列車已經停在它的起點站等發車時才算它。
+    // 起點看趟次自己的 StartStation,不看指紋那一站——A22 沒有月台資料,折返趟的指紋落在隔壁的 A21,而停在 A21 往老街溪的列車
+    // 車上還是要到 A22 下車的乘客。同一個運行號常連下下趟都列出來,不能只看方向相同。
+    const trips = bySeq.get(seq);
+    let cur = null;
+    if (trips) {
+      let first = null;
+      for (const x of trips.values()) if (!first || x.trip < first.trip) first = x;
+      if (first && (first.d === d || (a === b && first.start === a))) cur = first;
+    }
+    if (!cur) {
+      const p = prevByKey.get(no + '|' + seq);
+      if (p && p.d === d && p.trip && Array.isArray(p.fp)) cur = { trip: p.trip, d: p.d, k: p.k, fp: p.fp };
+    }
+    if (cur) {
+      // 終點以趟次自己的為準;等折返時列車清單上的終點還是剛跑完那一趟的,趟次沒給就不帶。
+      if (cur.end >= 0) out.to = cur.end;
+      else if (cur.d !== d) delete out.to;
+      out.trip = cur.trip; out.fp = cur.fp; out.d = cur.d;
+      if (cur.k) out.k = cur.k;
+      if (cur.calls && cur.calls.length) out.calls = cur.calls;
+    }
+    trains.push(out);
+  }
+  return { trains };
+}
+// 上一輪的結果只在十分鐘內才拿來沿用:隔太久(收班到隔天首班)同一組車號對到的是昨天那一趟。
+const TYMC_CARRY_MAX_MS = 10 * 60e3;
+// 官網那份自己停住時照樣回 200:列車清單的 CreateTime(台北時間,平常落後不到半分鐘)落後超過三分鐘就當成這一輪失敗,
+// 呼叫端沿用上一份(at 不變),前端照自己的新鮮度留白。讀不出時間不擋(欄位改名時功能照舊,只是少這道防護)。
+const TYMC_STALE_MS = 180e3;
+function tymcStale(imm, now) {
+  const made = Date.parse(String((imm && imm.CreateTime) || '').replace(' ', 'T') + '+08:00');
+  return Number.isFinite(made) && now - made > TYMC_STALE_MS;
+}
+async function tymcOfficialSrc(prev, signal) {
+  const get = async name => {
+    const r = await fetch(TYMC_LIVE_BASE + name, {
+      headers: { 'user-agent': 'railisland.tw metro animation (+https://railisland.tw)' }, signal });
+    if (!r.ok) throw new Error('tymetro ' + r.status);
+    return r.json();
+  };
+  // 列車清單是主體,抓不到整輪算失敗(呼叫端沿用上一份);月台資料抓不到只是這一輪少了指紋。
+  // 兩發都結束才往下走:列車清單先失敗就丟出去的話,呼叫端會把逾時計時器清掉,月台資料那一發就沒人中止了。
+  const [immR, pidsR] = await Promise.allSettled([get('getimmediatestatus_cache.php'), get('PIDS_cache.php')]);
+  if (immR.status !== 'fulfilled') throw immR.reason;
+  const imm = immR.value, pids = pidsR.status === 'fulfilled' ? pidsR.value : null;
+  if (tymcStale(imm, Date.now())) throw new Error('tymetro stale');
+  const fresh = prev && prev.src && Date.now() - Date.parse(prev.at) < TYMC_CARRY_MAX_MS;
+  return tymcLiveSrc(imm, pids, fresh ? prev.src : null);
+}
 // 打官網的唯一發射點:集中出口(NtmPoller)與 per-colo 退路都只從這裡打。via=誰打的(do:<colo>／direct:<退路原因>)。
 async function ntmLiveFetch(sys, prev, env, via) {
   const started = Date.now();
@@ -829,11 +956,15 @@ async function ntmLiveFetch(sys, prev, env, via) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), NTM_LIVE_FETCH_TIMEOUT_MS);
   try {
-    const r = await fetch(`https://trainstatus.ntmetro.com.tw/roadmap/${sys}_data.php`, {
-      headers: { 'user-agent': 'railisland.tw metro animation (+https://railisland.tw)' }, signal: controller.signal });
-    if (!r.ok) throw new Error('ntmetro ' + r.status);
-    const d = await r.json();
-    const src = d && d.data != null ? d.data : null;
+    let src;
+    if (sys === 'tymc') src = await tymcOfficialSrc(prev, controller.signal);
+    else {
+      const r = await fetch(`https://trainstatus.ntmetro.com.tw/roadmap/${sys}_data.php`, {
+        headers: { 'user-agent': 'railisland.tw metro animation (+https://railisland.tw)' }, signal: controller.signal });
+      if (!r.ok) throw new Error('ntmetro ' + r.status);
+      const d = await r.json();
+      src = d && d.data != null ? d.data : null;
+    }
     outcome = src == null ? 'empty' : 'ok';
     return { at: new Date().toISOString(), src };
   } catch (_) {
@@ -11559,6 +11690,7 @@ export const _trtc = { trtcParse, trtcEpoch, dedupeLatest, trtcCall, trtcApiUrl,
   trtcHwStale, trtcHwFallbackUsable, trtcLive };
 // 新北捷集中出口的名字:poller Worker 的 /ntm-status 要用同一個(同名才是同一顆 DO),只留這一份。
 export const _ntm = { NTM_POLLER_NAME };
+export const _tymc = { tymcLiveSrc, tymcStale };
 // B1 驗收用：導出編排層供本機 D1/fixture 測試，正式 router 不因此增加任何路徑。
 export const _trtcLedger = {
   trtcBoardEpoch, trtcLedgerContext, persistTrtcLedger, trtcLedgerPreview,

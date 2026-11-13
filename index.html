@@ -5914,6 +5914,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="tymccrowd1113"><span class="d">11/13</span><span>桃園機場捷運的車站看板與跟車卡多了車廂擁擠度：四節車廂各一格、顏色表示鬆緊，資料取自桃園捷運官網的列車動態；對不上是哪一列車時留白</span></li>
         <li data-cl-of="tragpsrun1113"><span class="d">11/13</span><span>台鐵列車在兩站之間的位置，改照校正懸賞錄到的實際行駛曲線來推（目前 95 條站間曲線），起步、進站的快慢更接近真車；還沒有實測的站間照舊用公式推算（謝謝幫忙錄程的島民）</span></li>
         <li data-cl-of="trameetin1110"><span class="d">11/10</span><span>台鐵單線區段原本畫成在站間錯身的對向列車，改成先到的那班進站停車，等對向列車通過再開（例如 410 次在東竹等 417 次）</span></li>
         <li data-cl-of="garagenewcars1109"><span class="d">11/09</span><span>車庫新增 12 款車：EMU200、DR2800、S400、EMU400、0 系新幹線、總統花車等，各用 150 島民點數兌換</span></li>
@@ -5921,7 +5922,6 @@
         <li data-cl-of="garagefix1109"><span class="d">11/09</span><span>車庫場景頁換車改成下面一排車款鈕直接點；有月台的場景列車輪流進站、停站再開走；鐵軌、電線等細線遠看不再忽隱忽現</span></li>
         <li data-cl-of="trtchold1109"><span class="d">11/09</span><span>捷運：北捷列車在資料更新的瞬間不再往回跳一小段，落後時會在原地稍等再接著走</span></li>
         <li data-cl-of="deskoverlap1109"><span class="d">11/09</span><span>電腦版地圖的面板、卡片和右側觀看鈕不再互相疊住；存起來的地點星星改畫在面板下面，不會再蓋到對話框</span></li>
-        <li data-cl-of="tmrtfirst1109"><span class="d">11/09</span><span>台中捷運綠線首班車改回 06:00：交通部 TDX 資料已改回原本時刻，11/8 提早到 05:30 的那版不再採用，末班不變</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -6213,6 +6213,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="tymccrowd1113"><span class="d">11/13</span><span>桃園機場捷運的車站看板與跟車卡多了車廂擁擠度：四節車廂各一格、顏色表示鬆緊，資料取自桃園捷運官網的列車動態；對不上是哪一列車時留白</span></li>
         <li data-cl="trainstock1105"><span class="d">11/05</span><span>區間車列車卡新增車型推估：依鐵道維基館運用表標出 EMU500／600／700／800／900，實際以當日調度為準</span></li>
         <li data-cl="guideroute1103"><span class="d">11/03</span><span>觀看的「導覽」分頁拆開了：查詢首頁多「去哪裡」，車站、地標和縣市點一下就飛過去；搜尋也找得到地點、縣市和路線；最愛可以新增地點；選路線直接看全線並亮線；精選取景移到觀看的視角</span></li>
         <li data-cl="thsrseatcard1102"><span class="d">11/02</span><span>跟隨高鐵列車時，資訊卡多一行對號座還有沒有位子（有位／剩不多／售完），從列車接下來停的那站算到終點；官方座位表沒有這班就不顯示</span></li>
@@ -7475,7 +7476,10 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1109e：車庫 60 款四語介紹刪掉車款檔案已有的製造、年份、數量、編組、出力、速度（只刪不加）。
 // v1110a：台鐵單線區段兩班都通過的對向列車，改成先到的那班在站內停等對向車通過（planPassStationMeets，bd4b4f9df；例 410 在東竹等 417）。
 // v1113a：台鐵站間 GPS 曲線（data/tra_gps_runs.json，95 條、每條 5 個折點；assignRunProfiles 的 gps 參數，47729562c＋14ccce178）：沒有官方通過站觀測的跑段改用校正懸賞錄程的實測曲線，沒有曲線的照舊梯形；tra_run_profiles.json 跟著重產，上限 3,000,000 bytes（已安裝 App 的下載上限）。
-const BUILD = 'v1113a';
+// v1113b：機捷車廂擁擠度（桃捷官網「列車動態資訊」頁自用的兩份 JSON，經 /api/ntmetro-live?sys=tymc 代理、30 秒一輪，
+//         與新北捷同一套把關與集中出口；7384793c4）：車站看板與跟車卡每列車四節各一格。班次靠「最近停靠站＋官方表定發車時刻」對車，
+//         看板倒數列靠「同方向同終點＋官方預估到站」對車；對不到留白，不拿來校正列車位置。
+const BUILD = 'v1113b';
 // v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
@@ -8125,6 +8129,7 @@ const state = {
   trackStyle: 'auto', // 軌道顯示:auto(亮色原色/夜間衛星自動淡化)、faint(一律更淡)、hidden(只留列車與車站)
   live: null, // 台鐵即時誤點 {map: 車次→誤點分, obs: 車次→官方站點觀測, at: 抓取時刻, delayed, srcAt}
   trtcOfficialBoard: null, // 北捷官方逐列到站時間；只供車站看板，不得寫入動畫校正／班表名冊
+  tymcCrowd: null, // 機捷官方逐列車的車廂擁擠度（見 tymcCrowdCars）；只供顯示，不得寫入動畫校正
   trtcOfficialRoster: null, // ?officialroster=1 影子路徑；boardPos 整包換入，vehicleId 是畫車／跟隨身分
   trtcOfficialRosterRevisionHighWater: null, // 只記最後成功接受版本；outage／malformed 不得把它倒退
   metroCore: { snapshot: null, etag: null, fetchedAt: 0, lastOkAt: 0, polling: false, error: null,
@@ -14450,21 +14455,25 @@ function updateFreqCard(info) {
   // 實際時刻班次附下一站發車時刻(HH:MM);班距幽靈車只有站名
   document.getElementById('fcNext').textContent = (stationName(info.nextName, ln._sys) || '—') +
     (info.nextSec != null ? '(' + fmtHM(info.nextSec % 86400) + ')' : '');
-  // 車廂擁擠度:只有北捷官方板路線有逐節資料(TRTC_BOARD_LINES)。其他營運商官方沒有這一份,
-  // 整塊不畫——常駐一行「未提供」對高捷/機捷/中捷是永久噪音;而北捷內部才有「同一張卡忽有忽無」
+  // 車廂擁擠度:北捷官方板路線(TRTC_BOARD_LINES)與機捷有官方逐節資料。其他營運商官方沒有這一份,
+  // 整塊不畫——常駐一行「未提供」對高捷/中捷是永久噪音;而北捷內部才有「同一張卡忽有忽無」
   // 的對齊問題,那正是欄位固定保留要解的那件事。
+  // 機捷是逐班對(tymcCrowdCars):對得到才畫,對不到整塊收起來——路線有提供,只是這一班沒對上,
+  // 寫「此路線未提供」是錯的。
   const cw = document.getElementById('fcCrowd');
   if (cw) {
-    const showCrowd = isTrtcBoardLine(ln);
+    const tymcCars = f.tr ? tymcCrowdCars(ln, f.tr) : null;
+    const showCrowd = isTrtcBoardLine(ln) || !!tymcCars;
     cw.hidden = !showCrowd;
     if (showCrowd) {
-      const cars = freqCrowdCars();
+      const cars = tymcCars || freqCrowdCars();
       // 沒資料時只畫【一條】滿寬虛線佔位,不畫六格:六格會宣稱「這台車有六節」,而文湖線是四節、
       // 我們在沒有官方值時根本不知道節數。佔位的用途是撐住高度,不是描述車輛編組。
       const bars = cars
         ? cars.map(v => `<i style="background:${trtcOfficialCrowdColor(Number(v))}"></i>`).join('')
         : '<i></i>';
-      const ageMs = state.trtcOfficialBoard ? Date.now() - Number(state.trtcOfficialBoard.receivedAt || 0) : NaN;
+      const ageMs = tymcCars ? Date.now() - state.tymcCrowd.sourceAt * 1000 // 機捷:從 Worker 向官網取回那一刻算起
+        : state.trtcOfficialBoard ? Date.now() - Number(state.trtcOfficialBoard.receivedAt || 0) : NaN;
       const secs = Number.isFinite(ageMs) ? Math.max(0, Math.round(ageMs / 1000)) : null;
       const mins = secs == null ? null : Math.round(secs / 60);
       const age = cars && secs != null
@@ -20166,6 +20175,7 @@ function finishLoad(meta) {
   pollTrtcLive();      // 北捷官方即時名冊（預設開啟）；旗標關或上游中斷時退回班表＋看板校正
   pollMetroLive();     // 捷運即時校正(捷運分頁與全台同框、系統有 LiveBoard 源才會真的打;換線後 shift 隨新 line 物件重建)
   pollNtmLive();       // 新北捷即時校正(環狀線/淡海/安坑,官方列車動態)
+  pollTymcCrowd();     // 機捷車廂擁擠度(桃捷官網列車動態)
   pollKlrtPos();       // 高雄環狀輕軌真 GPS 逐班校正
   updateSchedTools();  // 捷運模式隱藏台鐵專屬工具鈕
   refreshBadge();
@@ -20446,6 +20456,7 @@ function toggleFreqMember(id) {
   pollTrtcLive();  // rebuildFreqLines 產生全新 line 物件,北捷逐班 shift 需重新拉
   pollMetroLive(); // 其他捷運的 _liveShift 同樣需重新拉
   pollNtmLive();
+  pollTymcCrowd();
   pollKlrtPos();
   saveLastView(); // 勾選不移動地圖→不發 moveend,得自己記一次
 }
@@ -33749,7 +33760,7 @@ setInterval(pollTrtcLive, 15e3); // 北捷上游實測約 15 秒換值,與 Worke
 // 徽章刷新走 draw 的 1 秒 tick(與台鐵 LIVE 同步),資料過期/時間旅行/快轉跨門檻都會即時轉態
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) clearTrtcBoard();
-  else { pollMetroCore(); pollTrtcLive(); pollMetroLive(); pollNtmLive(); pollKlrtPos(); }
+  else { pollMetroCore(); pollTrtcLive(); pollMetroLive(); pollNtmLive(); pollTymcCrowd(); pollKlrtPos(); }
 });
 
 // ── 新北捷即時校正(官方列車動態 trainstatus.ntmetro.com.tw,經 /api/ntmetro-live 代理,每 20 秒) ──
@@ -33874,6 +33885,90 @@ async function pollNtmLive() {
   renderAlertBanner(); // 線級異常變更即時反映到橫幅
 }
 setInterval(pollNtmLive, 20e3);
+
+// ── 機捷車廂擁擠度(桃捷官網「列車動態資訊」頁自用的資料,經 /api/ntmetro-live?sys=tymc 代理,每 30 秒) ──
+// 官方每列車給四節車廂的等級(1 舒適～5 擁擠;官網把 4、5 畫成同一個紅色,這裡的色票剛好也是)。
+// 我們的機捷班次是時刻表推演的,沒有官方車號,不能像北捷那樣拿車號查。改成逐班對:
+// Worker 替每列車附一個指紋 fp=[站序, 官方表定發車秒](做法見 worker.js 的 tymcLiveSrc),這裡找
+// 同方向、同車種、在那一站的時刻比指紋早 -20～110 秒的那一班——TDX 的時刻是整分、官方是秒,
+// 2026-11-13 實測差 8～83 秒,184 筆全部唯一對到。同車種同方向的兩班在同一站不會只隔兩分鐘,所以不會對到兩班。
+// 🔴 對不到就留白,不拿同終點的另一班頂替(同北捷逐車 join 的規矩)。只顯示擁擠度,不拿它校正列車位置。
+// 未文件化來源;營運單位要求停用就移除。scripts/verify_tymc_live.mjs 用同一條規則驗樣本,改規則要兩邊一起改。
+function applyTymcCrowd(src, at) {
+  const sourceAt = metroSourceEpoch(at);
+  if (!src || !Array.isArray(src.trains) || sourceAt == null) return; // 本輪沒資料:留著上一份,超齡後自然留白
+  state.tymcCrowd = { trains: src.trains, sourceAt, byTrip: new Map() };
+}
+function tymcCrowdCars(ln, tr) {
+  const c = state.tymcCrowd;
+  if (!c || !tr || freqSysIdOf(ln) !== 'tymc' || !metroSourceFresh(c.sourceAt)) return null;
+  if (Math.abs(state.simSec - nowSecOfDay()) > 120) return null; // 時間旅行中看的不是現在這班車
+  if (c.byTrip.has(tr)) return c.byTrip.get(tr);
+  const kind = tymcKindOf(ln, tr), d = tr[0] <= tr[tr.length - 2] ? 1 : -1;
+  let cars = null;
+  if (kind) for (const v of c.trains) {
+    if (v.d !== d || v.k !== kind || !Array.isArray(v.fp) || !Array.isArray(v.cars)) continue;
+    let hit = false;
+    for (let k = 0; k < tr.length; k += 2) {
+      if (tr[k] !== v.fp[0]) continue;
+      let diff = (v.fp[1] - tr[k + 1]) % 86400; // 跨午夜的班次秒值可 >86400
+      if (diff < -43200) diff += 86400; else if (diff > 43200) diff -= 86400;
+      hit = diff >= -20 && diff <= 110;
+      break;
+    }
+    if (hit) { cars = v.cars; break; }
+  }
+  c.byTrip.set(tr, cars);
+  return cars;
+}
+// 看板的官方到站倒數列(TDX,整分、沒有車號、也沒有車種)不經過時刻表,直接對到列車:Worker 替每列車附了
+// calls＝接下來各站的官方預估到站秒 [站序, 秒(, 1＝已經停在月台)]。同方向、同終點、那一站在 calls 裡,而且
+//   ・停在月台的列車對「0～1 分」的那一列;
+//   ・其餘要求 倒數列的到站秒 − 官方預估到站秒 落在 0～180 秒:TDX 的分鐘是進位過的、資料又比我們取回的
+//     時刻舊一點,所以倒數列一律偏晚(2026-11-13 兩次實測集中在 30～180 秒)。
+// 🔴 恰好一列車對得上才用。長庚醫院往台北這種直達追上普通、兩班一分鐘內先後到的站會對到兩列車,留白不猜;
+//    倒數列那一班的列車還在跑上一趟(方向相反)時也對不到——那時的擁擠度是上一趟的,本來就不該掛上去。
+function tymcCrowdForRow(rec) {
+  const c = state.tymcCrowd;
+  if (!c || !rec || rec.source !== 'tymc' || !metroSourceFresh(c.sourceAt)) return null;
+  const d = rec.direction === 2 ? 1 : -1, soon = rec.arrivalEpoch - rec.sourceAt <= 90.5; // 整分的列多加了 30 秒
+  const eta = metroCoreEpochSecOfDay(rec.arrivalEpoch);
+  let hit = null, n = 0;
+  for (const v of c.trains) {
+    if (v.d !== d || v.to !== rec.destinationStationIndex || !Array.isArray(v.calls)) continue;
+    const call = v.calls.find(x => x[0] === rec.stationIndex);
+    if (!call) continue;
+    let ok = soon;
+    if (!call[2]) {
+      let diff = (eta - call[1]) % 86400;
+      if (diff < -43200) diff += 86400; else if (diff > 43200) diff -= 86400;
+      ok = diff >= 0 && diff <= 180;
+    }
+    if (ok) { n++; hit = v; }
+  }
+  return n === 1 && Array.isArray(hit.cars) ? hit.cars : null;
+}
+function tymcCrowdHtml(cars) {
+  // 沒資料回透明佔位,有無 bars 的列時間欄才對得齊(同 trtcOfficialCrowdHtml)。
+  if (!cars) return '<span class="crowd" aria-hidden="true"></span>';
+  return '<span class="crowd" title="' + escHtml(t('車廂擁擠度（桃捷官方）')) + '">' +
+    cars.map(v => `<i style="background:${trtcOfficialCrowdColor(Number(v))}"></i>`).join('') + '</span>';
+}
+async function pollTymcCrowd() {
+  if (document.hidden || state._tymcCrowdPolling) return;
+  if (!metroLivePool().some(ln => ln._tt && freqSysIdOf(ln) === 'tymc')) return; // 畫面上沒有機捷就不打
+  if (Math.abs(state.simSec - nowSecOfDay()) > 120) return; // 時間旅行中不打 API
+  state._tymcCrowdPolling = true;
+  const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 12000);
+  try {
+    const r = await fetch(apiUrl('api/ntmetro-live?sys=tymc'), { cache: 'no-store', signal: controller.signal });
+    if (!r.ok) throw new Error(r.status);
+    const d = await r.json();
+    if (d && typeof d.at === 'string') applyTymcCrowd(d.src, d.at);
+  } catch (e) { /* 失敗只留著尚未超齡的那一份 */ }
+  finally { clearTimeout(timeout); state._tymcCrowdPolling = false; }
+}
+setInterval(pollTymcCrowd, 30e3);
 
 // ── 高雄環狀輕軌真 GPS 逐班校正(/api/klrt-position,約每分鐘) ─────────────────────────
 // KLRT 是全台捷運唯一提供逐車經緯度的系統(TRTC/KRTC/TYMC 打 LivePosition 一律 400)。
@@ -37368,6 +37463,15 @@ function renderMetroCoreFreqBoard(el, st, lines, isDeco, view, opts) {
   if (!compact) { delete el.dataset.trtcOfficial; el.dataset.metroCore = '1'; }
   const records = [];
   const heads = metroBoardGroupHeads(view.groups);
+  // 機捷車廂擁擠度:官方倒數列直接對列車、班表列逐班對(tymcCrowdForRow／tymcCrowdCars)。這張板的機捷列只要有一列
+  // 對得到,其餘機捷列都放透明佔位,時刻欄才對得齊;一列都沒有就完全不留,版面跟原本一樣。
+  const tymcCars = new Map();
+  for (const group of view.groups) if (freqSysIdOf(group.ln) === 'tymc') for (const rec of group.rows) {
+    tymcCars.set(rec, rec.kind === 'source' ? tymcCrowdForRow(rec)
+      : rec.kind === 'legacy' && group.ln._tt ? tymcCrowdCars(group.ln, group.ln._tt[rec.ci]) : null);
+  }
+  const tymcAny = [...tymcCars.values()].some(Boolean);
+  const tymcHtml = rec => tymcAny && tymcCars.has(rec) ? tymcCrowdHtml(tymcCars.get(rec)) : '';
   const body = view.groups.map((group, gi) => metroBoardHeadHtml(heads, gi, group.ln) + (compact ? group.rows.slice(0, 1) : group.rows).map(rec => {
     const lineLabel = metroBoardRowLabel(heads, metroLineFullLabel(group.ln), group.ln, rec.destName);
     const destination = stationName(rec.destName, group.ln._sys);
@@ -37386,7 +37490,7 @@ function renderMetroCoreFreqBoard(el, st, lines, isDeco, view, opts) {
       // 🔴 08-29 之前擁擠度只長在官方板上,Core 板一格都沒有——於是每當板路徑在 CORE／官方／
       // 班表之間翻動,使用者就看到擁擠度忽有忽無(實測 86 秒內翻了 7 次)。兩條路徑要嘛都有、
       // 要嘛都沒有,不可以只有一條有。
-      const crowdHtml = rec.systemId === 'trtc' ? trtcOfficialCrowdHtml(label) : '';
+      const crowdHtml = rec.systemId === 'trtc' ? trtcOfficialCrowdHtml(label) : tymcHtml(rec);
       return `<div class="row${route ? ' klrt-board-row' : ''}${crowdHtml ? ' has-crowd' : ''}" data-core-record="${index}"${followable
         ? ` data-core-vehicle="${escHtml(rec.vehicleId)}" data-core-system="${escHtml(rec.systemId)}" data-core-line="${escHtml(group.ln.id)}" data-li="${group.li}" title="${escHtml(followTitle)}"` : ''}>` +
         `<span class="dot" style="background:${group.ln.color}"></span><b>${escHtml(direction)}</b>` +
@@ -37396,9 +37500,11 @@ function renderMetroCoreFreqBoard(el, st, lines, isDeco, view, opts) {
     }
     const minutes = Math.round(rec.dtm / 60);
     const min = rec.dtm < 60 ? t('即將進站') : t('{n} 分', { n: i18nNumber(minutes) }, minutes);
-    return `<div class="row${route ? ' klrt-board-row' : ''}" data-li="${group.li}" data-ci="${rec.ci}" title="${escHtml(followTitle)}">` +
+    const legacyCrowd = tymcHtml(rec);
+    return `<div class="row${route ? ' klrt-board-row' : ''}${legacyCrowd ? ' has-crowd' : ''}" data-li="${group.li}" data-ci="${rec.ci}" title="${escHtml(followTitle)}">` +
       `<span class="dot" style="background:${group.ln.color}"></span><b>${escHtml(direction)}</b>` +
       `<span class="dest">${escHtml(route ? t('經 {stations}', { stations: routeVia }) : lineLabel)}</span>` +
+      legacyCrowd +
       `<span class="t">${fmtHM(rec.t % 86400)}</span><span class="min">${escHtml(min)}</span></div>`;
   }).join('')).join('');
   if (compact) return body;
@@ -37539,7 +37645,7 @@ function trtcOfficialLegacyGroups(st, lines, isDeco, includeTrtc = false, offici
       }
       if (!byDir.has(destName)) byDir.set(destName, []);
       // 機捷補列進北捷官方板時同樣要帶車種(台北車站等機捷走的是這條路徑)
-      byDir.get(destName).push({ t, dtm, ci, tymcKind: tymcKindOf(ln, trip) });
+      byDir.get(destName).push({ t, dtm, ci, tymcKind: tymcKindOf(ln, trip), crowd: tymcCrowdCars(ln, trip) });
     });
     byDir.forEach((rows, destName) => {
       rows.sort((a, b) => a.dtm - b.dtm);
@@ -37652,8 +37758,11 @@ function renderTrtcOfficialFreqBoard(el, st, lines, isDeco, view, opts) {
     return head + (compact ? group.rows.slice(0, 1) : group.rows).map(row => {
       const minutes = Math.round(row.dtm / 60);
       const min = row.dtm < 60 ? t('即將進站') : t('{n} 分', { n: i18nNumber(minutes) }, minutes);
-      return `<div class="row" data-li="${group.li}" data-ci="${row.ci}" title="${escHtml(t('跟隨往 {station} 的班次', { station: destination }))}"><span class="dot" style="background:${group.ln.color}"></span>` +
+      // 機捷列補上擁擠度格(對不到的放透明佔位):這張板的官方列本來就固定留這一欄,機捷列跟著留才對得齊。
+      const crowdHtml = row.tymcKind ? tymcCrowdHtml(row.crowd) : '';
+      return `<div class="row${row.crowd ? ' has-crowd' : ''}" data-li="${group.li}" data-ci="${row.ci}" title="${escHtml(t('跟隨往 {station} 的班次', { station: destination }))}"><span class="dot" style="background:${group.ln.color}"></span>` +
         `<b>${escHtml((row.tymcKind ? t(TYMC_KIND_NAME[row.tymcKind]) + '・' : '') + t('往 {station}', { station: destination }))}</b><span class="dest">${escHtml(lineLabel)}</span>` +
+        crowdHtml +
         `<span class="t">${fmtHM(row.t % 86400)}</span><span class="min">${escHtml(min)}</span></div>`;
     }).join('');
   }).join('');
@@ -37799,7 +37908,7 @@ function renderFreqBoard(el, st, lines, isDeco, opts) {
       const groupKey = klrtRoute ? klrtRoute.direction + '|' + destName : destName;
       if (!byDir.has(groupKey)) byDir.set(groupKey, { destName, klrtRoute, rows: [] });
       // 機捷「往台北車站」同時有直達與普通,同一組裡混排 ⇒ 車種要逐列標,光看目的地分不出來
-      byDir.get(groupKey).rows.push({ t, dtm, ci, tymcKind: tymcKindOf(ln, trip) });
+      byDir.get(groupKey).rows.push({ t, dtm, ci, tymcKind: tymcKindOf(ln, trip), crowd: tymcCrowdCars(ln, trip) });
     });
     byDir.forEach(({ rows, destName, klrtRoute }) => {
       rows.sort((a, b) => a.dtm - b.dtm);
@@ -37810,6 +37919,7 @@ function renderFreqBoard(el, st, lines, isDeco, opts) {
   const hasEstimated = groups.some(g => g.ln.times && g.ln.times.estimated);
   const hasLive = groups.some(g => metroLiveOn(g.ln));
   const allFresh = hasLive && groups.filter(g => metroLiveOn(g.ln)).every(g => metroFresh(g.ln)); // 有任一線非 fresh(高倍速投射/資料稍舊)整體改推估措辭,同 updateMetroBadge
+  const anyCrowd = groups.some(g => g.rows.some(r => r.crowd));
   const heads = metroBoardGroupHeads(groups);
   const body = groups.map((g, gi) => {
     const lineLabel = metroBoardRowLabel(heads, metroLineFullLabel(g.ln), g.ln, g.destName);
@@ -37822,8 +37932,12 @@ function renderFreqBoard(el, st, lines, isDeco, opts) {
       const minutes = Math.round(r.dtm / 60);
       const min = r.dtm < 60 ? t('即將進站') : t('{n} 分', { n: i18nNumber(minutes) }, minutes);
       const direction = routeLabel || (r.tymcKind ? t(TYMC_KIND_NAME[r.tymcKind]) + '・' : '') + t('往 {station}', { station: destination });
-      return `<div class="row${route ? ' klrt-board-row' : ''}" data-li="${g.li}" data-ci="${r.ci}" title="${escHtml(followTitle)}"><span class="dot" style="background:${g.ln.color}"></span>` +
+      // 機捷車廂擁擠度:這張板上有任何一列對得到,整張板每一列都留這一欄(對不到的放透明佔位),時刻欄才對得齊;
+      // 一列都沒有(別家捷運、或機捷這一輪沒資料)就完全不留,版面跟原本一樣。
+      const crowdHtml = anyCrowd ? tymcCrowdHtml(r.crowd) : '';
+      return `<div class="row${route ? ' klrt-board-row' : ''}${r.crowd ? ' has-crowd' : ''}" data-li="${g.li}" data-ci="${r.ci}" title="${escHtml(followTitle)}"><span class="dot" style="background:${g.ln.color}"></span>` +
         `<b>${escHtml(direction)}</b><span class="dest">${escHtml(route ? t('經 {stations}', { stations: routeVia }) : lineLabel)}</span>` +
+        crowdHtml +
         `<span class="t">${fmtHM(r.t % 86400)}</span><span class="min">${escHtml(min)}</span></div>`;
     }).join('');
   }).join('');
@@ -39834,12 +39948,12 @@ const HELP_GROUPS = [
       tip: '接續班次用的是表定時刻、沒算站內步行，也只涵蓋有逐班時刻的系統（台鐵、高鐵、林鐵、機捷、高捷），北捷與台中捷運沒有。「接公車」只出現在台鐵、高鐵、林鐵的跟車小卡上，而且前方還有可選的轉乘站時才會有。', try: 'follow' },
     { key: 'board', ic: '<span class="hw-stnbox"><i></i></span>', nm: '點車站＝接下來的班次看板',
       one: '看板由近到遠列出接下來要進站的車，還有幾分鐘到。',
-      steps: ['點地圖上任一車站', '看板列出接下來的班次與倒數；北捷有官方逐節資料時，班次旁會畫出每節車廂的鬆緊', '點其中一班可以直接跟車；標題右邊的收藏鈕把這站加進最愛'],
+      steps: ['點地圖上任一車站', '看板列出接下來的班次與倒數；北捷與機捷有官方逐節資料時，班次旁會畫出每節車廂的鬆緊', '點其中一班可以直接跟車；標題右邊的收藏鈕把這站加進最愛'],
       tip: '台鐵套用官方即時誤點；北捷依官方秒級到站倒數逐班校正，擁擠度也只對應同一車號，不會借用同方向另一班車；高捷、機捷、高雄輕軌依官方到站看板校正。官方資料中斷或你的裝置時鐘明顯不準時，上方的「LIVE」會轉成灰色「非即時」，表示畫面是依稍早的資料投射——點一下時鐘可以看到是哪一項出狀況。台鐵當日官方公告停駛的班次不會出現在地圖上，但看板仍會列出並標成「停駛」。', try: 'board' },
     { key: 'cardinfo', ic: '卡', nm: '跟車小卡裡的更多細項',
-      one: '跟著一班車時，除了下一站與誤點，列車卡還有逐站時刻表、全程速度曲線，有官方資料時還能看到台鐵月台、高鐵自由座與北捷車廂擁擠度。',
-      steps: ['桌面：跟車時地圖下方有這班車的列車卡，標題列右邊的「曲線 ▴」「時刻表 ▾」可以各自展開或收起；手機：點一下跟車小卡，從底下滑出「列車」面板（點上緣把手可放大），時刻表常駐展開', '時刻表是這班車逐站的到離站時間；點任一站那一列，時間軸會跳到「到站前半分鐘」，要回到真實時間按「現在」', '台鐵車：有官方月台資料時，卡上會多一行「月台 N」；沒有資料的班次就不會出現', '高鐵車：有官方當日自由座公告時，標題列下面會多一排小方塊（一格一節車廂），自由座那幾節會標出來，並寫成「自由座 N–M 車」', '北捷：跟車卡上有「車廂擁擠度」，有官方逐節資料時一節一格、顏色表示鬆緊；沒有資料的路線寫「此路線未提供擁擠度」'],
-      tip: '月台只在時間停在「現在」、1× 播放時顯示；自由座是官方當日公告，不是即時擁擠度；擁擠度只有北捷有，其他捷運系統的卡上沒有這一列。', try: 'follow' },
+      one: '跟著一班車時，除了下一站與誤點，列車卡還有逐站時刻表、全程速度曲線，有官方資料時還能看到台鐵月台、高鐵自由座與北捷、機捷的車廂擁擠度。',
+      steps: ['桌面：跟車時地圖下方有這班車的列車卡，標題列右邊的「曲線 ▴」「時刻表 ▾」可以各自展開或收起；手機：點一下跟車小卡，從底下滑出「列車」面板（點上緣把手可放大），時刻表常駐展開', '時刻表是這班車逐站的到離站時間；點任一站那一列，時間軸會跳到「到站前半分鐘」，要回到真實時間按「現在」', '台鐵車：有官方月台資料時，卡上會多一行「月台 N」；沒有資料的班次就不會出現', '高鐵車：有官方當日自由座公告時，標題列下面會多一排小方塊（一格一節車廂），自由座那幾節會標出來，並寫成「自由座 N–M 車」', '北捷：跟車卡上有「車廂擁擠度」，有官方逐節資料時一節一格、顏色表示鬆緊；沒有資料的路線寫「此路線未提供擁擠度」', '機捷：對得上官方列車時，跟車卡同樣有「車廂擁擠度」，四節車廂各一格；對不上時這一列不出現'],
+      tip: '月台只在時間停在「現在」、1× 播放時顯示；自由座是官方當日公告，不是即時擁擠度；擁擠度只有北捷與機捷有，其他捷運系統的卡上沒有這一列。', try: 'follow' },
     { key: 'datastatus', ic: '◷', nm: '點時鐘＝現在的資料是不是即時的',
       one: '時鐘旁邊就是資料狀態——畫面夠寬時直接寫出來（LIVE、非即時、尖峰…），窄的時候依序收成小色點，「即時」那顆最後才收。點一下時鐘，會逐項寫出每一項代表什麼、以及為什麼是這個狀態。',
       steps: ['點頂端的時鐘（桌面點時鐘那張卡）', '逐列看：台鐵即時誤點是 LIVE 還是「非即時」、捷運看板校正到哪、是不是在重播、目前時段與車數', '每一列下面會說明原因——資料幾分鐘沒更新、裝置時鐘差幾秒、時間軸不在現在'],

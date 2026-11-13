@@ -464,7 +464,7 @@ try{
     assert.equal(count.circular,prior+1,'〔17〕主站帶來較長的間隔：DO 照較長的那個，不滿 70 秒不准再打');
     now+=9e3;await askDo(70e3);assert.equal(count.circular,prior+2,'〔17〕滿 70 秒才再打');
     const st=await(await stub.fetch('https://ntm-poller/status')).json();
-    assert.deepEqual(st.gaps,{danhai:55e3,ankeng:55e3,circular:60e3},'〔17〕/status 報出這一版的間隔表');
+    assert.deepEqual(st.gaps,{danhai:55e3,ankeng:55e3,circular:60e3,tymc:30e3},'〔17〕/status 報出這一版的間隔表'); // tymc＝桃園機捷官網（2026-11-13 加入同一個集中出口，30 秒）
     assert.equal(count.circular,prior+2,'〔17〕/status 不觸發查詢');
 
     // 18. 「連續兩個間隔都拿不到」要看時間、也要看 DO 有沒有通過：
