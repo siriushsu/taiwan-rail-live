@@ -90,6 +90,9 @@ const server = createServer((req, res) => {
   }
   if (fixtureSchedule && url.pathname === '/data/tra_schedule_dense.json') { res.setHeader('content-type', MIME['.json']); return res.end(fixtureSchedule); }
   if (fixtureDerived && fixtureDerived.has(url.pathname)) { res.setHeader('content-type', MIME['.json']); return res.end(fixtureDerived.get(url.pathname)); }
+  // GPS 站間曲線（tra_gps_runs.json）也是每次重算就整份換的衍生資料，而且 0ef6fa24 那時還沒有這個檔：
+  // 固定考卷一律當它不存在。2026-11-13 曲線從 31 條重算成 95 條，沒釘的話同一份考卷 B 37→33、C 13→12、A′ 9→12，程式一行沒動。
+  if (FIXTURE && url.pathname === '/data/tra_gps_runs.json') { res.statusCode = 404; return res.end('nf'); }
   let fp = path.join(ROOT, decodeURIComponent(url.pathname));
   if (existsSync(fp) && statSync(fp).isDirectory()) fp = path.join(fp, 'index.html');
   if (!path.resolve(fp).startsWith(ROOT) || !existsSync(fp)) { res.statusCode = 404; return res.end('nf'); }

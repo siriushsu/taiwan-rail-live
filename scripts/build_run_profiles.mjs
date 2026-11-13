@@ -28,7 +28,7 @@ const CONSTS = ['PERF_DEFAULT', 'PERF_HSR', 'HSR_DEP_MID_SEC', 'PERF_RULES', 'PE
 const FUNCS = ['haversineKm', 'ensureCum', 'posAlongShape', 'isHSR', 'isMyTrain', 'specialOf', 'namedTrainNosOn', 'isDr1000', 'resolvePerf',
   'speedZoneClassOf', 'runSpeedZones', 'zoneProfileOk', 'zoneNatural', 'speedZoneKnots',
   'buildProfile', 'buildObsProfile', 'profTimeToProg', 'profProgToTime',
-  'schedSegmentKm', 'schedSegKmOf', 'assignRunProfiles', 'canonicalizeAliasTrains',
+  'schedSegmentKm', 'schedSegKmOf', 'gpsRunKey', 'readGpsRuns', 'assignRunProfiles', 'canonicalizeAliasTrains',
   'projectOntoShape', 'assignSchedShapePathsFor', 'traSectionKey',
   'inferMeetPassTimes', 'inferMeetRun', 'reanchorRunProfile', 'applyRunProfile'];
 FUNCS.push('clearPlannedOvertakes', 'reassignTrainProfile', 'overtakeRunBuildable', 'overtakeTrackFree',
@@ -43,6 +43,14 @@ export function readPassObs(path) {
 // 同理:前端存的是 .pairs（index.html 的 state.trackSections），照前端的取法取。
 export function readTrackSections(path) {
   return JSON.parse(readFileSync(path, 'utf8'))?.pairs || null;
+}
+
+// GPS 站間曲線（scripts/build_gps_runs.mjs 產）。取法照前端：檔案過一次 readGpsRuns（index.html 同一個函式），
+// 格式不對就當沒有。缺檔回 null（前端缺檔時那些跑段照舊梯形）。
+export function readGpsRunsFile(ctx, path) {
+  let j = null;
+  try { j = JSON.parse(readFileSync(path, 'utf8')); } catch { return null; }
+  return ctx.readGpsRuns(j);
 }
 
 // 支線表：resolvePerf 靠它認出 DR1000 柴油客車（班表只標「區間車」）。照前端開機的取法——
@@ -71,9 +79,12 @@ export function makeSandbox(indexPath, special) {
 // （站等分級、共構站群、車種可見度…都不進剖面，刻意不做。）
 // trackSections 不傳就讀 repo 內那份（每個呼叫端都該吃同一張表，交會推論才與前端一致）；
 // 傳 null 代表「刻意不用」（前端缺檔時的行為）。
-export function computeProfiles({ indexPath, schedule, track, passObs, mutate, trackSections, special }) {
+// gpsRuns 不傳就讀 repo 內那份 data/tra_gps_runs.json（照前端的取法）；傳 null 代表「刻意不用」——
+// MR1 棘輪重跑凍結資料時就是這樣：凍結的輸入裡沒有這份檔，不能拿今天的 GPS 曲線去比舊基線。
+export function computeProfiles({ indexPath, schedule, track, passObs, mutate, trackSections, special, gpsRuns }) {
   const ctx = makeSandbox(indexPath, special);
   ctx.state.passObs = passObs;
+  ctx.state.gpsRuns = gpsRuns === undefined ? readGpsRunsFile(ctx, join(ROOT, 'data/tra_gps_runs.json')) : gpsRuns;
   ctx.state.trackSections = trackSections === undefined ? readTrackSections(join(ROOT, 'data/tra_track_sections.json')) : trackSections;
   ctx.trains = schedule.trains;
   ctx.lines = track.lines;
@@ -153,7 +164,7 @@ function meetStatsOnBlobs(indexPath, blobs) {
   const j = k => JSON.parse(git('cat-file', 'blob', blobs[k]));
   return computeProfiles({ indexPath, schedule: j('schedule'), track: j('track'),
     passObs: j('passObs')?.trains || null, trackSections: j('trackSections')?.pairs || null,
-    special: prepSpecial(j('special')) }).meetStats;
+    special: prepSpecial(j('special')), gpsRuns: null }).meetStats;
 }
 
 function updateMeetRatchet(indexPath) {
@@ -223,15 +234,24 @@ function main() {
   const profPath = join(ROOT, 'data/tra_run_profiles.json');
   const body = JSON.stringify({
     source_notes: '本站自算，無外部上游：由 data/tra_schedule_dense.json（表定時刻）、'
-      + 'data/tra.json（軌道線形，供跑段里程）、data/tra_pass_obs.json（通過站實測時刻）與 '
+      + 'data/tra.json（軌道線形，供跑段里程）、data/tra_pass_obs.json（通過站實測時刻）、'
+      + 'data/tra_gps_runs.json（沒有通過站實測的跑段改用的乘客 GPS 站間曲線）與 '
       + 'data/tra_track_sections.json（單雙線供交會推論；各站對最長實體股道路徑 maxPathM 供跑段里程下限）'
-      + '四者，套 index.html 的位置模型（buildObsProfile／speedZoneKnots／assignRunProfiles，'
+      + '五者，套 index.html 的位置模型（buildObsProfile／speedZoneKnots／assignRunProfiles，'
       + '由 scripts/build_run_profiles.mjs 原封切進 vm 沙箱執行）算出。'
       + '鍵＝車次→跑段起點站序；前端只在自己算出的跑段長度與時間對得上時才採用，對不上就現算。'
       + '梯形剖面不收錄；前端依當日車群安排待避時，該班整車不採用預算、改為現算。上述任一輸入或模型改動後必須重跑本腳本。',
     built_from: { schedule_date: work.date, trains: work.trains.length },
     trains: table,
   });
+  // 檔案大小上限：已安裝 App 的資料自動更新只收「不超過它打包的同名檔 4 倍」的檔（native RailDataPlanner 的 L2）。
+  // 歷來正式版打包的這個檔最小 805,927 bytes ⇒ 上限 3,223,708；超過的話那些 App 每小時重試都失敗，
+  // 整批資料更新（含每週班表）跟著卡住。變大多半是 GPS 站間曲線變多，對策見 build_gps_runs.mjs 的 KNOTS。
+  const MAX_BYTES = 3_000_000;
+  if (Buffer.byteLength(body) > MAX_BYTES) {
+    console.error(`✗ 台鐵預算剖面表 ${Buffer.byteLength(body)} bytes，超過 ${MAX_BYTES}：已安裝的 App 會拒收，資料更新會卡住`);
+    process.exit(1);
+  }
   // --check：只比對、不寫。前端判斷預算值過期只看 T／L（index.html 的 _rpPre.stale），改了車種參數或
   // 位置模型卻沒重跑本腳本，舊表照樣被採用、畫面無聲沿用舊參數——DR1000 那批驗收拿舊表實測過：
   // stale 仍是 0，2703／2707 位置差到 4040 m。出貨鏈（ship_web.mjs）靠這條擋。

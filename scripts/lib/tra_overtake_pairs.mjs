@@ -34,14 +34,15 @@ export function loadOvertakeInputs({ scheduleRef = null, withExam = true, networ
   const sched = scheduleRef ? gitJSON(scheduleRef, 'data/tra_schedule_dense.json') : readJSON('data/tra_schedule_dense.json');
   const passObs = (scheduleRef ? gitJSON(scheduleRef, 'data/tra_pass_obs.json') : readJSON('data/tra_pass_obs.json')).trains;
   const timed = structuredClone(sched);
-  computeProfiles({ indexPath, schedule: timed, track, passObs });
+  // 釘版班表（scheduleRef）那份不帶 GPS 站間曲線：凍結的輸入裡沒有它，拿今天的曲線去比會讓考卷跟著資料漂移。
+  computeProfiles({ indexPath, schedule: timed, track, passObs, ...(scheduleRef ? { gpsRuns: null } : {}) });
   const extraDays = [];
   if (withExam) {
     const examSched = gitJSON(EXAM_REF, 'data/tra_schedule_dense.json');
     assert.ok(examSched.dates[EXAM_DATE]?.length, '考卷班表沒有 ' + EXAM_DATE);
     const examTimed = structuredClone(examSched);
     computeProfiles({ indexPath, schedule: examTimed, track, passObs: gitJSON(EXAM_DERIVED_REF, 'data/tra_pass_obs.json').trains,
-      trackSections: gitJSON(EXAM_DERIVED_REF, 'data/tra_track_sections.json').pairs });
+      trackSections: gitJSON(EXAM_DERIVED_REF, 'data/tra_track_sections.json').pairs, gpsRuns: null });
     extraDays.push({ day: EXAM_DATE, sched: examSched, timed: examTimed });
   }
   return {

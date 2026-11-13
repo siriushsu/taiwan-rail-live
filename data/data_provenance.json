@@ -208,6 +208,15 @@
    "coordinateBasis": "WGS84(OSM 段);TDX 段未載明(payload 無 CRS 欄位)——兩者實測同框,build_tdx.mjs 對 K03 的座標修正即以 OSM 座標落在 TDX 軌道幾何上離軌 0m 為據",
    "checksum": "b502073988d490857b46c48ecb313b1d"
   },
+  "data/tra_gps_runs.json": {
+   "sourceDescription": "台鐵站間行駛曲線：由校正懸賞的乘客錄程（判定合格、車次對得上時刻表與官方誤點的資料）以 scripts/build_gps_runs.mjs 煉成。鍵＝起站|到站|加速/減速/極速（index.html gpsRunKey）；f＝段內時間比例 grid（千分比）時的距離比例（千分比），同一鍵多段行駛的中位數。",
+   "sourceField": "source_notes",
+   "effectiveDate": null,
+   "effectiveDateField": null,
+   "geometrySource": null,
+   "coordinateBasis": null,
+   "checksum": "b3193367631ea25d24bb92f7ae7a8d75"
+  },
   "data/tra_overtake_tracks.json": {
    "sourceDescription": "本站自算，無外部上游：由 rail-3d/physical/network.json 與 dispatch.json（派車表各站進出路徑）、rail-3d/physical/overtake-sidings.js（立體地圖待避換股）算出，data/tra.json 供站座標、data/tra_schedule_dens",
    "sourceField": "source_notes",
@@ -236,13 +245,13 @@
    "checksum": "7634a5761a1466026c455fbfed34b139"
   },
   "data/tra_run_profiles.json": {
-   "sourceDescription": "本站自算，無外部上游：由 data/tra_schedule_dense.json（表定時刻）、data/tra.json（軌道線形，供跑段里程）、data/tra_pass_obs.json（通過站實測時刻）與 data/tra_track_sections.json（單雙線供交會推論；各站對最長實體股道路徑 max",
+   "sourceDescription": "本站自算，無外部上游：由 data/tra_schedule_dense.json（表定時刻）、data/tra.json（軌道線形，供跑段里程）、data/tra_pass_obs.json（通過站實測時刻）、data/tra_gps_runs.json（沒有通過站實測的跑段改用的乘客 GPS 站間曲線）與 data",
    "sourceField": "source_notes",
    "effectiveDate": null,
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "addae414bfecd59fefa7b88657f41d93"
+   "checksum": "f4c4fa8800c41ee8e2f9ad48c371e62c"
   },
   "data/tra_schedule_dense.json": {
    "sourceDescription": "時刻表來源：https://ods.railway.gov.tw/tra-ods-web/ods/download/dataResource/railway_schedule/JSON/list 清單頁，抓取今天(2026-11-05)起連續 14 天中實際發佈得到的 14 天（2026-11-05…2026-11-1",

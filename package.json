@@ -45,6 +45,7 @@
     "check-rail-ai-status": "node scripts/verify_rail_ai_status.mjs",
     "check-rail-push": "node scripts/verify_rail_push.mjs",
     "check-transfer": "npm run check-transfer-departures && npm run check-transfer-connections && npm run check-transfer-pin && npm run check-transfer-transitions && npm run check-transfer-mobile && npm run check-transfer-follow-pin && npm run check-transfer-collapse && npm run check-transfer-live-handoff",
+    "build-gps-runs": "node scripts/build_gps_runs.mjs",
     "build-run-profiles": "node scripts/build_run_profiles.mjs",
     "check-run-profiles": "node scripts/verify_run_profiles_match.mjs",
     "check-phys-speed-cap": "node scripts/verify_phys_speed_cap.mjs",

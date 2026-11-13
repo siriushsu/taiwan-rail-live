@@ -5906,7 +5906,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/11/10</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/11/13</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -5914,6 +5914,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="tragpsrun1113"><span class="d">11/13</span><span>台鐵列車在兩站之間的位置，改照校正懸賞錄到的實際行駛曲線來推（目前 95 條站間曲線），起步、進站的快慢更接近真車；還沒有實測的站間照舊用公式推算（謝謝幫忙錄程的島民）</span></li>
         <li data-cl-of="trameetin1110"><span class="d">11/10</span><span>台鐵單線區段原本畫成在站間錯身的對向列車，改成先到的那班進站停車，等對向列車通過再開（例如 410 次在東竹等 417 次）</span></li>
         <li data-cl-of="garagenewcars1109"><span class="d">11/09</span><span>車庫新增 12 款車：EMU200、DR2800、S400、EMU400、0 系新幹線、總統花車等，各用 150 島民點數兌換</span></li>
         <li data-cl-of="garageinfo1109"><span class="d">11/09</span><span>車庫場景與車款加上介紹，車款詳情多了「車款檔案」，列車卡 5 個車種各補一則小知識</span></li>
@@ -5921,7 +5922,6 @@
         <li data-cl-of="trtchold1109"><span class="d">11/09</span><span>捷運：北捷列車在資料更新的瞬間不再往回跳一小段，落後時會在原地稍等再接著走</span></li>
         <li data-cl-of="deskoverlap1109"><span class="d">11/09</span><span>電腦版地圖的面板、卡片和右側觀看鈕不再互相疊住；存起來的地點星星改畫在面板下面，不會再蓋到對話框</span></li>
         <li data-cl-of="tmrtfirst1109"><span class="d">11/09</span><span>台中捷運綠線首班車改回 06:00：交通部 TDX 資料已改回原本時刻，11/8 提早到 05:30 的那版不再採用，末班不變</span></li>
-        <li data-cl-of="garagescenemusic1106"><span class="d">11/06</span><span>車庫音樂改到場景頁才放，只放慢版鋼琴，車跑起來還有鐵軌聲；車庫首頁不出聲，音符鈕留在場景頁</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5955,6 +5955,7 @@
         <li data-cl="weatherapp1023"><span class="d">10/23</span><span>修正 App 颱風資訊整份重複顯示，改為各系統公告；補上新北環狀線、三鶯線 10/23 約 15 分鐘班距，淡海與安坑仍待確認</span></li>
         <li data-cl="weather1022"><span class="d">10/22</span><span>新增颱風期間全台鐵道營運提醒與官方來源，明確標示停駛、調整班距及待確認資訊；地圖有車不代表實際開行；開啟颱風公告時跟車卡暫時隱藏</span></li>
         <li class="grp">路網與車站</li>
+        <li data-cl="tragpsrun1113"><span class="d">11/13</span><span>台鐵列車在兩站之間的位置，改照校正懸賞錄到的實際行駛曲線來推（目前 95 條站間曲線），起步、進站的快慢更接近真車；還沒有實測的站間照舊用公式推算（謝謝幫忙錄程的島民）</span></li>
         <li data-cl="trameetin1110"><span class="d">11/10</span><span>台鐵單線區段原本畫成在站間錯身的對向列車，改成先到的那班進站停車，等對向列車通過再開（例如 410 次在東竹等 417 次）</span></li>
         <li data-cl="jianshanpu1105"><span class="d">11/05</span><span>平交道補上鶯歌到鳳鳴之間的尖山埔路，全台共 347 處（謝謝網友回報）</span></li>
         <li data-cl="kometro1105"><span class="d">11/05</span><span>新增韓文捷運路線圖：台北、桃園、新北、台中、高雄各線的車站、轉乘與首末班車都有韓文版</span></li>
@@ -7473,7 +7474,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1109d：車庫開賣 11/09 補進的 12 款車（chips.items 各 150 點，頁尾改「另 17 款」）；一併上線車庫場景與車款介紹、車款檔案、列車卡 5 個車種的小知識（只用公開來源；v1109a 書本版沒上線、已退掉）；車庫三項（場景頁常駐車款鈕列、有月台場景輪流進站、同平面分層＋細構件淡出），使用說明換車步驟跟著改。
 // v1109e：車庫 60 款四語介紹刪掉車款檔案已有的製造、年份、數量、編組、出力、速度（只刪不加）。
 // v1110a：台鐵單線區段兩班都通過的對向列車，改成先到的那班在站內停等對向車通過（planPassStationMeets，bd4b4f9df；例 410 在東竹等 417）。
-const BUILD = 'v1110a';
+// v1113a：台鐵站間 GPS 曲線（data/tra_gps_runs.json，95 條、每條 5 個折點；assignRunProfiles 的 gps 參數，47729562c＋14ccce178）：沒有官方通過站觀測的跑段改用校正懸賞錄程的實測曲線，沒有曲線的照舊梯形；tra_run_profiles.json 跟著重產，上限 3,000,000 bytes（已安裝 App 的下載上限）。
+const BUILD = 'v1113a';
 // v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
@@ -11761,13 +11763,27 @@ function schedSegKmOf(s, i) {
 // 重出 build 才生效」——所以「預算資料整批沒被採用」會長得跟成功一模一樣,沒有任何紅燈。
 // 有了這個計數器,驗收才寫得出「used 必須 >0 且 stale 必須 =0」這種具名斷言。
 const _rpPre = { used: 0, stale: 0, local: 0 };
+// GPS 站間曲線(data/tra_gps_runs.json)的查表鍵:站→站(有方向)＋車種性能。車種直接用性能參數當鍵,
+// 同一組加減速與極速的車共用一條曲線;建置腳本(scripts/build_gps_runs.mjs)把這個函式切進沙箱呼叫,
+// 兩邊的分類不會各自漂移。
+function gpsRunKey(a, b, perf) {
+  const n = x => String(x).replace(/台/g, '臺');
+  return `${n(a)}|${n(b)}|${perf.a}/${perf.b}/${perf.v}`;
+}
+// 檔案 → assignRunProfiles 吃的形狀。格式不對一律當沒有這個檔(回 null),不讓半套資料進模型。
+// 離線預算(scripts/build_run_profiles.mjs)切進沙箱用同一個函式讀,兩邊取法一致。
+function readGpsRuns(j) {
+  return j && Array.isArray(j.grid) && j.grid.length && j.runs && typeof j.runs === 'object'
+    ? { grid: j.grid, runs: j.runs } : null;
+}
 // 沿 stops 掃出各跑段(以實際停靠站/端點為界),整段建一條梯形曲線並回填通過站時刻。
 // pre = 這班車的離線預算剖面表(跑段起點站序 → 剖面),來自 data/tra_run_profiles.json
 // (scripts/build_run_profiles.mjs 產)。目的:實測與彎道剖面的調校是【每日靜態輸入的純函數】
 // (表定時刻＋貼軌里程＋車種＋實測折點＋彎道速限;即時誤點是 easedShift 另一層),
 // 算在這裡就代表改一次演算法要重出 App build 才修得到已安裝的使用者;改成離線算好隨資料出貨,
 // 重跑資料＋部署即可。缺表、對不上、或該跑段是梯形 → 原地現算,行為與改動前逐字相同。
-function assignRunProfiles(s, perf, obs, zoneCls, pre) {
+// gps = data/tra_gps_runs.json({grid, runs});沒有官方通過站觀測的跑段用它當折點,見下方。
+function assignRunProfiles(s, perf, obs, zoneCls, pre, gps) {
   let k0 = 0;
   for (let k1 = 1; k1 < s.length; k1++) {
     if (s[k1].stop === false && !s[k1]._plannedDwell && k1 < s.length - 1) continue; // 通過站併入本跑段;預排待避站／末節點強制收尾
@@ -11813,6 +11829,14 @@ function assignRunProfiles(s, perf, obs, zoneCls, pre) {
           if (f != null && f > f0 && f < f1) pts.push({ t: (f - f0) / (f1 - f0) * runT, d: cum * 1000 });
         }
       }
+    }
+    // 沒有官方通過站觀測的跑段(多半是區間車相鄰兩站),改用校正懸賞乘客錄程煉出的站間曲線:
+    // 同一個站→站、同一種車的多趟 GPS 取中位數,存成「段內時間比例→距離比例」的千分比折點。
+    // 折點跟官方觀測折點走同一條 buildObsProfile,限速閘門照樣守;建不出來照舊退梯形。
+    // 預排待避切開的子跑段不套:曲線是整段停站到停站量的,切點沒有依據換算。
+    if (!rp && !(pts && pts.length) && gps && gps.runs && !s[k0]._plannedDwell && !s[k1]._plannedDwell) {
+      const g = gps.runs[gpsRunKey(s[k0].name, s[k1].name, perf)];
+      if (g) pts = gps.grid.map((ft, i) => ({ t: ft / 1000 * runT, d: g.f[i] / 1000 * runKm * 1000 }));
     }
     // 地點式速限:只有真的咬得到的跑段會走這條(目前只有新馬與和仁兩處,且視車種而定),
     // 其餘全台所有跑段一律走下面原本的實測／梯形路徑,逐字不變。
@@ -12155,7 +12179,8 @@ function clearPlannedOvertakes(trains) {
 function reassignTrainProfile(tr) {
   for (const st of tr.stops) { delete st.rp; delete st.rpDep; delete st.rpOff; delete st.rpSegKm; }
   assignRunProfiles(tr.stops, resolvePerf(tr), state.passObs ? state.passObs[tr.train] : null,
-    speedZoneClassOf(tr), tr.stops.some(st => st._plannedDwell) ? null : (state.runProfiles ? state.runProfiles[tr.train] : null));
+    speedZoneClassOf(tr), tr.stops.some(st => st._plannedDwell) ? null : (state.runProfiles ? state.runProfiles[tr.train] : null),
+    state.gpsRuns);
 }
 function overtakeRunBuildable(tr, j, dep) {
   const s = tr.stops, perf = resolvePerf(tr), boundary = i => i === 0 || i === s.length - 1 || s[i].stop !== false || s[i]._plannedDwell;
@@ -13134,7 +13159,8 @@ function assignSchedShapePathsFor(trains, lines) {
     // 車次號在系統間會撞號(高鐵/林鐵也有 0801 這種號),故必須以 tr.sys 把查表限定在台鐵。
     assignRunProfiles(s, perf, tr.sys === 'tra_sched' && state.passObs ? state.passObs[tr.train] : null,
       tr.sys === 'tra_sched' ? speedZoneClassOf(tr) : null,   // 彎道速限目前只有台鐵有官方值
-      tr.sys === 'tra_sched' && state.runProfiles ? state.runProfiles[tr.train] : null);
+      tr.sys === 'tra_sched' && state.runProfiles ? state.runProfiles[tr.train] : null,
+      tr.sys === 'tra_sched' ? state.gpsRuns : null);
   }
 }
 
@@ -42325,6 +42351,7 @@ async function boot() {
   const platformsP = _p(fetchJSON('./data/tra_platforms.json'));
   const passObsP   = _p(fetchJSON('./data/tra_pass_obs.json'));
   const runProfP   = _p(fetchJSON('./data/tra_run_profiles.json'));
+  const gpsRunsP   = _p(fetchJSON('./data/tra_gps_runs.json'));
   const sectionsP  = _p(fetchJSON('./data/tra_track_sections.json'));
   const overtakeTracksP = _p(fetchJSON('./data/tra_overtake_tracks.json'));
   const specialP   = _p(fetchJSON('./data/tra_special_trains.json'));
@@ -42369,6 +42396,9 @@ async function boot() {
   // 貼軌里程＋車種＋實測折點＋彎道速限;即時誤點是 easedShift 另一層),算在前端就代表【調校
   // 要重出 App build 才修得到已安裝的使用者】。缺檔 → null ⇒ 每一條跑段原地現算,行為逐字不變。
   state.runProfiles = (await runProfP)?.trains || null;
+  // 台鐵 GPS 站間曲線(scripts/build_gps_runs.mjs 由校正懸賞的乘客錄程產;站→站＋車種→千分比折點)。
+  // 跟 passObs 一樣要在任何 loadSystem/loadSchedGroup 之前載好。缺檔或格式不對 → null ⇒ 那些跑段照舊梯形。
+  state.gpsRuns = readGpsRuns(await gpsRunsP);
   // 台鐵相鄰兩站之間單線／雙線(scripts/build_tra_track_sections.mjs 由 network.json 幾何產)。交會／待避
   // 推論(inferMeetPassTimes)的對向規則只在單線區間成立;缺檔 → null ⇒ 對向規則整個不套用,同向待避照常。
   state.trackSections = (await sectionsP)?.pairs || null;
