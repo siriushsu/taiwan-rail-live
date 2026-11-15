@@ -5906,7 +5906,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/11/13</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/11/14</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -5914,14 +5914,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="qnoyield1114"><span class="d">11/14</span><span>Q 版列車停在站裡時不再往旁邊滑開，一直貼著軌道線；疊在一起的兩列改由前後層次分開</span></li>
         <li data-cl-of="tymccrowd1113"><span class="d">11/13</span><span>桃園機場捷運的車站看板與跟車卡多了車廂擁擠度：四節車廂各一格、顏色表示鬆緊，資料取自桃園捷運官網的列車動態；對不上是哪一列車時留白</span></li>
         <li data-cl-of="tragpsrun1113"><span class="d">11/13</span><span>台鐵列車在兩站之間的位置，改照校正懸賞錄到的實際行駛曲線來推（目前 95 條站間曲線），起步、進站的快慢更接近真車；還沒有實測的站間照舊用公式推算（謝謝幫忙錄程的島民）</span></li>
-        <li data-cl-of="trameetin1110"><span class="d">11/10</span><span>台鐵單線區段原本畫成在站間錯身的對向列車，改成先到的那班進站停車，等對向列車通過再開（例如 410 次在東竹等 417 次）</span></li>
+        <li data-cl-of="trameetin1110"><span class="d">11/10</span><span>台鐵單線區段原本畫成在站間錯身的對向列車，改成先到的那班進站停車，等對向列車通過再開（例如 410 次在東竹等 417 次）；那一站沒有空股道時，退到前面有空股道的站等</span></li>
         <li data-cl-of="garagenewcars1109"><span class="d">11/09</span><span>車庫新增 12 款車：EMU200、DR2800、S400、EMU400、0 系新幹線、總統花車等，各用 150 島民點數兌換</span></li>
         <li data-cl-of="garageinfo1109"><span class="d">11/09</span><span>車庫場景與車款加上介紹，車款詳情多了「車款檔案」，列車卡 5 個車種各補一則小知識</span></li>
         <li data-cl-of="garagefix1109"><span class="d">11/09</span><span>車庫場景頁換車改成下面一排車款鈕直接點；有月台的場景列車輪流進站、停站再開走；鐵軌、電線等細線遠看不再忽隱忽現</span></li>
         <li data-cl-of="trtchold1109"><span class="d">11/09</span><span>捷運：北捷列車在資料更新的瞬間不再往回跳一小段，落後時會在原地稍等再接著走</span></li>
-        <li data-cl-of="deskoverlap1109"><span class="d">11/09</span><span>電腦版地圖的面板、卡片和右側觀看鈕不再互相疊住；存起來的地點星星改畫在面板下面，不會再蓋到對話框</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5956,7 +5956,7 @@
         <li data-cl="weather1022"><span class="d">10/22</span><span>新增颱風期間全台鐵道營運提醒與官方來源，明確標示停駛、調整班距及待確認資訊；地圖有車不代表實際開行；開啟颱風公告時跟車卡暫時隱藏</span></li>
         <li class="grp">路網與車站</li>
         <li data-cl="tragpsrun1113"><span class="d">11/13</span><span>台鐵列車在兩站之間的位置，改照校正懸賞錄到的實際行駛曲線來推（目前 95 條站間曲線），起步、進站的快慢更接近真車；還沒有實測的站間照舊用公式推算（謝謝幫忙錄程的島民）</span></li>
-        <li data-cl="trameetin1110"><span class="d">11/10</span><span>台鐵單線區段原本畫成在站間錯身的對向列車，改成先到的那班進站停車，等對向列車通過再開（例如 410 次在東竹等 417 次）</span></li>
+        <li data-cl="trameetin1110"><span class="d">11/10</span><span>台鐵單線區段原本畫成在站間錯身的對向列車，改成先到的那班進站停車，等對向列車通過再開（例如 410 次在東竹等 417 次）；那一站沒有空股道時，退到前面有空股道的站等</span></li>
         <li data-cl="jianshanpu1105"><span class="d">11/05</span><span>平交道補上鶯歌到鳳鳴之間的尖山埔路，全台共 347 處（謝謝網友回報）</span></li>
         <li data-cl="kometro1105"><span class="d">11/05</span><span>新增韓文捷運路線圖：台北、桃園、新北、台中、高雄各線的車站、轉乘與首末班車都有韓文版</span></li>
         <li data-cl="kostatic1105"><span class="d">11/05</span><span>新增韓文網頁：30 個車站的時刻表與轉乘，還有介紹、準確度、資料來源頁都有韓文版</span></li>
@@ -6341,6 +6341,7 @@
         <li><span class="d">7/13</span><span>收集章可以重複點，換搭不同班次回味</span></li>
         <li><span class="d">7/9</span><span>旅程護照與 16 枚成就徽章、「探」今日亮點面板上線</span></li>
         <li class="grp">手機與操作</li>
+        <li data-cl="qnoyield1114"><span class="d">11/14</span><span>Q 版列車停在站裡時不再往旁邊滑開，一直貼著軌道線；疊在一起的兩列改由前後層次分開</span></li>
         <li data-cl="deskoverlap1109"><span class="d">11/09</span><span>電腦版地圖的面板、卡片和右側觀看鈕不再互相疊住；存起來的地點星星改畫在面板下面，不會再蓋到對話框</span></li>
         <li data-cl="garageshort1106"><span class="d">11/06</span><span>手機橫放時，車庫的機務段入口排到展示台下面，第一屏看得到完整車模</span></li>
         <li data-cl="garagefit1106"><span class="d">11/06</span><span>車庫場景頁的時段鈕、標題和車款選單放不下時改成換行，Safari 點車款也換得到車</span></li>
@@ -7479,7 +7480,10 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1113b：機捷車廂擁擠度（桃捷官網「列車動態資訊」頁自用的兩份 JSON，經 /api/ntmetro-live?sys=tymc 代理、30 秒一輪，
 //         與新北捷同一套把關與集中出口；7384793c4）：車站看板與跟車卡每列車四節各一格。班次靠「最近停靠站＋官方表定發車時刻」對車，
 //         看板倒數列靠「同方向同終點＋官方預估到站」對車；對不到留白，不拿來校正列車位置。
-const BUILD = 'v1113b';
+// v1114a：單線會車停車（planPassStationMeets）本站沒有空股時往回找有空股的通過站等（回看 OVERTAKE_LOOKAHEAD_KM，等對向車開到那一站再開）。
+//         2026-11-22 班表 6675 跟在 443 後 51 秒、兩班都要在志學等 442，志學北上只有一股：6675 改在壽豐等。
+// v1114b：Q 版列車拿掉「停靠讓開」（車只靠各靠一邊的固定側移，疊到的兩列由上下層分前後），對應 native 139cc8d88。
+const BUILD = 'v1114b';
 // v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
@@ -12430,7 +12434,7 @@ function attachOvertakePeers(trains) {
 // _meetStop＝對向車次（給出貨閘門把它跟同向待避分開驗）；對向車當天有開才掛 _overtakeBy，閘門才找得到它。
 const MEET_STOP_MIN_SEC = 60;                   // 推晚不到一分鐘維持慢爬（班表 30 秒解析度，剖面本身也有誤差）
 function planPassStationMeets(trains, union, sections, tracks) {
-  const stats = { planned: 0, otherDay: 0, noTrack: 0, unbuildable: 0, approach: 0, cross: 0, crossYield: 0, crossTooLong: 0, crossWorse: 0, log: [] };
+  const stats = { planned: 0, otherDay: 0, noTrack: 0, unbuildable: 0, approach: 0, cross: 0, crossYield: 0, crossTooLong: 0, crossWorse: 0, crossBack: 0, log: [] };
   if (!tracks || !sections) return stats;
   const single = (a, b) => { const p = sections[traSectionKey(a, b)]; return !!p && p.tracks === 1; };
   const keyOf = tr => tr.train + ':' + tr.stops[0].depSec + ':' + tr.stops[tr.stops.length - 1].arrSec;
@@ -12491,6 +12495,9 @@ function planPassStationMeets(trains, union, sections, tracks) {
   // Y 那邊比較短就留給 Y 自己這一輪（N 對 Y 也要是通過站才排得出來，否則維持原狀）。對向車今天沒開就沒有交會，不看聯集。
   // 停等＝照現在的步調到站、最後一班對向車到站後 OVERTAKE_CLEAR_SEC 再開；空股、跑段檢查與上面同一套。延後開車可能讓 X 在
   // 下游撞上別班，所以套完 X 的單線對向重疊沒有變少就整班還原（只動了 X，這個數的增減就是全域的增減；同向待避 crossingsOf 同一個理由）。
+  // 本站沒有空股就往回找（同向待避選站同一條規矩，回看同樣 OVERTAKE_LOOKAHEAD_KM）：退到前面有空股的通過站，等對向車開到那一站再開。
+  // 2026-11-22 班表：專列 6675 跟在 443 後面 51 秒，兩班都要在志學等 442，志學北上只有一股、443 先佔了；6675 排不進去就照開，
+  // 從停著的 443 車身穿過去，再跟 442 在志學–吉安單線對開。往回找到壽豐（平和北上那一股會被南下的 442 擋住）。
   const singleClashes = tr => {
     const s = tr.stops; let n = 0;
     for (let j = 0; j < s.length - 1; j++) {
@@ -12510,28 +12517,42 @@ function planPassStationMeets(trains, union, sections, tracks) {
       if (st.stop !== false || st._plannedDwell || !single(st.name, N)) continue;
       const tX = st.arrSec, tXN = s[j + 1].arrSec;
       let dep = -Infinity, peer = null, yields = 0;
+      const waits = [];
       for (const [o, x, k] of at.get(st.name) || []) {
         if (o === tr || o.loop || k < 1 || o.stops[k - 1].name !== N) continue;
         const tYN = o.stops[k - 1].depSec, tY = x.arrSec;
         if (!(tX < tY && tYN < tXN)) continue;
         const waitX = tY - tX, waitY = tXN - tYN;
         if (waitX > waitY || (waitX === waitY && no > String(o.train))) { yields++; continue; }
+        waits.push([o, k]);
         if (tY + OVERTAKE_CLEAR_SEC > dep) { dep = tY + OVERTAKE_CLEAR_SEC; peer = String(o.train); }
       }
       if (!peer) { if (yields) stats.crossYield++; continue; }
-      const rec = { no, station: st.name, by: peer, cross: true, arr: Math.round(tX), dep: Math.round(dep) };
+      let rec = { no, station: st.name, by: peer, cross: true, arr: Math.round(tX), dep: Math.round(dep) };
       if (dep - tX > OVERTAKE_MAX_WAIT_SEC) { stats.crossTooLong++; stats.log.push({ ...rec, skip: 'tooLong' }); continue; }
-      if (!overtakeTrackFree(tracks, at, tr, j, tX - OVERTAKE_CLEAR_SEC, dep + OVERTAKE_CLEAR_SEC)) { stats.noTrack++; stats.log.push({ ...rec, skip: 'noTrack' }); continue; }
-      if (!overtakeRunBuildable(tr, j, dep)) { stats.unbuildable++; stats.log.push({ ...rec, skip: 'unbuildable' }); continue; }
-      const before = singleClashes(tr), snap = s.map(x => [x.arrSec, x.depSec, x.rp, x.rpDep, x.rpOff, x.rpSegKm]);
-      st.depSec = dep; st._plannedDwell = true; st._meetStop = peer; st._overtakeBy = peer;
+      let c = j;
+      if (!overtakeTrackFree(tracks, at, tr, j, tX - OVERTAKE_CLEAR_SEC, dep + OVERTAKE_CLEAR_SEC)) {
+        c = -1;
+        for (let b = j - 1, km = 0; b >= 1; b--) {
+          const bs = s[b]; km += schedSegKmOf(s, b);
+          if (bs.stop !== false || bs._plannedDwell || km > OVERTAKE_LOOKAHEAD_KM) break;
+          let d = -Infinity;   // 等的每一班對向車都開到這一站；有一班不經過這一站就無從等起
+          for (const [o, k] of waits) { const y = o.stops.find((x, i) => i > k && x.name === bs.name); d = y ? Math.max(d, y.arrSec + OVERTAKE_CLEAR_SEC) : Infinity; }
+          if (d - bs.arrSec > OVERTAKE_MAX_WAIT_SEC) break;   // 愈往回等愈久
+          if (!overtakeTrackFree(tracks, at, tr, b, bs.arrSec - OVERTAKE_CLEAR_SEC, d + OVERTAKE_CLEAR_SEC) || !overtakeRunBuildable(tr, b, d)) continue;
+          c = b; dep = d; rec = { ...rec, station: bs.name, back: st.name, arr: Math.round(bs.arrSec), dep: Math.round(d) }; break;
+        }
+        if (c < 0) { stats.noTrack++; stats.log.push({ ...rec, skip: 'noTrack' }); continue; }
+      } else if (!overtakeRunBuildable(tr, j, dep)) { stats.unbuildable++; stats.log.push({ ...rec, skip: 'unbuildable' }); continue; }
+      const ws = s[c], before = singleClashes(tr), snap = s.map(x => [x.arrSec, x.depSec, x.rp, x.rpDep, x.rpOff, x.rpSegKm]);
+      ws.depSec = dep; ws._plannedDwell = true; ws._meetStop = peer; ws._overtakeBy = peer;
       reassignTrainProfile(tr); inferMeetPassTimes([tr], union, sections);
       if (singleClashes(tr) >= before) {
         s.forEach((x, i) => { [x.arrSec, x.depSec, x.rp, x.rpDep, x.rpOff, x.rpSegKm] = snap[i]; });
-        delete st._plannedDwell; delete st._meetStop; delete st._overtakeBy;
+        delete ws._plannedDwell; delete ws._meetStop; delete ws._overtakeBy;
         stats.crossWorse++; stats.log.push({ ...rec, skip: 'worse' }); continue;
       }
-      stats.planned++; stats.cross++; stats.log.push(rec);
+      stats.planned++; stats.cross++; if (c !== j) stats.crossBack++; stats.log.push(rec);
     }
   }
   return stats;

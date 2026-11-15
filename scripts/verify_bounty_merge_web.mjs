@@ -179,6 +179,9 @@ try {
     const s = await newSession({ twice: true }, 'slow');
     await s.page.goto(BASE + '/?bounty=1');
     await loggedIn(s.page);
+    // 第二發排在 120ms 後，但整條出貨鏈並行、機器很忙時頁面主執行緒會塞住好幾秒（2026-11-14 負載 40 連兩次只讀到 fired=1）。
+    // 先等第二發真的到了，再留 1.8 秒讓延遲 700ms 的請求回來、確認沒有多送；等不到就照舊由下面的 fired >= 2 判紅。
+    await s.page.waitForFunction(() => window.__authFired >= 2, null, { timeout: 30000 }).catch(() => {});
     await sleep(1800);
     const fired = await s.page.evaluate(() => window.__authFired);
     ok('W5 登入事件連發 2 次、第一個請求（延遲 700ms）還沒回來時第二次也到了：仍只送 1 個請求',

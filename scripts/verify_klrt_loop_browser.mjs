@@ -19,6 +19,9 @@ try{for(const [name,engine]of [['chromium',chromium],['webkit',webkit]]){
   await page.goto(base+`?g=${group}&scene=3d&t=07:30&at=22.6065,120.3255&z=17&trainSize=readable&lang=zh-TW`,{waitUntil:'domcontentloaded',timeout:60000});
   await page.waitForFunction(()=>typeof state!=='undefined'&&state.ready&&metroLivePool().some(l=>l.id==='C'&&l._tt?.length)&&window.railIslandPhysical?.metro&&window.railIslandIntegration?.renderer,null,{timeout:90000});
   assert.equal(await page.evaluate(()=>BUILD),expected,'必須驗當前出貨版本');
+  // 機器忙的時候 rAF 幀距中位數會超過 60 ms，index.html 的 3D 自動降級（watch3dFrameBudget）就把立體列車關掉，
+  // 之後 hasModel 永遠等不到、30 秒逾時。這支驗的是模型跨過閉環接點，不是效能，所以先把降級監看關掉。
+  await page.evaluate(()=>{state._fb3d={done:true};});
   await page.evaluate(()=>{
    state.playing=false;const ln=metroLivePool().find(l=>l.id==='C');
    window.__klrtCase=(direction,dt=0)=>{

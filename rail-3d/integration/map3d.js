@@ -8,7 +8,7 @@ import {createRailClearance} from './rail-clearance.js';
 import {routeWidth,readableScale,stationNames,vehicleMarkers} from './readability.js';
 import {formationFor,assembleFormation} from './formations.js';
 import {makePath,shapeKey,makeHeightProfile,formationPoses} from './train-path.js';
-import {qScale,qFormation,qParts,clampAnchor,laneSide,createLane,stepLane,laneOffsetM,shiftCoordinate,yieldTargets,depthLiftM,depthLifts,depthScale,qUndergroundFloorM,qMaxPushM,Q_BASE_HEIGHT_M,Q_REACH_M,Q_STILL_S} from './q-trains.js';
+import {qScale,qFormation,qParts,clampAnchor,laneSide,createLane,stepLane,laneOffsetM,shiftCoordinate,depthLiftM,depthLifts,depthScale,qUndergroundFloorM,qMaxPushM,Q_BASE_HEIGHT_M,Q_REACH_M} from './q-trains.js';
 import {profileLines} from './profile-lines.js';
 import {createRailStructures,VIADUCT_LIFT_M} from './rail-structures.js';
 import {createTrainHalo} from './train-halo.js';
@@ -303,15 +303,10 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   function scaledParts(m,S){if(m.qS!==S){m.qS=S;m.parts=qParts(m.model.parts,S);}return m.parts;}
   // poses 是這一幀才算的，直接改座標；車身、柔光、挖窗都讀 pose，自然一起靠邊。
   function placeInLane(m,v,poses,S,coord,now,h){
-    const lane=m.lane||=createLane(),back=(v.formationFacing||1)<0?Math.PI:0,dt=(now-(m.laneAt??now))/1000;m.laneAt=now;m.followed=!!v.followed;
-    stepLane(lane,{heading:poses[poses.length>>1].angle+back,side:laneSide(v.systemId),dt,lon:coord[0],lat:coord[1]});
+    const lane=m.lane||=createLane(),back=(v.formationFacing||1)<0?Math.PI:0,dt=(now-(m.laneAt??now))/1000;m.laneAt=now;
+    stepLane(lane,{heading:poses[poses.length>>1].angle+back,side:laneSide(v.systemId),dt});
     const offset=laneOffsetM(lane,S,m.model.widthM);if(offset)for(const pose of poses)pose.coordinate=shiftCoordinate(pose.coordinate,pose.angle+back+Math.PI/2,offset);
     const above=h-(terrainHeights()?terrainAt(coord):0);m.baseLiftM=Number.isFinite(above)?depthLiftM(above,S):0;
-  }
-  function updateYields(){
-    const list=[],S=qScale(map.getZoom()),kx=Math.cos(map.getCenter().lat*Math.PI/180)*111320;
-    for(const [id,m]of models)if(m.model?.q&&m.group?.visible&&m.lane)list.push({id,lane:m.lane,x:m.lane.lon*kx,y:m.lane.lat*110574,heading:m.lane.heading,side:laneSide(m.screenPose?.systemId),halfM:m.model.lengthM*S/2,widthM:m.model.widthM*S,stopped:m.lane.stillSec>=Q_STILL_S,followed:m.followed});
-    const targets=yieldTargets(list);for(const t of list)t.lane.giveTarget=targets.get(t.id)||0;stats.qGiving=targets.size;
   }
   async function ensureModel(v){const spec=formationFor(v,fMode());if(!spec)return;const key=spec.key+(qMode()?':q':''),old=models.get(v.id);if(old&&old.key!==key){if(old.group)scene.remove(old.group);models.delete(v.id);}if(models.has(v.id)||failed.has(v.id))return;
     const ticket={loading:true,key};models.set(v.id,ticket);try{const model=modelFor(spec),geometries=await Promise.all(model.parts.map(p=>geometry(p.mesh)));if(disposed||models.get(v.id)!==ticket)return;
@@ -405,7 +400,6 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
       if(heading!==null&&heading!==undefined){const angle=heading,dx=Math.cos(angle),dy=Math.sin(angle),a=screen,b=project([p[0]+dx*ratio,p[1]+dy*ratio,p[2]]),s=ratio/Math.max(.015,Math.hypot(b.x-a.x,b.y-a.y));
         for(const [x,y]of [[12,0],[5,3],[5,-3]]){arrowP.push(p[0]+(dx*x-dy*y)*s,p[1]+(dy*x+dx*y)*s,p[2]+.1);arrowC.push(color.r,color.g,color.b);}}
     });
-    if(qMode())updateYields();
     headlightSpill.update(beams);stats.headlightSpill.totalMs=beamMs+stats.headlightSpill.buildMs;
     // 每節車廂的位置直接取自指派股道的里程；過岔道時自然逐節轉向。
     // 近距離或地表投影交疊不等於共用股道，不能再整列橫移來掩蓋派軌衝突。

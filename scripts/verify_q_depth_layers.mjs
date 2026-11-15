@@ -1,7 +1,7 @@
 // Q 版上下層：放大後的車身比股道間距寬，靠深度分前後。這支驗 q-trains.js 的純邏輯，
 // 案例與數字跟 native railcore R3dQTrainsTest.kt 一一對應，兩邊要一起改。
 import assert from 'node:assert/strict';
-import {depthLifts,sightOverlap,qMaxPushM,qUndergroundFloorM} from '../rail-3d/integration/q-trains.js';
+import {depthLifts,sightOverlap,qMaxPushM,qUndergroundFloorM,createLane,stepLane,laneOffsetM,Q_LANE_SWITCH_S} from '../rail-3d/integration/q-trains.js';
 
 const eyeSide={x:0,y:-1100,z:700};
 const box=(id,x,y,{rail=0,under=false,scale=8,tx=1,ty=0,lift=0}={})=>({id,x,y,z:rail+2*scale,tx,ty,halfL:15*scale,halfW:1.5*scale,halfH:2*scale,under,lift});
@@ -9,6 +9,16 @@ const lifts=(trains,eye=eyeSide,maxPushM=1e6)=>depthLifts(trains,eye,maxPushM);
 const moved=(t,lift,eye)=>{const sx=t.x-eye.x,sy=t.y-eye.y,sz=t.z-eye.z,k=1-lift/Math.hypot(sx,sy,sz);return {...t,x:eye.x+sx*k,y:eye.y+sy*k,z:eye.z+sz*k,halfL:t.halfL*k,halfW:t.halfW*k,halfH:t.halfH*k};};
 const assertApart=(a,b,map,eye=eyeSide)=>{const hit=sightOverlap(moved(a,map.get(a.id),eye),moved(b,map.get(b.id),eye),eye);if(hit)assert.ok(hit.enter>=0||hit.exit<=0,`還碰得到：${hit.enter}～${hit.exit}`);};
 const cases={
+  一倍在真實股道上_放大貼邊(){
+    const lane=createLane();stepLane(lane,{heading:0,side:1,dt:0});
+    assert.equal(laneOffsetM(lane,1,3),0);assert.ok(Math.abs(laneOffsetM(lane,8,3)-10.5)<1e-9);
+  },
+  折返先換號不跳_再慢慢換邊(){
+    const lane=createLane();stepLane(lane,{heading:0,side:1,dt:0});
+    stepLane(lane,{heading:Math.PI,side:1,dt:0});assert.equal(lane.unit,-1);
+    stepLane(lane,{heading:Math.PI,side:1,dt:Q_LANE_SWITCH_S/2});assert.ok(Math.abs(lane.unit)<1e-9);
+    stepLane(lane,{heading:Math.PI,side:1,dt:Q_LANE_SWITCH_S/2});assert.ok(Math.abs(lane.unit-1)<1e-9);
+  },
   平面沒疊到的兩列_高低不同也不動深度(){
     const map=lifts([box('near',0,-30,{rail:-18.6,under:true,scale:6}),box('far',0,4,{rail:-15,under:true,scale:6})]);
     assert.equal(map.get('near'),0);assert.equal(map.get('far'),0);
