@@ -7483,7 +7483,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1114a：單線會車停車（planPassStationMeets）本站沒有空股時往回找有空股的通過站等（回看 OVERTAKE_LOOKAHEAD_KM，等對向車開到那一站再開）。
 //         2026-11-22 班表 6675 跟在 443 後 51 秒、兩班都要在志學等 442，志學北上只有一股：6675 改在壽豐等。
 // v1114b：Q 版列車拿掉「停靠讓開」（車只靠各靠一邊的固定側移，疊到的兩列由上下層分前後），對應 native 139cc8d88。
-const BUILD = 'v1114b';
+// v1115a：單線會車停車等的對向車被同向待避延後時，跟著延到它進站後再開（planSameDirectionOvertakes 的 retimeDependents；例 11/15 的 2013 在龍井等 6630）。
+const BUILD = 'v1115a';
 // v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
@@ -12237,8 +12238,9 @@ function overtakeTrackFree(tracks, at, tr, j, lo, hi) {
   return !reach.includes((1 << cands.length) - 1);
 }
 function planSameDirectionOvertakes(trains, union, sections, tracks, banned = new Set()) {
-  const stats = { planned: 0, tooClose: 0, unbuildable: 0, deferred: 0, noTrack: 0, retimed: 0, retracted: 0, worse: 0, log: [] };
+  const stats = { planned: 0, tooClose: 0, unbuildable: 0, deferred: 0, noTrack: 0, retimed: 0, retracted: 0, worse: 0, meetRetimed: 0, meetStuck: 0, log: [] };
   if (!Array.isArray(trains) || trains.length < 2 || !tracks) return stats;
+  const single = (a, b) => { const p = sections && sections[traSectionKey(a, b)]; return !!p && p.tracks === 1; };
   const keyOf = tr => tr.train + ':' + tr.stops[0].depSec + ':' + tr.stops[tr.stops.length - 1].arrSec;
   const days = new Map();
   for (const [day, idxs] of Object.entries((union && union.dates) || {})) for (const i of idxs) {
@@ -12338,6 +12340,25 @@ function planSameDirectionOvertakes(trains, union, sections, tracks, banned = ne
           stats.retracted++;
         }
         rebuilt.add(L); rebuildOne(L); queue.push(L);
+      }
+      // 單線會車停車（planPassStationMeets）等的對向車也會被重建：F 排了同向待避後晚到，停著等它的那班若照舊時刻開，就開進 F 還沒走完的單線。
+      // 2026-11-15 實測：專列 6630 在大肚讓 180，龍井到站晚到 14:23:56；2013 在龍井的會車停車仍照 14:23:27 開，兩車在龍井–大肚單線對開 29 秒。
+      // 判法同 planPassStationMeets 的單線對向重疊：L 開進單線時 F 已從另一頭開出、還沒到站 ⇒ 延到 F 到站後 OVERTAKE_CLEAR_SEC 再開；
+      // 等太久、沒空股或跑段做不出來就維持原狀（跟會車停車排不出來時一樣）。疊著同向待避的（ref.meet）一併改會車停車的開車時刻與對向車。
+      for (let k = 1; k < (F.stops || []).length; k++) {
+        const x = F.stops[k], N = F.stops[k - 1].name;
+        if (!single(x.name, N)) continue;
+        for (const [L, st, j] of at.get(x.name) || []) {
+          if (L === F || !st._meetStop || !st._plannedDwell || j >= L.stops.length - 1 || L.stops[j + 1].name !== N) continue;
+          if (!(st.depSec < x.arrSec && F.stops[k - 1].depSec < L.stops[j + 1].arrSec)) continue;
+          const out = x.arrSec + OVERTAKE_CLEAR_SEC;
+          if (out - st.arrSec > OVERTAKE_MAX_WAIT_SEC || !overtakeTrackFree(tracks, at, L, j, st.arrSec - OVERTAKE_CLEAR_SEC, out + OVERTAKE_CLEAR_SEC)
+            || !overtakeRunBuildable(L, j, out)) { stats.meetStuck++; continue; }
+          const ref = st._overtakeRef;
+          st.depSec = out; st._meetStop = String(F.train);
+          if (ref?.meet) { ref.meet.dep = out; ref.meet.by = String(F.train); } else st._overtakeBy = String(F.train);
+          stats.meetRetimed++; rebuilt.add(L); rebuildOne(L); queue.push(L);
+        }
       }
     }
   };
