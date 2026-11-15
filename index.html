@@ -7484,7 +7484,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 //         2026-11-22 班表 6675 跟在 443 後 51 秒、兩班都要在志學等 442，志學北上只有一股：6675 改在壽豐等。
 // v1114b：Q 版列車拿掉「停靠讓開」（車只靠各靠一邊的固定側移，疊到的兩列由上下層分前後），對應 native 139cc8d88。
 // v1115a：單線會車停車等的對向車被同向待避延後時，跟著延到它進站後再開（planSameDirectionOvertakes 的 retimeDependents；例 11/15 的 2013 在龍井等 6630）。
-const BUILD = 'v1115a';
+// v1115b：單線對向交會讓給對向車、對向車那邊卻排不出來時，改由本車在本站等（planPassStationMeets 第二輪）。
+const BUILD = 'v1115b';
 // v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
@@ -12455,7 +12456,7 @@ function attachOvertakePeers(trains) {
 // _meetStop＝對向車次（給出貨閘門把它跟同向待避分開驗）；對向車當天有開才掛 _overtakeBy，閘門才找得到它。
 const MEET_STOP_MIN_SEC = 60;                   // 推晚不到一分鐘維持慢爬（班表 30 秒解析度，剖面本身也有誤差）
 function planPassStationMeets(trains, union, sections, tracks) {
-  const stats = { planned: 0, otherDay: 0, noTrack: 0, unbuildable: 0, approach: 0, cross: 0, crossYield: 0, crossTooLong: 0, crossWorse: 0, crossBack: 0, log: [] };
+  const stats = { planned: 0, otherDay: 0, noTrack: 0, unbuildable: 0, approach: 0, cross: 0, crossYield: 0, crossTooLong: 0, crossWorse: 0, crossBack: 0, crossTake: 0, log: [] };
   if (!tracks || !sections) return stats;
   const single = (a, b) => { const p = sections[traSectionKey(a, b)]; return !!p && p.tracks === 1; };
   const keyOf = tr => tr.train + ':' + tr.stops[0].depSec + ':' + tr.stops[tr.stops.length - 1].arrSec;
@@ -12530,7 +12531,11 @@ function planPassStationMeets(trains, union, sections, tracks) {
     }
     return n;
   };
-  for (const tr of trains) {
+  // 讓給 Y 的那一筆，Y 自己那一輪可能排不出來（N 是官方停靠站、跑段做不出來、沒空股、等太久或套了更糟），兩班就照舊在單線上對開。
+  // 2026-11-15 班表：408×6047 東竹–富里（408 那邊套了更糟）、416×653 東里–東竹（416 跑段做不出來）、434×443 大富–富源（434 沒空股）
+  // 都是這樣兩邊都沒排。所以第一輪讓出去、第二輪對向重疊仍在的，由 X 自己等（只看當初讓出去的那幾班，
+  // 一對衝突只有一邊會在第二輪動手，結果仍不依名冊順序）；空股、跑段、等候上限與「套完不能更糟」照第一輪同一套。
+  for (const take of [false, true]) for (const tr of trains) {
     if ((tr.sys && tr.sys !== 'tra_sched') || tr.loop || !tr.stops || tr.stops.length < 3) continue;
     const s = tr.stops, no = String(tr.train);
     for (let j = 1; j < s.length - 1; j++) {
@@ -12543,13 +12548,13 @@ function planPassStationMeets(trains, union, sections, tracks) {
         if (o === tr || o.loop || k < 1 || o.stops[k - 1].name !== N) continue;
         const tYN = o.stops[k - 1].depSec, tY = x.arrSec;
         if (!(tX < tY && tYN < tXN)) continue;
-        const waitX = tY - tX, waitY = tXN - tYN;
-        if (waitX > waitY || (waitX === waitY && no > String(o.train))) { yields++; continue; }
+        const waitX = tY - tX, waitY = tXN - tYN, xYields = waitX > waitY || (waitX === waitY && no > String(o.train));
+        if (xYields !== take) { if (!take) yields++; continue; }
         waits.push([o, k]);
         if (tY + OVERTAKE_CLEAR_SEC > dep) { dep = tY + OVERTAKE_CLEAR_SEC; peer = String(o.train); }
       }
       if (!peer) { if (yields) stats.crossYield++; continue; }
-      let rec = { no, station: st.name, by: peer, cross: true, arr: Math.round(tX), dep: Math.round(dep) };
+      let rec = { no, station: st.name, by: peer, cross: true, arr: Math.round(tX), dep: Math.round(dep), ...(take && { take: true }) };
       if (dep - tX > OVERTAKE_MAX_WAIT_SEC) { stats.crossTooLong++; stats.log.push({ ...rec, skip: 'tooLong' }); continue; }
       let c = j;
       if (!overtakeTrackFree(tracks, at, tr, j, tX - OVERTAKE_CLEAR_SEC, dep + OVERTAKE_CLEAR_SEC)) {
@@ -12573,7 +12578,7 @@ function planPassStationMeets(trains, union, sections, tracks) {
         delete ws._plannedDwell; delete ws._meetStop; delete ws._overtakeBy;
         stats.crossWorse++; stats.log.push({ ...rec, skip: 'worse' }); continue;
       }
-      stats.planned++; stats.cross++; if (c !== j) stats.crossBack++; stats.log.push(rec);
+      stats.planned++; stats.cross++; if (c !== j) stats.crossBack++; if (take) stats.crossTake++; stats.log.push(rec);
     }
   }
   return stats;

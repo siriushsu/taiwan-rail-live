@@ -106,6 +106,9 @@ for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
     // 跑完整條路線、整班綁不到實體股道）在北埔待避 273 只有抽到它的那天才會紅。
     // 單線會車停車（planPassStationMeets，issue #65）等的是對向車：放行條件是對向車在停等期間進站，不是「後車通過後 30 秒」。
     // 對向車當天沒開（_meetStop 有、_overtakeBy 沒有）就沒有車可對，只驗下面的停在同一座標。
+    // 兩班互等（各自排了會車停車）時，先到的那班在本車到站前就進站、本車到站時還停在站內：一樣是在站內交會，不算過期。
+    // 2026-11-20 的 417 與專車 6048 在富源：6048 12:13:35 到、等 417 12:14:13 進站後 12:14:43 開，417 停到 12:15:35。
+    // 「不准比對向車進站早開」不變；對向車在本車到站前就通過（沒停在站內）照樣紅。
     // 同一站又要讓同向後車（同向待避疊在會車停車上，_overtakeRef.meet 記著會車停車原本的開車時刻與對向車）：兩件都驗，
     // 放行＝max(後車通過＋30 秒, 會車停車原本的開車時刻)。
     const stale = [], unbound = [], checked = [], meetLate = [], total = { n: 0, meet: 0, meetOtherDay: 0, meetOvertake: 0 };
@@ -115,8 +118,8 @@ for (const [engine, launcher] of [['Chromium', chromium], ['WebKit', webkit]]) {
       if (s._meetStop) {
         const by = ref ? ref.meet?.by : s._overtakeBy;
         total.meet++; if (!by) total.meetOtherDay++; if (ref) total.meetOvertake++;
-        const a = by ? at(by, s.name)?.arrSec ?? NaN : NaN;
-        if (by && !(a >= s.arrSec && a <= s.depSec + .5))
+        const y = by ? at(by, s.name) : null, a = y?.arrSec ?? NaN;
+        if (by && !(a <= s.depSec + .5 && (a >= s.arrSec || y.depSec >= s.arrSec)))
           meetLate.push(`${t.train}@${s.name}等${by}:對向車 ${Number.isFinite(a) ? (a - s.arrSec).toFixed(1) + 's' : '找不到'}／停 ${(s.depSec - s.arrSec).toFixed(1)}s`);
       }
       if (!s._meetStop || ref) {
