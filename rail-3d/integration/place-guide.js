@@ -51,12 +51,16 @@ export function createPlaceGuide({getRenderer,ensure3D,getRoutes,unlock,onSelect
       const pitch=place.pitch??55,diagonal=Math.hypot(d.width,d.depth),angle=pitch*Math.PI/180;
       const scale=Math.min(w*.58/diagonal,h*.58/(diagonal*Math.cos(angle)+d.height*Math.sin(angle)));
       const zoom=Math.min(place.zoom??16.8,Math.log2(scale*40075016.686*Math.cos(place.center[1]*Math.PI/180)/512));
-      const elevation=(map.queryTerrainElevation(place.center)||0)+d.height*.4;
-      const view={center:place.center,zoom:Math.max(12,zoom),pitch,bearing:place.bearing??25,padding,elevation};
+      // 目的地地形還沒載入時取不到地面高程：不能用 0（山區會繞著海平面轉），改讓 MapLibre 逐幀貼地形。
+      const ground=map.queryTerrainElevation(place.center),elevation=Number.isFinite(ground)?ground+d.height*.4:undefined;
+      const view={center:place.center,zoom:Math.max(12,zoom),pitch,bearing:place.bearing??25,padding,...(elevation===undefined?{}:{elevation})};
       current={key:place.key,name:place.name,dimensions:d,view,request:ticket,status:'moving'};
-      map.setCenterClampedToGround(false);
+      map.setCenterClampedToGround(elevation===undefined);
       onView(view);toast(translate('正在看：{name}',{name:translate(place.name)}));
       const completed=await r.animateCamera(view,1800);
+      // 出發時目的地只有粗的地形（山頂會被抹平幾百公尺）；抵達後用已載入的地形重算一次中心高程。
+      const arrived=completed&&ticket===request&&elevation!==undefined&&map.queryTerrainElevation(place.center);
+      if(Number.isFinite(arrived)&&Math.abs(arrived+d.height*.4-map.getCenterElevation())>1)map.jumpTo({elevation:arrived+d.height*.4});
       if(ticket===request)current.status=completed?'ready':'cancelled';
       return completed;
     }catch(e){if(ticket===request)toast(translate(e.message||'暫時無法前往，請再試一次'));return false;}

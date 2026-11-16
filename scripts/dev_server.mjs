@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = +(process.env.PORT || 5179);
+const HOST = process.env.HOST || '127.0.0.1'; // HOST=<區網位址> 讓同一個 Wi-Fi 的手機打得開；預設只綁本機
 
 // 讀 .env 進 process.env（僅補缺，不覆蓋既有環境變數）
 try {
@@ -60,6 +61,17 @@ createServer(async (req, res) => {
     resp.headers.forEach((v, k) => res.setHeader(k, v));
     return res.end(Buffer.from(await resp.arrayBuffer()));
   }
+  // 地景圖磚（landscape-web/）：圖磚倉 tiles.railisland.tw 沒有開 CORS，本機改由這裡同源轉手。
+  // 上游預設是 R2 那一份；LANDSCAPE_TILES=http://localhost:8141/tiles/ 可改讀本機的圖磚預覽。只轉 GET。
+  if (url.pathname.startsWith('/__landscape_tiles/')) {
+    const up = (process.env.LANDSCAPE_TILES || 'https://tiles.railisland.tw/') + url.pathname.slice('/__landscape_tiles/'.length) + url.search; // ?v= 要帶上去，不然拿到 CDN 舊檔會被驗檔擋下、一直退避
+    try {
+      const r = await fetch(up);
+      res.statusCode = r.status;
+      for (const k of ['content-type', 'etag', 'last-modified']) if (r.headers.get(k)) res.setHeader(k, r.headers.get(k));
+      return res.end(Buffer.from(await r.arrayBuffer()));
+    } catch (e) { res.statusCode = 502; return res.end('landscape tiles upstream: ' + e.message); }
+  }
   let pathname;
   try { pathname = decodeURIComponent(url.pathname); }
   catch (e) { res.statusCode = 404; return res.end('not found'); }
@@ -86,4 +98,4 @@ createServer(async (req, res) => {
   res.end(data);
 // PORT=0 時由系統挑空埠，這行印的是實際埠：閘門從自己起的子程序讀這一行拿埠，就不會量到別棵樹留下的
 // 孤兒（2026-09-25 事故：寫死 8933，孤兒佔著埠，ready 判定只看「有人回 200」）。
-}).listen(PORT, '127.0.0.1', function () { console.log(`dev server http://127.0.0.1:${this.address().port}`); });
+}).listen(PORT, HOST, function () { console.log(`dev server http://${HOST}:${this.address().port}`); });

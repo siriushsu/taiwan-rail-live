@@ -542,7 +542,18 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
       undergroundRails.render(viewW,viewH,routeWidth(map.getZoom()),map.getZoom()>=14||terrainState.terrain,frame?.display?.dark);webgl.render(scene,camera);camera.layers.set(0);camera.projectionMatrix.copy(projection);
     }});undergroundLayer=map.getLayer('live-underground-3d');
     orderBuildingPasses(map);
-    function startGesture(e){if(!e.originalEvent)return;motionCamera.cancel();onInteract?.();if(!gesture){gesturePanned=false;gestureOrbited=false;followReturn=null;stats.followReturning=false;}gesture=true;clearTimeout(gestureTimer);}
+    // 跟車、導覽會關掉「中心貼地」並指定中心高程；離開那個情境後（或高程當初取自還沒載好的地形）旋轉與傾斜會繞著地底或半空中的點轉、鏡頭鑽進山裡。
+    // 使用者一動手，只要不是在跟車、而且中心高程不在畫面中心地面的 [-1, +600] 公尺內（導覽高樓會繞半腰轉），就交回 MapLibre 逐幀貼地形。
+    // 按下那一刻（手勢還沒開始）先同步把高程設到地面；手勢進行中不能 jumpTo（會中止手勢），只開貼地。
+    const cameraFollows=()=>!!(frame?.vehicles?.some(v=>v.followed)||(frame?.followLock&&frame?.selectedVehicleId));
+    function regroundPivot(){
+      if(map.getCenterClampedToGround()||cameraFollows())return;
+      const ground=map.queryTerrainElevation?.(map.getCenter()),elevation=map.getCenterElevation(),known=Number.isFinite(ground);
+      if(known&&elevation>=ground-1&&elevation<=ground+600)return;
+      if(known&&!map.isMoving()&&!map.handlers?.isActive?.())map.jumpTo({elevation:ground});
+      map.setCenterClampedToGround(true);stats.pivotRegrounded=(stats.pivotRegrounded||0)+1;map.triggerRepaint();
+    }
+    function startGesture(e){if(!e.originalEvent)return;motionCamera.cancel();onInteract?.();regroundPivot();if(!gesture){gesturePanned=false;gestureOrbited=false;followReturn=null;stats.followReturning=false;}gesture=true;clearTimeout(gestureTimer);}
     // 在引擎下一個 rAF 處理手勢前就保留操作權，避免跟車 jumpTo 先中止輸入。
     function listen(target,type,handler){target.addEventListener(type,handler,{capture:true,passive:true});inputListeners.push([target,type,handler]);}
     listen(map.getCanvas(),'pointerdown',e=>{pointers.add(e.pointerId);startGesture({originalEvent:e});
@@ -556,7 +567,9 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     listenMap('movestart',startGesture);
     listenMap('move',e=>{if(e.originalEvent)onInteract?.();});
     listenMap('dragstart',e=>{startGesture(e);if(e.originalEvent){const input=e.originalEvent;
-      if(input.touches?input.touches.length===1:input.button===0&&!input.ctrlKey&&!input.metaKey&&!input.shiftKey)gesturePanned=true;}});
+      if(input.touches?input.touches.length===1:input.button===0&&!input.ctrlKey&&!input.metaKey&&!input.shiftKey){gesturePanned=true;
+        // 拖去別處：導覽／跟車指定的中心高程只屬於原地，平移就交回貼地形（MapLibre 平移結束會把高程收斂到新的地面）
+        if(!cameraFollows()&&!map.getCenterClampedToGround())map.setCenterClampedToGround(true);}}});
     for(const type of ['zoomstart','rotatestart','pitchstart'])listenMap(type,e=>{startGesture(e);if(e.originalEvent)gestureOrbited=true;});
     function finishGesture(){clearTimeout(gestureTimer);if(!gesture)return;gestureTimer=setTimeout(()=>{if(pointers.size||map.isMoving()){finishGesture();return;}const pan=gesturePanned&&!gestureOrbited;gesture=false;gesturePanned=gestureOrbited=false;if(pan&&!frame?.headLocked)onGesture();else if(frame?.followLock&&frame.selectedVehicleId)followReturn={id:frame.selectedVehicleId};},80);}
     listenMap('moveend',e=>{if(e.originalEvent)dirty=true;if(gesture)finishGesture();});

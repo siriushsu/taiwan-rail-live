@@ -5906,7 +5906,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/11/14</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/11/17</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -5914,6 +5914,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="landscapeweb1117"><span class="d">11/17</span><span>地景地圖的新版全台地景（3D 地形、建物與夜景）已放上網站做最後測試；這段期間畫面仍是原本的地景</span></li>
         <li data-cl-of="qnoyield1114"><span class="d">11/14</span><span>Q 版列車停在站裡時不再往旁邊滑開，一直貼著軌道線；疊在一起的兩列改由前後層次分開</span></li>
         <li data-cl-of="tymccrowd1113"><span class="d">11/13</span><span>桃園機場捷運的車站看板與跟車卡多了車廂擁擠度：四節車廂各一格、顏色表示鬆緊，資料取自桃園捷運官網的列車動態；對不上是哪一列車時留白</span></li>
         <li data-cl-of="tragpsrun1113"><span class="d">11/13</span><span>台鐵列車在兩站之間的位置，改照校正懸賞錄到的實際行駛曲線來推（目前 95 條站間曲線），起步、進站的快慢更接近真車；還沒有實測的站間照舊用公式推算（謝謝幫忙錄程的島民）</span></li>
@@ -5921,7 +5922,6 @@
         <li data-cl-of="garagenewcars1109"><span class="d">11/09</span><span>車庫新增 12 款車：EMU200、DR2800、S400、EMU400、0 系新幹線、總統花車等，各用 150 島民點數兌換</span></li>
         <li data-cl-of="garageinfo1109"><span class="d">11/09</span><span>車庫場景與車款加上介紹，車款詳情多了「車款檔案」，列車卡 5 個車種各補一則小知識</span></li>
         <li data-cl-of="garagefix1109"><span class="d">11/09</span><span>車庫場景頁換車改成下面一排車款鈕直接點；有月台的場景列車輪流進站、停站再開走；鐵軌、電線等細線遠看不再忽隱忽現</span></li>
-        <li data-cl-of="trtchold1109"><span class="d">11/09</span><span>捷運：北捷列車在資料更新的瞬間不再往回跳一小段，落後時會在原地稍等再接著走</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -5955,6 +5955,7 @@
         <li data-cl="weatherapp1023"><span class="d">10/23</span><span>修正 App 颱風資訊整份重複顯示，改為各系統公告；補上新北環狀線、三鶯線 10/23 約 15 分鐘班距，淡海與安坑仍待確認</span></li>
         <li data-cl="weather1022"><span class="d">10/22</span><span>新增颱風期間全台鐵道營運提醒與官方來源，明確標示停駛、調整班距及待確認資訊；地圖有車不代表實際開行；開啟颱風公告時跟車卡暫時隱藏</span></li>
         <li class="grp">路網與車站</li>
+        <li data-cl="landscapeweb1117"><span class="d">11/17</span><span>地景地圖的新版全台地景（3D 地形、建物與夜景）已放上網站做最後測試；這段期間畫面仍是原本的地景</span></li>
         <li data-cl="tragpsrun1113"><span class="d">11/13</span><span>台鐵列車在兩站之間的位置，改照校正懸賞錄到的實際行駛曲線來推（目前 95 條站間曲線），起步、進站的快慢更接近真車；還沒有實測的站間照舊用公式推算（謝謝幫忙錄程的島民）</span></li>
         <li data-cl="trameetin1110"><span class="d">11/10</span><span>台鐵單線區段原本畫成在站間錯身的對向列車，改成先到的那班進站停車，等對向列車通過再開（例如 410 次在東竹等 417 次）；那一站沒有空股道時，退到前面有空股道的站等</span></li>
         <li data-cl="jianshanpu1105"><span class="d">11/05</span><span>平交道補上鶯歌到鳳鳴之間的尖山埔路，全台共 347 處（謝謝網友回報）</span></li>
@@ -7485,7 +7486,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1114b：Q 版列車拿掉「停靠讓開」（車只靠各靠一邊的固定側移，疊到的兩列由上下層分前後），對應 native 139cc8d88。
 // v1115a：單線會車停車等的對向車被同向待避延後時，跟著延到它進站後再開（planSameDirectionOvertakes 的 retimeDependents；例 11/15 的 2013 在龍井等 6630）。
 // v1115b：單線對向交會讓給對向車、對向車那邊卻排不出來時，改由本車在本站等（planPassStationMeets 第二輪）。
-const BUILD = 'v1115b';
+// v1117a：地景地圖接上新的全台地景（landscape-web/，engine 取自地景工作區 4a51b7f）；預設仍是舊地景，網址帶 ?landscape=new 才用新的（LANDSCAPE_NEW_DEFAULT）。
+const BUILD = 'v1117a';
 // v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
@@ -39280,6 +39282,7 @@ function glLandInstall() {
     if (raw.getLayer('offline-land-fill')) raw.setPaintProperty('offline-land-fill', 'fill-color', '#ece3cd');
   }
   installBuilding3d();
+  syncLandscapeWeb();
 }
 // 署名:一般地圖=OFM(MapLibre 從 OFM 的 TileJSON 自動帶出「OpenFreeMap © OpenMapTiles Data from OpenStreetMap」,再推一份 OFM_ATTRIBUTION 會變兩行重複)、
 // 衛星=Esri(自訂 style 沒有來源署名,要自己給);離線陸地載入後永遠加內政部(法定要件,既有署名字串不變)。字串先過 t() 再交給控件,
@@ -39290,6 +39293,7 @@ function glAttributionSync() {
   const list = [];
   if (state.basemap === 'sat' && satTokenState === 'ready' && satAttribution) list.push(satAttribution);
   if (glLand) list.push(t('臺灣輪廓：內政部'));
+  if (landscapeWebOn()) list.push(t('地景：地形＝內政部 20 m DTM（經 Mapterhorn）、影像＝Copernicus Sentinel-2、建物／道路／水域＝Overture Maps（© OpenStreetMap 貢獻者、東亞建物資料集 Shi 等 2023）、部分樓層＝臺北市建築執照套繪圖（臺北市建築管理工程處）'));
   M.setAttribution(list);
 }
 // MapLibre 引擎的衛星:整份 style=「background(海面色)+ z6 保底 raster + 主 raster」,離線陸地由 glLandInstall 在 style.load 插進 background 之上。
@@ -39557,6 +39561,47 @@ function ofmFallToRaster(why) {
   setBasemap(); // 把該顯示的那份 style 重新套上去(署名也會跟著換成 raster 那份)
 }
 // 底圖就是 style 本身:light/dark 用內建 OFM,衛星用 satGlStyle(M1a);離線陸地與署名在 style.load 重掛。
+// ==== 地景地圖（新）：全台地景圖磚（landscape-web/） ====
+// 全台地景圖磚：three.js 畫在 MapLibre 畫布底下，MapLibre 這邊藏掉底圖、列車與路線照舊畫在上面（landscape-web/site.js）。
+// 目前預設仍是舊的地景圖層（OFM 地景樣式＋DEM 山影＋3D 建物），網址帶 ?landscape=new 才用新地景（同一個分頁記住）；?landscape=old 一律舊的。
+// 要讓新地景成為預設：把 LANDSCAPE_NEW_DEFAULT 改成 true（verify_landscape_web 會照這個值驗預設）。
+// 新地景載入失敗（圖磚倉連不上等）這次自動退回舊的。
+// 圖磚：正式站直連 tiles.railisland.tw（R2 CORS 只放行正式站來源）；本機開發伺服器同源轉手（scripts/dev_server.mjs 的 /__landscape_tiles/）；?landscapeTiles=<網址> 可指定別處。
+const LANDSCAPE_NEW_DEFAULT = false;
+const LANDSCAPE_Q = new URLSearchParams(location.search);
+// 自動化瀏覽器（navigator.webdriver）不論預設都走舊地景：既有的地景閘門量的是舊圖層（山影、worldcover、3D 建物、隧道口）；新地景由 verify_landscape_web 帶 ?landscape=new 驗。
+// ?landscape=new／old 記在這個分頁（sessionStorage）：開頁後網址會被改寫掉查詢字串（跟車、clearFollow），重新整理或手機瀏覽器自己重載時要照樣是同一個
+const LANDSCAPE_PICK = (() => { const q = LANDSCAPE_Q.get('landscape'); try { if (q === 'new' || q === 'old') sessionStorage.setItem('landscape-pick', q); return q || sessionStorage.getItem('landscape-pick'); } catch (e) { return q; } })();
+const LANDSCAPE_OLD = LANDSCAPE_PICK === 'old' || (LANDSCAPE_PICK !== 'new' && (!LANDSCAPE_NEW_DEFAULT || navigator.webdriver));
+let landscapeWeb = null, landscapeWebFailed = false;
+function landscapeWebTiles() {
+  const q = LANDSCAPE_Q.get('landscapeTiles'); if (q) return q;
+  // 本機與區網位址（同一個 Wi-Fi 的手機開 dev server）＝開發伺服器，走同源轉手；R2 的 CORS 只放行正式站來源
+  return /^(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)$/.test(location.hostname) ? '/__landscape_tiles/' : 'https://tiles.railisland.tw/';
+}
+function landscapeWebOn() { return !!(window.railIslandLandscapeWeb && window.railIslandLandscapeWeb.active); }
+function landscapeWebWanted() { return state.basemap === 'landscape' && !LANDSCAPE_OLD && !landscapeWebFailed; }
+window.railIslandLandscapeWebWanted = landscapeWebWanted; // rail-3d.js 決定地面起伏用
+function syncLandscapeWeb() {
+  const want = !!M && !!M.raw && landscapeWebWanted();
+  if (!want && !landscapeWeb) return;
+  if (!landscapeWeb) {
+    const extra = {}; for (const [k, v] of LANDSCAPE_Q) if (k.startsWith('ls.')) extra[k.slice(3)] = v; // ?ls.<參數>＝原樣交給地景 engine（量測、對照用）
+    landscapeWeb = import('./landscape-web/site.js').then(m => m.attach(M.raw, {
+      tilesBase: landscapeWebTiles(), params: extra,
+      // 「日夜光影」關＝固定午後光線（跟舊地景均勻照明同義、列車也不開夜燈），開＝跟地圖時刻；日期跟網站日夜光影同一天（sunlightContextNow）
+      hour: () => (sunlightEnabled ? (state.simSec || 0) / 3600 : 15.2),
+      date: () => window.__sunTestCtx?.date || todayStr('Asia/Taipei'),
+      onFail: () => { landscapeWebFailed = true; syncLandscapeWeb(); setBasemap(); },
+    })).catch(e => { console.warn('[地景] 新地景程式載入失敗', e); landscapeWebFailed = true; return null; });
+  }
+  landscapeWeb.then(lw => {
+    if (!lw) return;
+    window.railIslandLandscapeWeb = lw;
+    const on = !!M && landscapeWebWanted();
+    if (lw.active !== on) { lw.setActive(on); glAttributionSync(); } else if (on) lw.setActive(true);
+  });
+}
 function setBasemap() {
   if (!M) return;
   const stage = document.querySelector('.stage');
@@ -39578,6 +39623,7 @@ function setBasemap() {
   glLandInstall();      // 同 kind 早退時 style 沒換,層都在只重套主題;換了 style 則 style.load 會再呼叫一次(冪等)
   glAttributionSync();
   window.railIslandIntegration?.syncAppearance(true);
+  syncLandscapeWeb();
   syncBasemapChoices();
   const satBtn = document.getElementById('satBtn');
   if (satBtn && online) {

@@ -28,6 +28,9 @@
 #    2026-09-03(換引擎 M1a):MapLibre 引擎的 Esri 衛星改成 raster source,圖磚也走 fetch/XHR ⇒ connect-src 加 ibasemaps-api.arcgis.com;
 #    守門人 verify_gl_basemap.mjs S6 靜態檢查這一條。
 #    2026-09-05(M4-B 拔 Leaflet):唯一用到 cdnjs 的就是 Leaflet 的 css/js,兩者一起從 script-src／style-src 移除。
+#    2026-11-17(地景地圖換全台地景 landscape-web/):engine 在主執行緒與兩支 worker 用 fetch 讀 tiles.railisland.tw 的圖磚
+#    (json／bin／png 都是)⇒ connect-src 加;worker 吃的是自己那支 .js 回應的 CSP,同一條 /* 規則,所以一起生效。
+#    守門人 verify_landscape_web.mjs 開頭的靜態檢查(從 index.html 的 landscapeWebTiles() 取網域,不寫死)。
 #
 /*
   Strict-Transport-Security: max-age=31536000; includeSubDomains
@@ -35,7 +38,7 @@
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: accelerometer=(), autoplay=(self), camera=(), display-capture=(), encrypted-media=(), fullscreen=(self), geolocation=(self), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(self), publickey-credentials-get=(), screen-wake-lock=(self), usb=(), xr-spatial-tracking=(), browsing-topics=()
-  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com https://www.gstatic.com https://apis.google.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob:; font-src 'self' data:; frame-src 'self' https://railisland.firebaseapp.com; worker-src 'self' blob:; manifest-src 'self'; connect-src 'self' https://cloudflareinsights.com https://*.googleapis.com https://api.revenuecat.com https://tiles.openfreemap.org https://ibasemaps-api.arcgis.com https://railisland-metro-core.sirius1984.workers.dev
+  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com https://www.gstatic.com https://apis.google.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob:; font-src 'self' data:; frame-src 'self' https://railisland.firebaseapp.com; worker-src 'self' blob:; manifest-src 'self'; connect-src 'self' https://cloudflareinsights.com https://*.googleapis.com https://api.revenuecat.com https://tiles.openfreemap.org https://ibasemaps-api.arcgis.com https://railisland-metro-core.sirius1984.workers.dev https://tiles.railisland.tw
 
 # App 殼要跨來源抓這些資料檔(index.html 的 initDataFreshness / refreshStaleSchedule):打包進
 # bundle 的 data/*.json 是送審當下的快照,之後只有再送審才會更新——台鐵班表 14 天窗必然過期、

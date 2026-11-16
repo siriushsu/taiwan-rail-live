@@ -28,7 +28,8 @@
     groundMode=params.get('ground')||read('ri-ground-mode','flat'),trainSizeMode=params.get('trainSize')||read('ri-train-size-v21','q'),
     modelMode=read('ri-model-mode','all'),ambientCamera=read('ri-ambient-camera','side'),transparent=read('ri-transparent','0')==='1',satelliteTransparent=read('ri-satellite-transparent','0')==='1';
   let landscapeGround=(params.get('ground')||read('ri-landscape-ground','terrain'))==='flat'?'flat':'terrain';
-  const effectiveGround=()=>state.basemap==='landscape'?landscapeGround:groundMode;
+  // 新地景（landscape-web/）有自己的真實地形：列車一律跟起伏地面走，「平坦」只對舊地景有意義
+  const effectiveGround=()=>state.basemap==='landscape'?(globalThis.railIslandLandscapeWebWanted?.()?'terrain':landscapeGround):groundMode;
   formationMode=formationMode==='three'?'three':'actual';groundMode=groundMode==='terrain'?'terrain':'flat';trainSizeMode=trainSizeMode==='scale'||trainSizeMode==='q'?trainSizeMode:'readable';
   let renderer=null,lastFrame=null,loading=false,loadSerial=Promise.resolve(),epoch=0,manualTarget=null,appearanceKey='',noteAt=0,renderAt=-Infinity,farAt=0,noteLang='';
   let trainIds=new WeakMap(),lineIds=new WeakMap();
