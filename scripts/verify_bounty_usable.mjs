@@ -140,10 +140,59 @@ await attempt('U6', async () => {
   const pts = ride().filter(p => p.t >= 30050 && p.t <= 31150);
   const rows = rowsOf(pts), f = flagsOf(rows, SCHED, EV0);
   ok('U6a 起站與終點都比不到：第一個與最後一個對得上的站往外接，車上的 19 列全是 1', rows.length === 19 && f.every(x => x === 1), J(f));
-  // 對照：開錄的頭 60 秒人原地不動（1 km 處，29990–30049），之後才開始走——停住的那一段不接
-  const still = Array.from({ length: 60 }, (_, i) => ({ d: 1000, t: 29990 + i, v: null, acc: 8 }));
-  const rows2 = rowsOf([...still, ...pts]), g = flagsOf(rows2, SCHED, EV0);
-  ok('U6b [對照] 開錄先原地停 60 秒再走：停住那一列是 0，之後 19 列是 1', rows2.length === 20 && g[0] === 0 && g.slice(1).every(x => x === 1), J(g));
+  // 對照：停錄前在 S9 範圍內（18.2 km，離站 0.4 km 內；這班車不停 S9）原地停 60 秒（31151–31210）——在車站停住可能是下車，不接。
+  // 第 18 列（31130–31189）含停住的點、第 19 列全是停住：都是 0；前 18 列是 1。
+  const atS9 = Array.from({ length: 60 }, (_, i) => ({ d: 18200, t: 31151 + i, v: null, acc: 8 }));
+  const rows2 = rowsOf([...pts, ...atS9]), g = flagsOf(rows2, SCHED, EV0);
+  ok('U6b [對照] 停錄前在車站範圍內原地停 60 秒：含停住的兩列是 0，前 18 列是 1', rows2.length === 20 && J(g.slice(18)) === '[0,0]' && g.slice(0, 18).every(x => x === 1), J(g));
+  // 開錄的頭 60 秒在兩站正中間（1 km，離 S0、S1 都 1 km）原地不動（29990–30049）：站間下不了車（號誌停車、隧道裡 GPS 卡住），
+  // 11-17 起照樣接（之前這一支是「停住那一列是 0」）
+  const mid = Array.from({ length: 60 }, (_, i) => ({ d: 1000, t: 29990 + i, v: null, acc: 8 }));
+  const h = flagsOf(rowsOf([...mid, ...pts]), SCHED, EV0);
+  ok('U6c 站間原地停 60 秒：不是上下車，20 列全是 1', h.length === 20 && h.every(x => x === 1), J(h));
+});
+
+await attempt('U7', async () => {
+  // 自強號在這條線上只停 S0（表定 30000 開），之後每秒 20 m/s 一路開到 S10（31000），中途不停。
+  // 30300–30420 隧道沒有點（6.0 → 8.4 km，斷 120 秒 > 60），中間只有不停的 S3、S4。
+  // S0 是唯一比得到的站：可用時段從 29820（S0 開 30000−180）起，往後接。
+  const kf = [[29700, 0], [30000, 0], [31000, 20000]];
+  const pts = [];
+  for (let t = 29700, k = 0; t <= 31000; t++) {
+    if (t > 30300 && t < 30420) continue;
+    while (kf[k + 1][0] < t) k++;
+    const [ta, da] = kf[k], [tb, db] = kf[k + 1];
+    pts.push({ d: da + (db - da) * (t - ta) / (tb - ta), t, v: null, acc: 8 });
+  }
+  const rows = rowsOf(pts);
+  const f = flagsOf(rows, [{ name: 'S0', arr: 30000, dep: 30000 }], EV0), want = expect(rows, 29820, 31000);
+  ok('U7a 隧道裡沒有停靠站：斷訊 120 秒也接過去，S0 開車 180 秒前以後的列全是 1（20 列中 18 列）',
+    rows.length === 20 && J(f) === J(want) && f.filter(x => x === 1).length === 18, J(f));
+  // 對照：同一條軌跡，但班表上 S4（8 km，在斷訊裡）是停靠站——那裡可能下車換車，不接；可用時段停在斷訊前最後一點 30300
+  const g = flagsOf(rows, [{ name: 'S0', arr: 30000, dep: 30000 }, { name: 'S4', arr: 30400, dep: 30400 }], EV0), wantG = expect(rows, 29820, 30300);
+  ok('U7b [對照] 斷訊蓋到這班車的停靠站：不接，斷訊之後的列全是 0', J(g) === J(wantG) && g.slice(10).every(x => x === 0) && g.includes(1), J(g));
+  // 路線檔的站名帶括號（像「新城 (太魯閣)」），班表只寫「S4」：去掉括號後同一站，照 U7b 不接
+  const LINE2 = { ...LINE, stations: LINE.stations.map(s => s.name === 'S4' ? { ...s, name: 'S4 (舊名)' } : s) };
+  const m2 = _bounty.bountyUsableFlags(rows, LINE2, [{ name: 'S0', arr: 30000, dep: 30000 }, { name: 'S4', arr: 30400, dep: 30400 }], EV0, nameOf);
+  const g2 = rows.map(r => m2.get(r.id));
+  ok('U7c [對照] 斷訊蓋到的停靠站在路線檔名字帶括號：照樣認得是停靠站、不接（跟 U7b 同一組值）', J(g2) === J(wantG), J(g2));
+});
+
+await attempt('U8', async () => {
+  // 標準車：S4（8 km）表定 30460 到。使用者 30460 一到就下車，2 m/s 走 300 秒離開車站，在站外原地等 1200 秒才停錄（離 S4、S5 都 0.6 km 以上）。
+  const walk = sign => {
+    const pts = ride().filter(p => p.t <= 30460);
+    for (let t = 30461; t <= 30760; t++) pts.push({ d: 8000 + sign * 2 * (t - 30460), t, v: null, acc: 8 });
+    for (let t = 30761; t <= 31960; t++) pts.push({ d: 8000 + sign * 600, t, v: null, acc: 8 });
+    return rowsOf(pts);
+  };
+  // 往車行方向走到 8.6 km：人不會到下一個停靠站 S6（表定 30720 到，加 180 秒＝30900），30900 之後不接
+  const rows = walk(1), f = flagsOf(rows, SCHED, EV0), want = expect(rows, 29820, 30900);
+  ok('U8a 下車後往前走離車站、在站外等：表定該到下一個停靠站之後的列全是 0（站外等的 20 分鐘不算這班車）',
+    J(f) === J(want) && f.slice(-15).every(x => x === 0) && f.includes(1), J(f));
+  // 往回走到 7.4 km：走到 S4 後方 0.4 km（7.6 km，30660）以後就不接——車不會倒退
+  const rows2 = walk(-1), g = flagsOf(rows2, SCHED, EV0), want2 = expect(rows2, 29820, 30660);
+  ok('U8b 下車後往回走：到最後對上的站後方 0.4 km 以外就不接', J(g) === J(want2) && g.slice(-20).every(x => x === 0), J(g));
 });
 
 // ═══ C 組：挑班車與寫入 ═══════════════════════════════════════════════════

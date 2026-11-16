@@ -9972,6 +9972,8 @@ const BOUNTY_USABLE = {
 // 可用的時段＝對得上的站自己的時段，加上相鄰兩站都對得上時兩站之間，頭尾再往外接到人停住為止；對得上的停車只留表定到開前後 tolSec 內那段
 // （開錄時還在月台等車、下車後原地還在錄，都不是這班車的軌跡）。
 // 1＝這一列每一點都在可用的時段裡；0＝這條線比得到站，但這一列有點落在外面；null＝一站都比不到（沒有班表、沒有官方誤點、整段地下）。
+// 站名去掉括號再比（11-17）：路線檔寫「新城 (太魯閣)」「左營(舊城)」，班表寫「新城」「左營」，原本這兩站從來比不到。
+const bountyStaName = n => String(n || '').replace(/\s*[（(].*$/, '');
 function bountyUsableFlags(rows, line, sched, events, nameOf) {
   const U = BOUNTY_USABLE;
   const flags = new Map(rows.map(r => [r.id, null]));
@@ -9995,10 +9997,11 @@ function bountyUsableFlags(rows, line, sched, events, nameOf) {
     const dt = pts[b].t - pts[a].t;
     pts[i].v = dt > 0 ? Math.abs(pts[b].d - pts[a].d) * 1000 / dt : NaN;
   }
-  const order = new Map(sched.map((s, k) => [s.name, k]));
+  const order = new Map(sched.map((s, k) => [bountyStaName(s.name), k]));
+  const kmOf = new Map((line.stations || []).map(s => [bountyStaName(s.name), s.d]));
   const ev = [];
   for (const e of events || []) {
-    const k = order.get(nameOf(e.sta));
+    const k = order.get(bountyStaName(nameOf(e.sta)));
     if (k !== undefined && e.delay != null && Number.isFinite(Number(e.delay))) ev.push({ k, st: Number(e.status) || 0, min: Number(e.delay) });
   }
   const delayAt = k => {     // 分數越小越優先：該站＜前面的站＜後面的站，再比站數差，同一站取狀態最後的（離站＞在站＞進站）
@@ -10012,7 +10015,7 @@ function bountyUsableFlags(rows, line, sched, events, nameOf) {
   const [dLo, dHi] = bountyMinMax(pts.map(p => p.d));
   const checks = [];
   for (const s of line.stations || []) {
-    const k = order.get(s.name);
+    const k = order.get(bountyStaName(s.name));
     if (k === undefined || s.d < dLo - U.nearKm || s.d > dHi + U.nearKm) continue;
     const dl = delayAt(k);
     if (dl === null) continue;
@@ -10031,7 +10034,7 @@ function bountyUsableFlags(rows, line, sched, events, nameOf) {
     const rA = arr - eA, rD = dep - eD;
     const res = stop ? (k === 0 || Math.abs(rD) <= Math.abs(rA) ? rD : rA) : (Math.abs(rA) < Math.abs(rD) ? rA : rD);
     const ok = Math.abs(res) <= U.tolSec;
-    checks.push(ok ? { ok, a: Math.max(arr, eA - U.tolSec), b: Math.min(dep, eD + U.tolSec) } : { ok, a: arr, b: dep });
+    checks.push(ok ? { ok, k, d: s.d, a: Math.max(arr, eA - U.tolSec), b: Math.min(dep, eD + U.tolSec) } : { ok, k, d: s.d, a: arr, b: dep });
   }
   if (!checks.length) return flags;
   checks.sort((x, y) => x.a - y.a);
@@ -10040,30 +10043,54 @@ function bountyUsableFlags(rows, line, sched, events, nameOf) {
     const c = checks[i], nx = checks[i + 1];
     if (c.ok) spans.push([c.a, nx && nx.ok ? Math.max(c.b, nx.a) : c.b]);
   }
-  // 頭尾往外接：第一個（最後一個）比得到的站對得上時，從那裡往前（往後）一路接到人停住 stopMinSec 以上、或斷訊超過 passGapSec 為止。
+  // 頭尾往外接：第一個（最後一個）比得到的站對得上時，從那裡往前（往後）一路接到人停住 stopMinSec 以上、或斷訊超過 passGapSec 而且中間有停靠站為止。
   // 起站、終點常在地下段比不到（11-02 正式快照裡對得上的 134 組，6,910 列中有 1,303 列在第一站之前或最後一站之後、人還在車上動）；
-  // 上下車、換車一定要停住，所以停住的那一段不接。
+  // 上下車、換車一定要在車站停住，所以在車站停住的那一段不接。
   const still = pts.map(() => false);
   for (let i = 0; i < pts.length;) {
     if (!(pts[i].v < U.stopMps)) { i++; continue; }
     let j = i;
     while (j + 1 < pts.length && pts[j + 1].v < U.stopMps && pts[j + 1].t - pts[j].t <= U.passGapSec) j++;
-    if (pts[j].t - pts[i].t >= U.stopMinSec) for (let k = i; k <= j; k++) still[k] = true;
+    // 停住的地方離每個車站都超過 nearKm 就不算（11-17）：上下車只會在車站；站間停住是號誌停車，或隧道裡 GPS 卡在同一個位置。
+    const atStation = pts.slice(i, j + 1).some(p => (line.stations || []).some(s => Math.abs(s.d - p.d) <= U.nearKm));
+    if (pts[j].t - pts[i].t >= U.stopMinSec && atStation) for (let k = i; k <= j; k++) still[k] = true;
     i = j + 1;
   }
-  const reach = (i, step) => {
-    while (i + step >= 0 && i + step < pts.length && !still[i + step] && Math.abs(pts[i + step].t - pts[i].t) <= U.passGapSec) i += step;
+  // 斷訊超過 passGapSec 也接過去的情形（11-17）：斷訊前後兩點之間（各放寬 nearKm）沒有這班車的停靠站。
+  // 車不停就下不了車，斷訊再久也還在同一班車上；隧道多、自強號又不停的路段（北迴線只停花蓮）原本過第一個長隧道就整段接不上。
+  // 斷訊蓋到停靠站就不接：那裡可能下車換車（地下站），交給那站之後對得上的站去接。
+  const onLine = sched.map((s, k) => ({ k, d: kmOf.get(bountyStaName(s.name)) })).filter(x => x.d !== undefined);
+  const stopKm = onLine.map(x => x.d);
+  const sameTrain = (p, q) => {
+    const lo = Math.min(p.d, q.d) - U.nearKm, hi = Math.max(p.d, q.d) + U.nearKm;
+    return !stopKm.some(d => d >= lo && d <= hi);
+  };
+  // 也不能接到這班車已經不在的地方（11-17）：往後接時，表定（加誤點、加 tolSec）該到下一個停靠站了人還沒到，
+  // 就是人已經下車（例如下車後走離車站、在站外等）；往前接時，這班車還沒離開前一個停靠站，人卻已經在那站之後，就是人還沒上這班車。
+  // 另外，車不會中途倒退：往後接時人跑到那個對上的站的車行反方向 nearKm 以外（下車往回走），往前接時人在那站車行方向 nearKm 以外，都不接。
+  const ends = onLine.length > 1 ? [onLine[0], onLine[onLine.length - 1]] : null;
+  const lineDir = ends ? Math.sign(ends[1].d - ends[0].d) : 0;
+  const offTrain = (p, step, c) => (lineDir !== 0 && (p.d - c.d) * lineDir * step < -U.nearKm) || onLine.some(({ k, d }) => {
+    if (step > 0 ? k <= c.k : k >= c.k) return false;
+    const dir = step > 0 ? Math.sign(d - c.d) : Math.sign(c.d - d), dl = delayAt(k) || 0;
+    if (!dir) return false;
+    return step > 0 ? p.t > sched[k].arr + dl * 60 + U.tolSec && (p.d - d) * dir < -U.nearKm
+      : p.t < sched[k].dep + dl * 60 - U.tolSec && (p.d - d) * dir > U.nearKm;
+  });
+  const reach = (i, step, c) => {
+    while (i + step >= 0 && i + step < pts.length && !still[i + step] && !offTrain(pts[i + step], step, c) &&
+      (Math.abs(pts[i + step].t - pts[i].t) <= U.passGapSec || sameTrain(pts[i], pts[i + step]))) i += step;
     return pts[i].t;
   };
   if (spans.length && checks[0].ok) {
     const i = pts.findIndex(p => p.t >= spans[0][0]);
-    if (i >= 0) spans[0][0] = Math.min(spans[0][0], reach(i, -1));
+    if (i >= 0) spans[0][0] = Math.min(spans[0][0], reach(i, -1, checks[0]));
   }
   if (spans.length && checks[checks.length - 1].ok) {
     const s = spans[spans.length - 1];
     let i = pts.length - 1;
     while (i > 0 && pts[i].t > s[1]) i--;
-    if (pts[i].t <= s[1]) s[1] = Math.max(s[1], reach(i, 1));
+    if (pts[i].t <= s[1]) s[1] = Math.max(s[1], reach(i, 1, checks[checks.length - 1]));
   }
   const bad = new Set();
   for (const p of pts) if (!spans.some(([a, b]) => p.t >= a && p.t <= b)) bad.add(rowOf.get(p));
