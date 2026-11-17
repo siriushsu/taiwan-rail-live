@@ -278,7 +278,7 @@ try {
     ok('H3 兩張表逐列不變(零寫入)', before === after, `before=${before.length}bytes after=${after.length}bytes`);
   }
 
-  // ── H6:token 429 → reject、D1 不變;token 恢復 200 → 同一時刻再跑一次會自己好 ──
+  // ── H6:token 429 → reject、D1 不變;token 恢復 200 → 下一個自癒時刻再跑會自己好 ──
   // 🔴 陷阱三:這是全檔第一個會真的呼叫 getToken 的案例(H1 全程 forbiddenDb 不碰 D1,
   // H3 不落後),必須排在 H4/H5/H8b/H9/H12 之前執行,否則 tok/tokExp 模組層快取早就填好,
   // 429 替身永遠打不到。
@@ -298,7 +298,9 @@ try {
     ok('H6a 429 失敗時零歷史 API 呼叫(還沒拿到 token 就先炸)', historyHits.length === 0, `history=${JSON.stringify(historyHits)}`);
 
     authStatus = 200;   // 下一發:token 端點恢復
-    const r = await delaySelfHeal({ scheduledTime: NOW }, mkEnv(DELAY_DB));   // 同一個時刻再跑一次
+    // 取權杖失敗後 30 秒內不會重打(worker.js 的 TDX_TOKEN_BACKOFF_MS),同一時刻重跑只會丟上一次的錯;挪到下一個自癒時刻。
+    setNow(TODAY, 10, 37);
+    const r = await delaySelfHeal({ scheduledTime: NOW }, mkEnv(DELAY_DB));
     ok('H6b token 恢復後 → 補上、healed:true(證明下一發會自己好)',
       r.behind === true && r.healed === true && r.after === YESTERDAY, JSON.stringify(r));
     ok('H6b 歷史 API 只被要求了昨天這一天', JSON.stringify(historyHits) === JSON.stringify([YESTERDAY]), JSON.stringify(historyHits));

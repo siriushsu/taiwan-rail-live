@@ -217,8 +217,9 @@ if (SECTIONS.has('C')) {
   const req = () => new Request('https://railisland.tw/api/thsr-seat');
 
   // C1:auth 失敗(401)——第一個測試,此時模組私有的 tok/tokExp 尚未被任何成功呼叫填過。
+  // 取權杖失敗後 30 秒內不會重打(worker.js 的 TDX_TOKEN_BACKOFF_MS),所以 C1 排在 C2 的一分鐘前,C2 才會真的去取。
   globalThis.caches = { default: makeEdgeCache() };
-  fakeNowMs = 0;
+  fakeNowMs = -60000;
   {
     const fm = makeFetchMock({ auth: 'fail' });
     globalThis.fetch = fm;

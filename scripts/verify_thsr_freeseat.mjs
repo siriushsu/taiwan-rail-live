@@ -539,8 +539,13 @@ if (SECTIONS.has('E')) {
 
     const port = await freePort();
     const inspectorPort = await freePort();
+    // --persist-to 放在樹外:wrangler.jsonc 的 assets 目錄是整棵樹(".")，本機 D1／快取的狀態檔預設寫在樹裡的
+    // .wrangler/state。每次重載都會動到那裡的 metadata.sqlite-shm，檔案監看又把它當成資產異動再重載一次；
+    // 2026-11-17 worker.js 多了 6.5 KB 之後這個迴圈就停不下來(每秒約 4 次、300 秒沒有一個請求進得去)。
+    // 同一份基準版 worker.js 只在尾巴補註解到一樣大也會這樣，所以跟 worker.js 寫了什麼無關。
     const proc = spawn('arch', ['-arm64', 'node', path.join(ROOT, 'node_modules/wrangler/bin/wrangler.js'),
-      'dev', '--local-protocol', 'https', '--port', String(port), '--inspector-port', String(inspectorPort)],
+      'dev', '--local-protocol', 'https', '--port', String(port), '--inspector-port', String(inspectorPort),
+      '--persist-to', path.join(dir, 'persist')],
     { cwd: tree, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, CI: '1' } });
     let log = '';
     proc.stdout.on('data', d => { log += d; });

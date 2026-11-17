@@ -832,6 +832,9 @@ async function runWindowAndSelfHeal() {
       // V10e 事故真正的失敗型態:token 端點回 429。取不到 token 就整窗停手——一發只打 1 次 token、
       // 0 次 DailyTimetable,不拋例外、不寫;整天只在 5 個重抓時刻各打 1 次 token。
       // token 快取在 worker.js 的模組層(tok),前面幾組已經存了一把;另 import 一份模組實例才會真的去要。
+      // 🔴 2026-11-17 起取權杖失敗後 30 秒內不會重打(worker.js 的 TDX_TOKEN_BACKOFF_MS),看的是 Date.now()。下面
+      // 「整天 429」那一段把 1440 分鐘在幾秒內跑完,照現在的寫法數不滿 5 次 token;要跑之前先讓 Date.now 跟著
+      // atMinute(m) 走(同 verify_delay_self_heal.mjs 的 H6b)。加退避那次這台沒有 fixture,這一段沒改也沒跑。
       {
         const { _thsr: freshThsr } = await import(new URL('../worker.js?v10e-empty-token-cache', import.meta.url).href);
         tokenFail = true;

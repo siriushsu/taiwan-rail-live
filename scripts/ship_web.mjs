@@ -552,6 +552,16 @@ try {
   if (traInflight.status !== 0) fail('台鐵即時刷新去重閘門未過——搭便車又會無限期等別人的 I/O，或去重被拿掉而多打 TDX'
     + '（單獨重跑：node scripts/verify_tra_live_inflight.mjs）');
 
+  // ── 2.9c2 TDX 權杖跨 isolate 共用 ─────────────────────────────────────────
+  // TDX 取權杖的端點按來源 IP 限流（每分鐘 20 次）。權杖只存在單一 isolate 的記憶體時，冷的 isolate 各打各的；
+  // 2026-11-16 起排程側一天多拿不到權杖，公告存檔、鎖屏跟車的即時資料與每日更新一起停。這種回歸不會讓畫面變紅。
+  // 驗冷的 isolate 採用 D1 那一把、同時只打一發、取不到時退避、快到期提前換新、被拒收的那把不再採用、
+  // 沒有 D1 時照舊、等待有上限。純離線（真 SQLite 的 D1 替身），約 10 秒。
+  const tdxToken = spawnSync('node', [path.join(wt, 'scripts', 'verify_tdx_token_share.mjs')], { encoding: 'utf8' });
+  process.stdout.write(tdxToken.stdout || ''); process.stderr.write(tdxToken.stderr || '');
+  if (tdxToken.status !== 0) fail('TDX 權杖共用閘門未過——冷的 isolate 又各自去取權杖，或取不到時不退避、被拒收的權杖又被交出去'
+    + '（單獨重跑：node scripts/verify_tdx_token_share.mjs）');
+
   // ── 2.9d Worker 其他共用 inflight 也不可被一發取消的 I/O 永久毒死 ──────────────
   // NCDR 災害監看與五種公車動態 key 都會跨 request 共乘上游（月台同型案例由前面的 platforms gate 守）。
   // 只傳 AbortSignal 不夠：

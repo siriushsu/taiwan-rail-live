@@ -108,24 +108,119 @@ const THSR_ALERT_URL = 'https://tdx.transportdata.tw/api/basic/v2/Rail/THSR/Aler
 // 設定這個變數(不在 wrangler.jsonc vars 裡),行為與改動前完全相同。
 function authUrl(env) { return (env && env.TDX_AUTH_URL_OVERRIDE) || AUTH_URL; }
 
+// ── TDX 權杖：跨 isolate 共用、同時只打一發、失敗後退避（2026-11-17）────────────────
+// 取權杖的端點按來源 IP 限流（每分鐘 20 次，而 Cloudflare 的出口 IP 是跟別人共用的）。權杖原本只存在單一 isolate
+// 的記憶體：每個冷的 isolate 都要自己打一次，排程一發裡約 8 個工作拿不到就各打各的。2026-11-16 11:00 起遠端機房
+// 幾乎每一發都被回 429，排程側一天多拿不到權杖。現在：
+//   ① 權杖連同到期時刻存一份在 D1（kv_blobs 的 TDX_TOKEN_KEY）。冷的 isolate 先讀它，夠新就直接用，不打 TDX。
+//   ② 快到期（過了 tokRenewAt）誰先用到誰去換新並寫回 D1；換不到就繼續用手上還沒到期的那把。
+//   ③ 同一個 isolate 同時只跑一發（tokInflight）。搭的可能是別的 request 發起的 I/O，發起者被取消時那一發永遠不會
+//      結束，所以等待有上限、超齡放掉（理由同 traLiveInflight）。手上那把還能用時，只有發起換新的那個 request 等，
+//      搭便車的直接拿手上那把走。
+//   ④ 取不到之後 TDX_TOKEN_BACKOFF_MS 內不再打 TDX；手上沒有能用的權杖時每次仍重讀 D1（別的 isolate 可能換到了）。
+//   ⑤ 呼叫端收到 401 只會把 tok 設成 null。tokLast 記著這個 isolate 採用的是哪一把，下一次進來就知道被拒的是它
+//      （tokBad）：D1 裡還是同一把就不採用，重新去取並覆寫。前一把剛被拒（TDX_TOKEN_LATE_401_MS 內）tok 又被清掉，
+//      多半是還帶著前一把的 request 的 401 慢到：不把現在這把也當成被拒，重讀 D1 把它接回來。
+// 沒有 DELAY_DB、D1 出錯、卡住不回（tokD1）或那一列不是權杖時，D1 那一步當作沒有，照舊直接向 TDX 取。
+// 守門人：scripts/verify_tdx_token_share.mjs。
+const TDX_TOKEN_KEY = 'tdx_token';
+const TDX_TOKEN_MIN_LEFT_MS = 60e3;         // 剩不到這麼久的權杖不再交出去
+const TDX_TOKEN_RENEW_LEFT_MS = 30 * 60e3;  // 剩不到這麼久就先去換新（效期很短的權杖改成剩一半時）
+const TDX_TOKEN_BACKOFF_MS = 30e3;          // 取不到之後，這麼久之內不再打 TDX
+const TDX_TOKEN_WAIT_MAX_MS = 10e3;         // 一發最多等這麼久
+const TDX_TOKEN_RECLAIM_MS = 12e3;          // 一發超過這麼久還沒結束就放掉重來（只比等待上限多一點：發起者被取消後不要讓大家多等）
+const TDX_TOKEN_D1_WAIT_MS = 3e3;           // D1 那一步（讀、寫各一次）最多等這麼久；等不到就當作沒有 D1
+const TDX_TOKEN_LATE_401_MS = 15e3;         // 前一把被拒之後這麼久之內 tok 又被清掉：當成前一把的 401 慢到
 let tok = null, tokExp = 0;
+let tokRenewAt = 0;     // 過了這個時刻就該換新
+let tokLast = null;     // 這個 isolate 目前採用的那一把
+let tokBad = null;      // 被 TDX 拒收的那一把
+let tokBadAt = 0;       // 它是什麼時候被認定拒收的
+let tokRetryAt = 0;     // 這個時刻之前不再打 TDX
+let tokErr = null;      // 最近一次取不到的錯誤（退避期間丟同一個）
+let tokInflight = null; // { p: 進行中的那一發, at: 起跑時刻 ms }
+const tokUsable = () => !!tok && Date.now() < tokExp - TDX_TOKEN_MIN_LEFT_MS;
+function tokAdopt(s) { tok = s.t; tokExp = s.exp; tokRenewAt = s.renew; tokLast = s.t; }
+// D1 卡住不回時不可以拖住取權杖（D1 出問題不該連帶讓 TDX 也用不了）：超過上限當作讀到 null／沒寫成。
+function tokD1(p) {
+  let timer;
+  return Promise.race([p, new Promise(resolve => { timer = setTimeout(() => resolve(null), TDX_TOKEN_D1_WAIT_MS); })])
+    .finally(() => clearTimeout(timer));
+}
+
 async function getToken(env) {
-  if (tok && Date.now() < tokExp - 60e3) return tok;
-  const r = await fetch(authUrl(env), {
-    method: 'POST',
-    headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'client_credentials',
-      client_id: env.TDX_CLIENT_ID,
-      client_secret: env.TDX_CLIENT_SECRET,
-    }),
-    redirect: 'manual',
-  });
-  if (!r.ok) throw new Error('tdx auth ' + r.status);
-  const d = await r.json();
-  tok = d.access_token;
-  tokExp = Date.now() + (d.expires_in || 86400) * 1000;
-  return tok;
+  const now = Date.now();
+  if (!tok && tokLast) {   // 呼叫端收到 401 把 tok 清掉了（見上方 ⑤）
+    if (now - tokBadAt >= TDX_TOKEN_LATE_401_MS) { tokBad = tokLast; tokBadAt = now; }
+    tokLast = null;
+  }
+  if (tokUsable() && (now < tokRenewAt || now < tokRetryAt)) return tok;
+  if (tokInflight && now - tokInflight.at >= TDX_TOKEN_RECLAIM_MS) tokInflight = null;
+  let mine = null;
+  if (!tokInflight) {
+    mine = { at: now, p: null };
+    mine.p = tokRefresh(env).finally(() => { if (tokInflight === mine) tokInflight = null; }); // 被放掉的舊那發晚到，不可清掉接手的新那發
+    tokInflight = mine;
+  }
+  const run = tokInflight;
+  if (run !== mine && tokUsable()) return tok;   // 別的 request 已經在換新、手上這把還能用：不等它
+  const left = run.at + TDX_TOKEN_WAIT_MAX_MS - now;
+  let err = new Error('tdx auth timeout');
+  if (left > 0) {
+    let timer;
+    err = await Promise.race([
+      run.p.then(() => null, e => e),
+      new Promise(resolve => { timer = setTimeout(() => resolve(err), left); }),
+    ]);
+    clearTimeout(timer);
+  }
+  if (tok && (!err || tokUsable())) return tok;   // 這一發成功，或沒成功但手上那把還沒到期
+  throw err || new Error('tdx auth failed');
+}
+
+async function tokRefresh(env) {
+  const db = env && env.DELAY_DB;
+  if (db) {
+    try {
+      const row = await tokD1(db.prepare('SELECT v FROM kv_blobs WHERE k=?').bind(TDX_TOKEN_KEY).first());
+      const s = row && JSON.parse(row.v);
+      if (s && typeof s.t === 'string' && s.t && s.t !== tokBad && Number.isFinite(s.exp) && Number.isFinite(s.renew)
+        && s.exp > (tokUsable() ? tokExp : Date.now() + TDX_TOKEN_MIN_LEFT_MS)) tokAdopt(s);
+    } catch (e) {}
+  }
+  const now = Date.now();
+  if (tokUsable() && now < tokRenewAt) return;
+  if (now < tokRetryAt) throw tokErr;
+  try {
+    const r = await fetch(authUrl(env), {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'client_credentials',
+        client_id: env.TDX_CLIENT_ID,
+        client_secret: env.TDX_CLIENT_SECRET,
+      }),
+      redirect: 'manual',
+    });
+    if (!r.ok) throw new Error('tdx auth ' + r.status);
+    const d = await r.json();
+    if (typeof d.access_token !== 'string' || !d.access_token) throw new Error('tdx auth 沒有 access_token');
+    const at = Date.now(), life = (d.expires_in || 86400) * 1000;
+    const s = { t: d.access_token, exp: at + life, renew: at + life - Math.min(TDX_TOKEN_RENEW_LEFT_MS, life / 2) };
+    tokAdopt(s);
+    tokRetryAt = 0;
+    if (db) {
+      try {
+        await tokD1(db.prepare("INSERT OR REPLACE INTO kv_blobs(k,v,updated) VALUES(?,?,datetime('now'))").bind(TDX_TOKEN_KEY, JSON.stringify(s)).run());
+      } catch (e) {
+        console.warn('[tdx token] 寫不進 D1（這個 isolate 照用，別的 isolate 要自己取）:', (e && e.message) || String(e));
+      }
+    }
+  } catch (e) {
+    tokErr = e;
+    tokRetryAt = Date.now() + TDX_TOKEN_BACKOFF_MS;
+    throw e;
+  }
 }
 
 const traPlatforms = createPlatformProxy({getToken,invalidateToken:()=>{tok=null;tokExp=0;}});
@@ -10424,8 +10519,8 @@ function buildBlob(rows, generatedIso) {
 // (AbortController+setTimeout,計時器一路蓋到 await r.text() 讀完 body 才在 finally 清掉,
 // 不是只蓋到回應標頭回來為止——TDX 卡在下載到一半和完全不回應是同一種故障)。429 重試是
 // 對同一個 URL 再打一次,兩次嘗試各自獨立的 controller/計時器,不共用同一顆 120 秒預算。
-// 🔴 範圍:739 秒只涵蓋這裡的歷史 API 這一段。getToken(見上方)與所有 D1 呼叫都沒有加
-// 逾時,卡住時一樣沒有上限——這不是這次加逾時造成的回歸,是既有模式(同檔 thsrSelfHeal
+// 🔴 範圍:739 秒只涵蓋這裡的歷史 API 這一段。所有 D1 呼叫都沒有加逾時,卡住時一樣沒有
+// 上限(getToken 自 2026-11-17 起最多等 TDX_TOKEN_WAIT_MAX_MS)——這不是這次加逾時造成的回歸,是既有模式(同檔 thsrSelfHeal
 // 一樣沒管)。每日 cron 那一發(15 1 * * *)的 finally 段(pruneStationEvents、
 // ingestThsrSchedule)與這裡的歷史段共用同一個 15 分鐘牆鐘:歷史段吃滿 739 秒時,留給
 // finally 段(還要扣 token、D1 的耗時)大約只剩 2.7 分鐘。加這顆逾時之前,歷史段本身
@@ -11723,6 +11818,7 @@ export const _hazard = {
 // 純函式導出,供離線回歸測試 import:逐站事件 diff 與 mem.at→台北日換算。
 export const _stationEvents = { diffTrains, twDayFromMemAt };
 export const _traAlertLog = { archiveTraAlert, ALERT_LOG_GAP_MS };
+export const _tdxToken = { getToken, TDX_TOKEN_KEY, TDX_TOKEN_BACKOFF_MS, TDX_TOKEN_WAIT_MAX_MS, TDX_TOKEN_RECLAIM_MS, TDX_TOKEN_RENEW_LEFT_MS, TDX_TOKEN_D1_WAIT_MS, TDX_TOKEN_LATE_401_MS };
 // 公車轉乘全臺台鐵站：核心 resolver 在 scripts/bus_transfer_core.mjs，這裡導出 IO 編排供 fixture 測試。
 // resetBusTransferCaches 只清本 isolate 記憶體；正式路由不會呼叫。
 export const _busTransfer = {
