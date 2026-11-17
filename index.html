@@ -7612,7 +7612,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1117d：新地景接手一陣子後換地方（放空換車、搜尋），立體列車、軌道與跟車鏡頭不再退成平坦高度掉到約 0 公尺；拉遠時軌道照樣貼新地景地形（0b61e57b9）。
 // v1117e：只動伺服器端（Worker），網頁畫面不變：營運推播雜訊修正、推播註冊收 Android、通行證每月點數與點數彙總端點、行程問答端點（/api/trip-ask*）、高鐵班表可查指定日期（/api/thsr-schedule?date=）。
 // v1117f：電腦首頁全畫面開場（序幕影片→出隧道揭幕→全畫面地圖，assets/opening）上線但開關維持關（HOME_OPENING_ON＝false），帶 ?opening=1 才播（ba2530258）。
-const BUILD = 'v1117f';
+// v1117g：新地景（帶 ?landscape=new）接手後路線不再被地形裙邊往下拉成直條（e6b065b3e）；鏡頭沒動時新地景不重畫、停著看少用 GPU（63adf4bc1，?ls.rest=0 可關；跑不動的保底 ?ls.auto=1 維持關）；被山擋住的路線改成半透明透出、不再斷成一截一截（dab5b7a96）。
+const BUILD = 'v1117g';
 // v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
@@ -39724,6 +39725,8 @@ function syncLandscapeWeb() {
       hour: () => (sunlightEnabled ? (state.simSec || 0) / 3600 : 15.2),
       date: () => window.__sunTestCtx?.date || todayStr('Asia/Taipei'),
       onFail: () => { landscapeWebFailed = true; syncLandscapeWeb(); setBasemap(); },
+      // 保底（?ls.auto=1 才會量）：像素比降到底每格還是太久，這次退回舊地景
+      onSlow: () => { landscapeWebFailed = true; syncLandscapeWeb(); setBasemap(); showToast(t('這台裝置跑新地景比較吃力，已切回原本的地景'), { wrap: true }); },
     })).catch(e => { console.warn('[地景] 新地景程式載入失敗', e); landscapeWebFailed = true; return null; });
   }
   landscapeWeb.then(lw => {

@@ -2049,7 +2049,15 @@ const drawFrame = () => {
 window.__n64 = { NC, draw: drawFrame, bloom: !!bloom };
 const fx2Size = new THREE.Vector2();
 window.__fx2 = { FX2, AO2, HS2 };
-function frame(now) {
+const rest = { on: params.get("rest") !== "0", until: 0, at: 0, hour: NaN, drawn: 0, skipped: 0, why: [0, 0, 0, 0, 0, 0, 0, 0] };
+const restGap = () => {
+  const tanHalf = 1 / camera.projectionMatrix.elements[5];
+  if (stars && stars.points.visible && view.pitch - Math.atan(tanHalf) < 0.12) return 0;
+  renderer.getDrawingBufferSize(fx2Size);
+  return Math.max(33, Math.min(250, 385 * 2 * view.dist * tanHalf / fx2Size.y));
+};
+window.__rest = rest;
+function frame(now, still = false) {
   const dt = now - lastT;
   lastT = now;
   frameT0 = performance.now();
@@ -2060,6 +2068,7 @@ function frame(now) {
   if (sample) sample(dt, now, rec);
   adaptFrame(dt, now);
   shared.uTime.value = now / 1e3;
+  const renders0 = renderer.info.render.frame, busy0 = stageQ.length > 0 || unculled.length > 0 || envDirty || shadowDirty;
   if (ride.on) rideStep(dt);
   rideUg.update(ride);
   trains.update(now);
@@ -2102,7 +2111,17 @@ function frame(now) {
       }
     }
     if (RHL) RHL.update(renderer, camera, view, night);
-    tm("render", drawFrame);
+    const why = !rest.on ? 1 : !still ? 2 : busy0 ? 3 : hour !== rest.hour ? 4 : renderer.shadowMap.needsUpdate ? 5 : renderer.info.render.frame !== renders0 ? 6 : pending() > 0 ? 7 : 0;
+    if (why) {
+      rest.why[why]++;
+      rest.until = now + 150;
+      rest.hour = hour;
+    }
+    if (now < rest.until || now - rest.at >= restGap()) {
+      rest.at = now;
+      rest.drawn++;
+      tm("render", drawFrame);
+    } else rest.skipped++;
     if (mem.geometries > g0) prof.cur.upGeo = mem.geometries - g0;
     if (mem.textures > x0) prof.cur.upTex = mem.textures - x0;
     const p1 = renderer.info.programs?.length || 0;

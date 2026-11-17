@@ -242,8 +242,10 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
       const both = async () => { const on = await rows(); await p.evaluate(() => railIslandLandscapeWeb.setFade('off')); const off = await rows(); await p.evaluate(() => railIslandLandscapeWeb.setFade()); return { on, off }; };
       // 台北車站往西南看、俯角 75°（地平線在畫面裡）：遠帶＝真地平線往下 8% 畫面高（遠處的線擠成一排的地方；再往下是 1～2 km 內、本來就不淡的線），近帶＝畫面下半
       await p.evaluate(() => { if (state.playing) togglePlay(); M.raw.jumpTo({ center: [121.5163, 25.0462], zoom: 15.7, pitch: 75, bearing: 205 }); }); await p.waitForTimeout(1500); await waitRevealed(p);
-      const st = await p.evaluate(() => { const tr = M.raw.transform; return { fade: railIslandLandscapeWeb.fade, fog: M.raw.getSky()?.['fog-ground-blend'], sky: M.raw.getSky()?.['sky-color'], lines: M.raw.railIslandDistanceFade?.strength, farOverride: !tr.autoCalculateNearFarZ, horizon: M.horizonTop(), h: tr.height }; });
+      const st = await p.evaluate(() => { const tr = M.raw.transform; return { fade: railIslandLandscapeWeb.fade, fog: M.raw.getSky()?.['fog-ground-blend'], sky: M.raw.getSky()?.['sky-color'], lines: M.raw.railIslandDistanceFade?.strength, farOverride: !tr.autoCalculateNearFarZ, horizon: M.horizonTop(), h: tr.height, skirt: M.raw.terrain?.getMeshFrameDelta(tr.zoom) }; });
       check(`${name} 新地景開著遠處淡出（立體線淡出＋地形霧＋遠平面拉近，天空透明）`, !!st.fade && st.fog < 1 && st.lines === 1 && st.farOverride && st.sky === 'rgba(0,0,0,0)', JSON.stringify(st));
+      // 底圖藏掉後地形貼圖是透明的：MapLibre 地形網格的裙邊會把貼在地形上的線往下拉成直條，接手期間裙邊高度要是 0
+      check(`${name} 新地景接手時 MapLibre 地形裙邊高度 0`, st.skirt === 0, String(st.skirt));
       const tilt = await both(), y0 = st.horizon, y1 = st.horizon + st.h * .08;
       const farOn = sum(tilt.on, y0, y1), farOff = sum(tilt.off, y0, y1), nearOn = sum(tilt.on, st.h * .5, st.h), nearOff = sum(tilt.off, st.h * .5, st.h);
       check(`${name} 俯角 75° 地平線底下那一帶的路線淡掉（淡出開／關：< 關的 25%）`, farOff > 1500 && farOn < farOff * .25, `開 ${farOn}／關 ${farOff} px`);
@@ -258,8 +260,9 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
       // 切回舊地景：霧拿掉、遠平面還給 MapLibre（舊地景的畫面不變）
       await p.evaluate(() => M.raw.jumpTo({ pitch: 75 })); await p.waitForTimeout(300);
       await p.evaluate(() => railIslandLandscapeWeb.setActive(false)); await p.waitForTimeout(500);
-      const back = await p.evaluate(() => ({ fog: M.raw.getSky()?.['fog-ground-blend'], auto: M.raw.transform.autoCalculateNearFarZ, lines: M.raw.railIslandDistanceFade ?? null }));
+      const back = await p.evaluate(() => ({ fog: M.raw.getSky()?.['fog-ground-blend'], auto: M.raw.transform.autoCalculateNearFarZ, lines: M.raw.railIslandDistanceFade ?? null, skirt: M.raw.terrain?.getMeshFrameDelta(M.raw.getZoom()) }));
       check(`${name} 切回舊地景後沒有霧、遠平面還給 MapLibre、立體線不淡`, (back.fog === undefined || back.fog === 1) && back.auto && back.lines === null, JSON.stringify(back));
+      check(`${name} 切回舊地景後地形裙邊放回`, back.skirt > 0, String(back.skirt));
       check(`${name} 遠處淡出零 pageerror`, errors.length === 0, errors.slice(0, 3).join(' | '));
       await p.close();
     }

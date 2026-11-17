@@ -38,7 +38,7 @@ function mul(a, b) {
 }
 const row = (m, r) => [m[r], m[4 + r], m[8 + r], m[12 + r]];
 
-export function attach(map, { tilesBase, hour, date, params: extra = {}, onFail, onState } = {}) {
+export function attach(map, { tilesBase, hour, date, params: extra = {}, onFail, onSlow, onState } = {}) {
   const container = map.getContainer();
   const canvas = document.createElement('canvas');
   canvas.className = 'landscape-web-canvas';
@@ -184,6 +184,28 @@ export function attach(map, { tilesBase, hour, date, params: extra = {}, onFail,
     if (next !== pr) { api.renderer.setPixelRatio(next); if (autoPr.log.length < 100) autoPr.log.push([Math.round(now), next, +share.toFixed(2)]); }
   }
 
+  // 保底（同一個開關 ?ls.auto=1，預設關）：這個視角的圖磚到齊、靜下來 1 秒後量 8 格 engine 的每格時間（畫完讀回一個像素，等 GPU 真的畫完才算）。
+  // 中位數超過 20 ms → engine 像素比降一級（2 → 1.5 → 1）再量一次；降到 1 還超過 33 ms → onSlow（網站這次退回舊地景並告訴使用者）。
+  // 門檻只看每格時間，不看顯卡型號；?ls.autoMs=<降級>,<退回> 可改（驗收用）。
+  const [PROBE_SLOW_MS, PROBE_GIVEUP_MS] = (extra.autoMs || '20,33').split(',').map(Number);
+  const probe = autoPr ? { state: 'wait', quietAt: 0, ms: [], log: [], px: new Uint8Array(4) } : null;
+  function probeFrame(t0, now) {
+    if (probe.state === 'wait') {
+      if (!revealed || api.pending() > 0 || map.isMoving()) probe.quietAt = 0;
+      else if (!probe.quietAt) probe.quietAt = now;
+      else if (now - probe.quietAt > 1000) { probe.state = 'run'; probe.ms = []; map.triggerRepaint(); }
+      return;
+    }
+    const gl = api.renderer.getContext(); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, probe.px);
+    probe.ms.push(performance.now() - t0);
+    if (probe.ms.length < 9) { map.triggerRepaint(); return; }
+    const ms = probe.ms.slice(1).sort((a, b) => a - b)[4], pr = api.renderer.getPixelRatio();   // 第一格可能帶陰影重畫與上傳，不算
+    probe.log.push([pr, +ms.toFixed(1)]);
+    if (ms > PROBE_SLOW_MS && pr > 1) { api.renderer.setPixelRatio(pr > 1.5 ? 1.5 : 1); probe.ms = []; map.triggerRepaint(); }
+    else if (ms > PROBE_GIVEUP_MS) { probe.state = 'slow'; queueMicrotask(() => onSlow?.({ ms, log: probe.log })); }
+    else probe.state = 'done';
+  }
+  let drawnMatrix = null, drawnW = 0, drawnH = 0;
   function draw() {
     if (!api || !active || !mainMatrix) return;
     if (autoPr) autoFrame(performance.now());
@@ -195,9 +217,16 @@ export function attach(map, { tilesBase, hour, date, params: extra = {}, onFail,
     const ty = api.groundAt(Er, Nr), dx = cam[0] - (Er - origin.e), dy = cam[1] - ty, dz = cam[2] + (Nr - origin.n), dist = Math.hypot(dx, dy, dz);
     view.e = Er; view.n = Nr; view.dist = dist; view.az = Math.atan2(-dx, dz); view.pitch = Math.asin(Math.max(-1, Math.min(1, dy / dist)));
     api.applyView();
-    api.frame(performance.now());
+    // 鏡頭與畫布大小都跟上一格一樣，engine 就可以不重畫（要不要畫由 engine 判斷：還在載入、重建、水面該補格時照畫）
+    const cv = api.renderer.domElement;
+    let still = revealed && !!drawnMatrix && cv.width === drawnW && cv.height === drawnH;
+    for (let i = 0; still && i < 16; i++) still = mainMatrix[i] === drawnMatrix[i];
+    drawnMatrix = mainMatrix; drawnW = cv.width; drawnH = cv.height;
+    const t0 = performance.now(), probing = probe?.state === 'run';
+    api.frame(t0, still && !probing);
     state.frames++;
     const now = performance.now();
+    if (probe && (probing || probe.state === 'wait')) probeFrame(t0, now);
     if (!revealed && ((api.pending() === 0 && [...api.tiles.values()].some(t => t.state === 'ready')) || tilesSettled(now) || now - activeSince > REVEAL_MAX_MS)) {
       revealed = true; queueMicrotask(() => { enforce(); onState?.(state); });   // 不在 MapLibre 畫這一格的途中改樣式
     }
@@ -306,6 +335,11 @@ export function attach(map, { tilesBase, hour, date, params: extra = {}, onFail,
   // 底圖圖層藏起來／放回來（記住原本的 visibility，放回時照原樣）
   const hidden = new Map(); let sig = '';
   const shouldHide = id => { const l = map.getLayer(id); if (!l || id === LAYER_ID) return false; if (HIDE_CUSTOM.has(id) || l.type === 'background') return true; return l.type !== 'custom' && BASEMAP_SOURCES.has(l.source); };
+  // MapLibre 的地形網格每一格外圍有一圈往下垂的裙邊（terrain.getMeshFrameDelta，約地球周長／2^zoom／5 公尺，補相鄰圖磚的接縫），
+  // 貼的是那一格貼圖邊緣的顏色。底圖不透明時裙邊被鄰格的地面蓋住；新地景把底圖藏掉後地形貼圖整片透明，貼在地形上的線
+  // （跟車路線、GL 路線）跨過圖磚邊界的那一點就被裙邊往下拉成一條直條，沿著邊界走的線會拉成一整片。接手期間裙邊高度設 0
+  // （透明的底圖沒有接縫要補）；setTerrain 會換一個新的 terrain 物件，所以每格對一遍，切回舊地景放回去。
+  const noSkirt = () => 0;
   function enforce() {
     if (!active || !revealed) return;
     for (const id of map.getLayersOrder()) {
@@ -313,9 +347,14 @@ export function attach(map, { tilesBase, hour, date, params: extra = {}, onFail,
       const v = map.getLayoutProperty(id, 'visibility') ?? 'visible';
       if (v !== 'none') { hidden.set(id, v); map.setLayoutProperty(id, 'visibility', 'none'); }
     }
+    const tr = map.terrain; if (tr && tr.getMeshFrameDelta !== noSkirt) { tr.getMeshFrameDelta = noSkirt; map.triggerRepaint(); }
     applyFade();
   }
-  function restore() { for (const [id, v] of hidden) if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', v); hidden.clear(); applyFade(); }
+  function restore() {
+    for (const [id, v] of hidden) if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', v); hidden.clear();
+    if (map.terrain?.getMeshFrameDelta === noSkirt) delete map.terrain.getMeshFrameDelta;
+    applyFade();
+  }
   function ensureLayer() {
     if (!active || map.isStyleLoaded?.() === undefined) return;
     try {
@@ -339,6 +378,7 @@ export function attach(map, { tilesBase, hour, date, params: extra = {}, onFail,
     setOcclusion(on) { occ.on = !!on; map.triggerRepaint(); }, // 前後對照與閘門用
     get occluderMeshes() { return occ.drawn; },
     get autoPr() { return autoPr; },   // 自動降畫質原型的狀態（沒開是 null）
+    get probe() { return probe; },     // 保底開頁量測的狀態（沒開是 null）
     get fade() { return fade; },
     setFade(level) { fade = level in FADE ? FADE[level] : FADE[FADE_DEFAULT]; applyFade(); map.triggerRepaint(); }, // 前後對照與閘門用：'conservative'／'aggressive'／'off'
     get engineDate() { return params.get('date'); },   // 這一格 MapLibre 給 custom layer 的投影矩陣（閘門比對鏡頭用）
@@ -347,7 +387,7 @@ export function attach(map, { tilesBase, hour, date, params: extra = {}, onFail,
     setActive(on) {
       on = !!on && !failed;
       if (on === active) { if (on) { ensureLayer(); enforce(); } return; }
-      active = on;
+      active = on; drawnMatrix = null;
       canvas.style.display = on ? 'block' : 'none';
       if (on) { if (!revealed) activeSince = performance.now(); ensureLayer(); enforce(); sig = map.getLayersOrder().join(); loaded.then(() => map.triggerRepaint(), () => {}); }
       else { if (map.getLayer(LAYER_ID)) map.removeLayer(LAYER_ID); if (map.getLayer(OCC_ID)) map.removeLayer(OCC_ID); restore(); syncGround(performance.now()); }
