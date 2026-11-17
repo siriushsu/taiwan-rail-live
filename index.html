@@ -7487,7 +7487,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1115a：單線會車停車等的對向車被同向待避延後時，跟著延到它進站後再開（planSameDirectionOvertakes 的 retimeDependents；例 11/15 的 2013 在龍井等 6630）。
 // v1115b：單線對向交會讓給對向車、對向車那邊卻排不出來時，改由本車在本站等（planPassStationMeets 第二輪）。
 // v1117a：地景地圖接上新的全台地景（landscape-web/，engine 取自地景工作區 4a51b7f）；預設仍是舊地景，網址帶 ?landscape=new 才用新的（LANDSCAPE_NEW_DEFAULT）。
-const BUILD = 'v1117a';
+// v1117b：新地景 engine 的 .mjs 模組原本被 .assetsignore 的 *.mjs 排除、正式站 404（v1117a 帶 ?landscape=new 只會退回舊地景），放行 landscape-web/**/*.mjs。
+const BUILD = 'v1117b';
 // v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');

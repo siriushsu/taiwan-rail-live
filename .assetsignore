@@ -63,6 +63,8 @@ ntmetro_fixtures
 # 維護腳本仍排除；日夜光影是首頁實際載入的 runtime 模組，單獨保留。
 *.mjs
 !rail-3d/environment/sun.mjs
+# 新地景（landscape-web/）的 engine 模組是頁面實際 import 的 runtime（shared/*.mjs、proj/tm2.mjs）；少了會讓新地景整個載不起來、退回舊地景（2026-11-17 v1117a 正式站實際發生）。
+!landscape-web/**/*.mjs
 # 驗證腳本順手產的截圖(verify_*.mjs 每跑一次就重寫):同樣 ephemeral,不要變成公開資產
 _shot_*.png
 _baseline_*.html
