@@ -5306,6 +5306,14 @@
   #hop .hop-snd[aria-pressed="false"] .wave { display: none; }
   #hop .hop-snd small { font-size: 11.5px; font-weight: 700; color: rgba(255,255,255,.72); letter-spacing: .5px; }
   #hop .hop-snd small:empty { display: none; }
+  /* 瀏覽器擋下自動出聲時：音樂鈕變成右下角的「開聲音」（跟左下那句話對稱），點了在開場頁直接放、不揭幕 */
+  #hop .hop-snd.ask { top: auto; right: 6.6vw; bottom: 13vh; height: 48px; padding: 0 22px; gap: 10px; border-color: #D2A12A; background: #D2A12A; color: #0b1020;
+    font-size: 15px; letter-spacing: 3px; -webkit-backdrop-filter: none; backdrop-filter: none; animation: hop-ask 2.2s ease-out infinite; }
+  #hop .hop-snd.ask svg { width: 21px; height: 21px; }
+  #hop .hop-snd.ask .wave { display: inline; }
+  #hop .hop-snd.ask .off { display: none; }
+  #hop .hop-snd.ask small { color: rgba(11,16,32,.72); letter-spacing: .5px; }
+  @keyframes hop-ask { 0% { box-shadow: 0 0 0 0 rgba(210,161,42,.6); } 70%, 100% { box-shadow: 0 0 0 18px rgba(210,161,42,0); } }
   /* 大站名牌：header 那塊的複本放大；揭幕時縮回左上角後淡掉（現行全畫面左上是時鐘，沒有站名牌） */
   #hop .hop-plate { position: absolute; left: 6.6vw; bottom: calc(13vh + 82px); transform: scale(1.7); transform-origin: 0 100%; pointer-events: none; }
   #hop .hop-plate .plate { min-width: 252px; } /* 不用 <header> 包：body.fs 會藏掉所有 header；這兩條比照 header .plate／header h1 */
@@ -5400,12 +5408,16 @@
   var HOME_OPENING_ON = false; // 預設開關；?opening=1 強制開、?opening=0 強制關
   var R = window.RI_HOME_OPENING = { eligible: false, run: false, done: false, q: [],
     after: function (fn) { if (R.run && !R.done) R.q.push(fn); else fn(); },
-    scenes: [ // name＝畫面上的地名；big＝大範圍鏡頭（挑音樂用）
-      { id: 'taipei-day', name: '臺北盆地上空', big: 1 },
-      { id: 'coast-day', name: '花東海岸・多良', big: 1 },
+    // name＝畫面上的地名；big＝大範圍鏡頭（挑音樂用）；cam＝影片的鏡頭軌跡（揭幕時地圖接在同一個鏡位）：
+    // [秒, 經度, 緯度, 鏡頭到畫面中心 m, 方位°, 俯角°]，每 2 秒一格（錄影時的鏡位，垂直視角 42°）
+    scenes: [
+      { id: 'taipei-day', name: '臺北盆地上空', big: 1, cam: [[0,121.514304,25.051569,2400,114.6,24.1],[2,121.516307,25.050847,2400,114.3,23.9],[4,121.518417,25.050273,2400,113.5,23.6],[6,121.520585,25.049792,2400,112.3,23.2],[8,121.522765,25.049346,2400,111.1,22.7],[10,121.524916,25.048876,2400,110,22.2],[12,121.527003,25.048315,2400,109.2,21.9],[14,121.52896,25.047612,2400,108.9,21.8]] },
+      { id: 'coast-day', name: '花東海岸・多良', big: 1, cam: [[0,120.953677,22.489825,420,-12,17.2],[2,120.953802,22.490375,413,-10.3,17.2],[4,120.953964,22.490917,396,-12,16],[6,120.954154,22.491452,373,-16,15.5],[8,120.954367,22.49198,347,-21.2,14.3],[10,120.954572,22.49251,324,-28.1,13.8],[12,120.954776,22.49304,306,-32.7,12.6],[14,120.95498,22.493571,289,-37.2,11.5]] },
       { id: 'garage-day', name: '車庫・阿里山林鐵', big: 0 },
-      { id: 'metro-day', name: '高架上的捷運・內湖', big: 0 },
-      { id: 'taipei-night', name: '夜裡的臺北・信義區', big: 0, night: 1 }] };
+      { id: 'metro-day', name: '高架上的捷運・內湖', big: 0, cam: [[0,121.559068,25.085027,310,118,26.4],[2,121.55933,25.084975,306,134.6,25.8],[4,121.559574,25.084881,294,142.7,25.2],[6,121.559821,25.084824,278,138.7,24.1],[8,121.560069,25.084771,261,132.9,22.9],[10,121.560309,25.084691,246,132.4,21.8],[12,121.560549,25.084614,234,129.5,21.2],[14,121.56079,25.084536,223,126.6,20.6]] },
+      // 夜景從網站本身錄（新地景、日照開著）：錄影時就用 camSync 同一條換算擺地圖，cam 回放就是錄影當時的鏡位
+      { id: 'wenhu-night', name: '夜裡的文湖線・六張犁', big: 0, night: 1, cam: [[0,121.547468,25.026641,980,63,15],[2,121.54776,25.026491,969,62.1,15.2],[4,121.54837,25.026178,946,60.4,15.5],[6,121.549169,25.025767,916,57.9,16],[8,121.550031,25.025324,884,55.2,16.5],[10,121.550829,25.024915,853,52.5,17],[12,121.551434,25.024604,831,50.3,17.3],[14,121.55172,25.024457,820,49.3,17.5]] },
+      { id: 'tamsui-night', name: '夜裡的淡水信義線・圓山', big: 0, night: 1, cam: [[0,121.52372,25.081165,900,170,15],[2,121.523589,25.080862,891,169.3,15.2],[4,121.523316,25.080228,872,167.9,15.5],[6,121.522959,25.079397,848,166,16],[8,121.522573,25.078502,822,164,16.5],[10,121.522216,25.077673,797,162.1,17],[12,121.521945,25.077044,779,160.7,17.3],[14,121.521817,25.076747,770,160,17.5]] }] };
   try {
     var qs = new URLSearchParams(location.search), ov = qs.get('opening');
     if (!(ov === '1' || (ov !== '0' && HOME_OPENING_ON))) return;
@@ -5417,7 +5429,7 @@
     R.eligible = true; // 設定頁的開關只給這些人看
     if (localStorage.getItem('ri-home-opening') === '0') return;
     // 帶任何其他參數（分享的列車、車站、行程、車庫、說明、帳號、場景…）都直接進地圖
-    var keep = /^(opening|lang|map|landscape|utm_\w+|fbclid|gclid)$/, deep = false;
+    var keep = /^(opening|lang|map|landscape|ls\.\w+|utm_\w+|fbclid|gclid)$/, deep = false;
     qs.forEach(function (v, k) { if (!keep.test(k)) deep = true; });
     if (deep) return;
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -5430,7 +5442,10 @@
 
     var h = new Date().getHours();
     try { h = +new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Taipei', hour: 'numeric', hourCycle: 'h23' }).format(new Date()) % 24; } catch (e) {}
-    R.night = h >= 18 || h < 6;
+    // 夜景只給揭幕後地圖也是夜色的人：日夜光影開著才照真實時間（同 sunlightPreference：暗色外觀預設開、明亮外觀預設關，各自記住手動選擇）
+    var dk = document.documentElement.getAttribute('data-theme') === 'dark', sp = null;
+    try { sp = localStorage.getItem('trainmap-sunlight-v2' + (dk ? '-dark' : '-light')); } catch (e) {}
+    R.night = (h >= 18 || h < 6) && (sp === '1' || (sp !== '0' && dk));
     R.pool = R.scenes.filter(function (s) { return !!s.night === R.night; });
     var last = localStorage.getItem('ri-home-opening-last');
     var pick = R.pool.filter(function (s) { return s.id !== last; });
@@ -7613,9 +7628,12 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1117e：只動伺服器端（Worker），網頁畫面不變：營運推播雜訊修正、推播註冊收 Android、通行證每月點數與點數彙總端點、行程問答端點（/api/trip-ask*）、高鐵班表可查指定日期（/api/thsr-schedule?date=）。
 // v1117f：電腦首頁全畫面開場（序幕影片→出隧道揭幕→全畫面地圖，assets/opening）上線但開關維持關（HOME_OPENING_ON＝false），帶 ?opening=1 才播（ba2530258）。
 // v1117g：新地景（帶 ?landscape=new）接手後路線不再被地形裙邊往下拉成直條（e6b065b3e）；鏡頭沒動時新地景不重畫、停著看少用 GPU（63adf4bc1，?ls.rest=0 可關；跑不動的保底 ?ls.auto=1 維持關）；被山擋住的路線改成半透明透出、不再斷成一截一截（dab5b7a96）。
-const BUILD = 'v1117g';
+// v1118a：電腦首頁開場改版——開場頁就出聲（被擋就給「開聲音」）、揭幕後進新地景且鏡頭接在影片那一格、跑不動的保底打開（等同 ?ls.auto=1）；夜景換成文湖線、淡水信義線兩段。開關仍關，只有 ?opening=1 才播。
+const BUILD = 'v1118a';
 // v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
+// 有播電腦首頁開場的這一趟，揭幕後是新地景（開場影片就是新地景錄的）；只這一趟，不寫地景偏好
+const OPENING_LANDSCAPE = !!(window.RI_HOME_OPENING && window.RI_HOME_OPENING.run);
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
@@ -8408,7 +8426,7 @@ function createMaplibreEngine(containerId, view) {
   // 幾毫秒後再 setStyle 成暗色,飛行中的亮色樣式請求會被中止,MapLibre 對那份已卸下的 Style 印 AbortError(沒有監聽者接得到)。
   // FOUC 腳本在 <head> 就已把偏好套成 html[data-theme],開機時拿它當初值,暗色偏好從第一份樣式就是暗色。
   let styleKind = (state.mapDark || document.documentElement.getAttribute('data-theme') === 'dark') ? 'dark' : 'light';
-  try { if (LANDSCAPE_REQUESTED || localStorage.getItem('trainmap-basemap') === 'landscape') { state.basemap = styleKind = 'landscape'; } } catch (e) {}
+  try { if (LANDSCAPE_REQUESTED || OPENING_LANDSCAPE || localStorage.getItem('trainmap-basemap') === 'landscape') { state.basemap = styleKind = 'landscape'; } } catch (e) {}
   let tileHook = null; // M1a:每個 raster tile 請求(含重試)呼叫一次,由 setTileRequestHook 裝上(Esri 記帳)
   let styleLoaded = false; // M1a:style JSON 載好就 true(自己記;raw.isStyleLoaded() 要等圖磚與 sprite 全到,圖磚在飛時恆 false,拿它當「可以加層了」會漏裝)
   const raw = new maplibregl.Map({
@@ -39703,7 +39721,7 @@ const LANDSCAPE_NEW_DEFAULT = false;
 const LANDSCAPE_Q = new URLSearchParams(location.search);
 // 自動化瀏覽器（navigator.webdriver）不論預設都走舊地景：既有的地景閘門量的是舊圖層（山影、worldcover、3D 建物、隧道口）；新地景由 verify_landscape_web 帶 ?landscape=new 驗。
 // ?landscape=new／old 記在這個分頁（sessionStorage）：開頁後網址會被改寫掉查詢字串（跟車、clearFollow），重新整理或手機瀏覽器自己重載時要照樣是同一個
-const LANDSCAPE_PICK = (() => { const q = LANDSCAPE_Q.get('landscape'); try { if (q === 'new' || q === 'old') sessionStorage.setItem('landscape-pick', q); return q || sessionStorage.getItem('landscape-pick'); } catch (e) { return q; } })();
+const LANDSCAPE_PICK = (() => { const q = LANDSCAPE_Q.get('landscape'); try { if (q === 'new' || q === 'old') sessionStorage.setItem('landscape-pick', q); return q || (OPENING_LANDSCAPE ? 'new' : sessionStorage.getItem('landscape-pick')); } catch (e) { return q || (OPENING_LANDSCAPE ? 'new' : null); } })();
 const LANDSCAPE_OLD = LANDSCAPE_PICK === 'old' || (LANDSCAPE_PICK !== 'new' && (!LANDSCAPE_NEW_DEFAULT || navigator.webdriver));
 let landscapeWeb = null, landscapeWebFailed = false;
 function landscapeWebTiles() {
@@ -39719,6 +39737,7 @@ function syncLandscapeWeb() {
   if (!want && !landscapeWeb) return;
   if (!landscapeWeb) {
     const extra = {}; for (const [k, v] of LANDSCAPE_Q) if (k.startsWith('ls.')) extra[k.slice(3)] = v; // ?ls.<參數>＝原樣交給地景 engine（量測、對照用）
+    if (OPENING_LANDSCAPE && !('auto' in extra)) extra.auto = '1'; // 開場進新地景的這一趟：跑不動的保底打開（等同 ?ls.auto=1）
     landscapeWeb = import('./landscape-web/site.js').then(m => m.attach(M.raw, {
       tilesBase: landscapeWebTiles(), params: extra,
       // 「日夜光影」關＝固定午後光線（跟舊地景均勻照明同義、列車也不開夜燈），開＝跟地圖時刻；日期跟網站日夜光影同一天（sunlightContextNow）
@@ -42552,6 +42571,7 @@ async function boot() {
   try { const ts = localStorage.getItem('trainmap-track'); if (ts === 'faint' || ts === 'hidden') state.trackStyle = ts; } catch (e) {}
   try { state.basemap = onlineBasemapsAvailable() && ['sat', 'landscape'].includes(localStorage.getItem('trainmap-basemap')) ? localStorage.getItem('trainmap-basemap') : 'map'; } catch (e) {}
   if (LANDSCAPE_REQUESTED) { state.basemap = 'landscape'; try { localStorage.setItem('trainmap-basemap', 'landscape'); } catch (e) {} }
+  else if (OPENING_LANDSCAPE && onlineBasemapsAvailable()) state.basemap = 'landscape';
   try { state.immersive = localStorage.getItem('trainmap-immersive') === '1'; } catch (e) {}
   try { state.xingOn = localStorage.getItem('trainmap-xing') === '1'; } catch (e) {}
   try { state.stnIntro = state.stnIntroPref = localStorage.getItem('trainmap-stn-intro') === '1'; } catch (e) {} // 特殊站介紹:預設關,使用者開過才記 '1'
@@ -42867,6 +42887,7 @@ function saveLastView() {
   // 小工具蓋章把畫面切到全台的那一段(見 widgetCheckinStart)：那是為了讓人看到蓋章結果,不是他挑的分頁,
   // 記下來的話下次開 App 會落在全台、地圖中心也變成蓋章那一刻的位置。旗會在人自己換群組時放掉(selectGroup)。
   if (state._lastViewHold) return;
+  if (window.RI_HOME_OPENING && window.RI_HOME_OPENING.run && !window.RI_HOME_OPENING.done) return; // 開場幕後跟著影片擺的鏡頭不是他挑的
   const g = GROUPS.find(x => x.id === state.group);
   if (!g) return;
   const sel = g.mode === 'freq' ? state.freqSel : g.mode === 'sched' ? state.schedSel : null;
@@ -44086,24 +44107,41 @@ window.addEventListener('load', boot);
   const t0 = performance.now();
 
   // 音樂：小範圍鏡頭抽 Evening Interchange／Peaceful Piano，大範圍抽 Moonlake／Peaceful Piano；揭幕後交回網站自己的播放器
+  // 開場一出現就試著出聲（瀏覽器放行就在序幕淡入）；被擋就把音樂鈕換成「開聲音」，點了在序幕直接放。
+  // 都沒點、直接按鍵進入的人照舊：那一拍以音量 0 開播，揭幕再淡入。揭幕時已經在放的就接著放，不重來。
   const NAMES = { '_pass/urban-jazz/Evening Interchange.mp3': 'Evening Interchange', 'Moonlake/Untitled-5.mp3': 'Moonlake',
     'peaceful piano/Inspired by peaceful piano.mp3': 'Peaceful Piano' };
   const pool = cur.big ? ['Moonlake/Untitled-5.mp3', 'peaceful piano/Inspired by peaceful piano.mp3']
     : ['_pass/urban-jazz/Evening Interchange.mp3', 'peaceful piano/Inspired by peaceful piano.mp3'];
   const track = pool[Math.floor(Math.random() * pool.length)], trackName = NAMES[track];
   const musicOk = () => !!(state.music && state.music.enabled && musicAvailable());
-  const arm = () => { // 在使用者按鍵／點擊那一拍以音量 0 開播（瀏覽器才認得是手勢），序幕維持無聲，揭幕再淡入
+  let audible = false, asked = false;
+  const load = () => {
     const m = state.music;
-    if (armed || !musicOk()) return;
-    armed = true;
     m.list = [track].concat(m.list.filter(f => f !== track)); m.idx = 0; m._fails = 0;
-    clearInterval(m._fade); musicLoadCur(); m.audio.volume = 0;
-    const p = m.audio.play(); if (p && p.catch) p.catch(() => { armed = false; });
+    // 被擋過再點「開聲音」：同一首已經在載，不重設 src（重設＝重抓整首，點了要等兩三秒才出聲）
+    clearInterval(m._fade); if (m.audio.setTrack || m.audio.getAttribute('src') !== musicSrc(track)) musicLoadCur(); m.audio.volume = 0;
+  };
+  const arm = () => { // 在使用者按鍵／點擊那一拍以音量 0 開播（瀏覽器才認得是手勢），揭幕再淡入
+    const m = state.music;
+    if (audible || !musicOk()) return;
+    if (!armed) { armed = true; load(); }
+    const p = m.audio.play(); if (p && p.catch) p.catch(() => { if (!audible) armed = false; });
+  };
+  const sound = gesture => { // 在序幕就出聲；gesture＝這一拍是使用者點的
+    const m = state.music;
+    if (audible || leaving || !musicOk()) return;
+    if (!armed) { armed = true; load(); }
+    const ok = () => { if (leaving || audible || !m.enabled) return; audible = true; asked = false; musicRamp(m.vol, 2000); sndSync(); };
+    const p = m.audio.play();
+    if (p && p.then) p.then(ok, () => { if (audible) return; armed = false; if (!gesture && !leaving) { asked = true; sndSync(); } });
+    else ok();
   };
   const fadeIn = () => {
+    const m = state.music;
+    if (audible) { showToast(t('正在播放　{name}', { name: trackName })); return; }
     if (!armed) arm();
     if (!armed) return;
-    const m = state.music;
     const go = () => { if (!m.enabled) return; musicRamp(m.vol, 2000); showToast(t('正在播放　{name}', { name: trackName })); };
     if (!m.audio.paused) go(); else m.audio.addEventListener('playing', go, { once: true });
   };
@@ -44132,26 +44170,37 @@ window.addEventListener('load', boot);
   snd.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18V6L7.5 9.5z"/>'
     + '<path class="wave" d="M15.5 9a4.2 4.2 0 0 1 0 6M18 6.5a7.6 7.6 0 0 1 0 11"/><path class="off" d="M16 9.5l5 5M21 9.5l-5 5"/></svg><span></span><small></small>';
   const sndSync = () => {
-    const on = musicOk();
-    snd.setAttribute('aria-pressed', String(on));
-    snd.querySelector('span').textContent = on ? t('音樂 開') : t('音樂 關');
-    snd.querySelector('small').textContent = on ? t('進入後播放　{name}', { name: trackName }) : '';
+    const on = musicOk(), ask = on && asked && !audible;
+    snd.classList.toggle('ask', ask);
+    snd.setAttribute('aria-pressed', String(on && !ask));
+    snd.querySelector('span').textContent = ask ? t('開聲音') : on ? t('音樂 開') : t('音樂 關');
+    snd.querySelector('small').textContent = ask ? trackName : !on ? ''
+      : audible ? t('正在播放　{name}', { name: trackName }) : t('進入後播放　{name}', { name: trackName });
   };
-  snd.addEventListener('click', e => { // 只切音樂偏好（跟網站音樂鈕同一個記憶），不揭幕
+  snd.addEventListener('click', e => { // 開／關音樂（跟網站音樂鈕同一個記憶），不揭幕；開的話在序幕就放
     e.stopPropagation();
     const m = state.music; if (!m || !musicAvailable()) return;
-    m.enabled = !m.enabled; saveMusicPref(); updateMusicBtn(); sndSync();
-    if (!m.enabled && armed) { clearInterval(m._fade); m.audio.pause(); armed = false; }
+    if (m.enabled && audible) {
+      m.enabled = false; audible = false; saveMusicPref(); updateMusicBtn(); musicRamp(0, 500, true); sndSync();
+      return;
+    }
+    if (!m.enabled) { m.enabled = true; saveMusicPref(); updateMusicBtn(); }
+    sound(true); sndSync();
   });
   if (!musicAvailable()) snd.hidden = true;
   sndSync();
   root.append(tx, goEl, snd);
   requestAnimationFrame(() => root.classList.add('hop-main'));
+  sound(false);
 
-  // 白天每段播完換一段（不連續重複）；下一段在快播完時才開始載
+  // 每段播完換一段（不連續重複）；下一段在快播完時才開始載
+  let plan = null; // 下一段可以先決定（車庫段時地圖先擺到下一段的鏡位）
+  const pickNext = () => {
+    if (!plan) { const cands = R.pool.filter(s => s.id !== cur.id); plan = cands[Math.floor(Math.random() * cands.length)]; }
+    return plan;
+  };
   const prepNext = () => {
-    const cands = R.pool.filter(s => s.id !== cur.id);
-    nextSc = cands[Math.floor(Math.random() * cands.length)];
+    nextSc = pickNext(); plan = null;
     nextEl = R.video(nextSc);
     nextEl.querySelector('video').autoplay = false;
     st.insertBefore(nextEl, scrim);
@@ -44172,11 +44221,52 @@ window.addEventListener('load', boot);
     if (R.pool.length < 2) return;
     const v = sc.querySelector('video');
     v.addEventListener('timeupdate', () => { if (!nextEl && !leaving && v.duration && v.currentTime > v.duration - 4) prepNext(); });
-    v.addEventListener('ended', swap, { once: true });
+    // 新地景還沒接手就先不換段、這段重播：換段＝地圖換地方、圖磚從頭載，揭幕時又會是舊地景
+    const onEnd = () => {
+      if (!leaving && !landOk()) {
+        try { v.currentTime = 0; const p = v.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {}
+        v.addEventListener('ended', onEnd, { once: true }); return;
+      }
+      swap();
+    };
+    v.addEventListener('ended', onEnd, { once: true });
   };
   wire(curEl);
 
-  // 地圖在後面載：state.ready → 圖磚 → 3D 列車；金線跟著走。ready 之後最多再等 8 秒，整體 30 秒一定放行
+  // 地圖鏡頭跟著影片：這一趟揭幕後是新地景，幕後先把地圖擺到這段影片中間的鏡位、讓圖磚先載，揭幕那一下才對準當下那一格。
+  // 幕後每換一段只擺一次：每秒跟著挪的話鏡頭一直在動，新地景的圖磚永遠「沒到齊」，揭幕時還是舊地景。
+  // 影片鏡位是垂直視角 42° 錄的、畫面鋪滿（object-fit: cover）；地圖換算成同樣框到的範圍。車庫那段不是實景，地圖留在原本的全台。
+  const camAt = (sc, t) => {
+    const c = sc && sc.cam; if (!c) return null;
+    let i = 0; while (i < c.length - 2 && t > c[i + 1][0]) i++;
+    const a = c[i], b = c[i + 1], u = Math.max(0, Math.min(1, (t - a[0]) / (b[0] - a[0])));
+    return a.map((x, k) => x + (b[k] - x) * u);
+  };
+  let camFor = null;
+  const camSync = exact => {
+    try {
+      if (!M || !M.raw || !state.ready) return;
+      const sc = exact || cur.cam || R.pool.length < 2 ? cur : pickNext(); // 車庫段不是實景：地圖先擺到下一段，換過去時圖磚已經到齊
+      if (!exact && camFor === sc) return;
+      camFor = sc;
+      const v = curEl.querySelector('video'), r = camAt(sc, exact ? (v ? v.currentTime || 0 : 0) : 7);
+      if (!r) return;
+      const [, lng, lat, dist, az, elev] = r, W = M.raw.transform.width, H = M.raw.transform.height;
+      const fv = Math.min(1, (H / W) * (16 / 9)); // 畫面比 16:9 寬時影片上下被裁，看到的高度只剩這個比例
+      const zoom = Math.log2(2 * Math.PI * 6371008.8 * Math.cos(lat * Math.PI / 180) * H / (1024 * dist * Math.tan(21 * Math.PI / 180) * fv));
+      M.raw.jumpTo({ center: [lng, lat], zoom, bearing: az, pitch: Math.min(75, 90 - elev) });
+    } catch (e) {}
+  };
+  let camIv = 0;
+  const landOk = () => { // 新地景接手了（或開不起來、已退回舊地景）
+    try {
+      if (typeof landscapeWebWanted !== 'function' || !landscapeWebWanted()) return true;
+      const lw = window.railIslandLandscapeWeb; return !!(lw && (lw.revealed || lw.failed));
+    } catch (e) { return true; }
+  };
+
+  // 地圖在後面載：state.ready → 圖磚 → 3D 列車（新地景那一趟再加地景接手）；金線跟著走。
+  // ready 之後最多再等 8 秒（新地景 20 秒：臺北市區那幾個鏡位圖磚要 11～17 秒才到齊），整體 30 秒一定放行
   const enterFs = () => { // 揭幕前先排成現行網站的全畫面地圖；只用 CSS 版，不叫瀏覽器真全螢幕
     fsDone = true;
     if (!state._setFs || document.body.classList.contains('fs')) return;
@@ -44188,13 +44278,14 @@ window.addEventListener('load', boot);
     let target = document.readyState === 'complete' ? 0.35 : 0.22;
     if (state.ready) {
       if (!fsDone) enterFs();
-      if (!readyAt) readyAt = performance.now();
+      if (!readyAt) { readyAt = performance.now(); camSync(false); camIv = setInterval(() => camSync(false), 1000); }
       let tiles = false;
       try { tiles = !!(M.raw && M.raw.isStyleLoaded() && M.raw.areTilesLoaded()); } catch (e) {}
       const ri = window.railIslandIntegration;
       const trains = !ri || ri.active || ri.deferred || (ri.errors && ri.errors.length > 0);
-      target = 0.6 + (tiles ? 0.2 : 0) + (trains ? 0.15 : 0);
-      if ((tiles && trains) || performance.now() - readyAt > 8000) ready = true;
+      const land = landOk(), landWanted = typeof landscapeWebWanted === 'function' && landscapeWebWanted();
+      target = 0.6 + (tiles ? 0.15 : 0) + (trains ? 0.1 : 0) + (land ? 0.1 : 0);
+      if ((tiles && trains && land) || performance.now() - readyAt > (landWanted ? 20000 : 8000)) ready = true;
     }
     if (performance.now() - t0 > 30000) ready = true;
     progF = ready ? 1 : Math.max(progF, progF + (target - progF) * 0.25);
@@ -44224,6 +44315,7 @@ window.addEventListener('load', boot);
     if (leaving) return;
     leaving = true;
     if (!fsDone && state.ready) enterFs();
+    clearInterval(camIv); camSync(true); // 揭幕那一下對準影片這一格
     removeEventListener('keydown', onKey, true);
     root.classList.add('leaving', 'iris');
     if (plate) {

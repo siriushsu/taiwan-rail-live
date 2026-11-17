@@ -110,7 +110,7 @@ export function attach(map, { tilesBase, hour, date, params: extra = {}, onFail,
     el: id => { if (id === 'view') return canvas; let e = els.get(id); if (!e) els.set(id, e = document.createElement(id === 'time' || id === 'detail' ? 'input' : 'div')); return e; },
     status: t => { lastStatus = t; onState?.(state); },
     w: () => size.w, h: () => size.h,
-    onResize: fn => resizeFns.push(fn),
+    onResize: fn => { resizeFns.push(fn); fn(); }, // engine 讀尺寸到掛上這個之間要等網路，那段時間容器變過大小（例如切全畫面）也要跟上
     camera: setCamera,
     ready: a => { api = a; },
   };
