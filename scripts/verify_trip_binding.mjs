@@ -1247,7 +1247,7 @@ function findLedgerDb(dbDir) {
   throw new Error('找不到 local TRTC_LEDGER SQLite');
 }
 
-let vtree = null, fixtureProc = null, workerProc = null;
+let vtree = null, persistDir = null, fixtureProc = null, workerProc = null;
 process.on('exit', () => { fixtureProc?.kill('SIGTERM'); workerProc?.kill('SIGTERM'); }); // 例外從計時器或事件丟出、或中途 process.exit() 時 finally 收不到
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => process.exit(1)); // 單打 pid 的 kill／pkill -f 不會觸發 'exit'，轉成 process.exit 讓上一行收得到
 if (process.env.TRTC_BIND_SKIP_R4 === '1') {
@@ -1258,6 +1258,8 @@ try {
   // 起 wrangler dev 有落入重載風暴(~5次/秒,永遠不服務)的實測前例;HEAD 已含工項1-3(剛提交的三顆)。
   const scratchBase = process.env.TRIP_BIND_SCRATCH_DIR || os.tmpdir();
   vtree = fs.mkdtempSync(path.join(fs.realpathSync(scratchBase), 'trip-binding-vtree-'));
+  // 本機狀態檔(D1、快取)放樹外:留在樹裡會被資產監看當成異動、無限重載(說明見 verify_thsr_freeseat.mjs 的 startServer)。
+  persistDir = fs.mkdtempSync(path.join(fs.realpathSync(scratchBase), 'trip-binding-persist-'));
   execFileSync('git', ['worktree', 'add', '--detach', vtree, 'HEAD'], { cwd: ROOT, encoding: 'utf8' });
   fs.symlinkSync(path.join(ROOT, 'node_modules'), path.join(vtree, 'node_modules'));
   if (fs.existsSync(path.join(ROOT, '.env'))) fs.symlinkSync(path.join(ROOT, '.env'), path.join(vtree, '.env'));
@@ -1273,10 +1275,11 @@ try {
   workerProc = spawn('arch', ['-arm64', process.execPath, path.join(vtree, 'node_modules/wrangler/bin/wrangler.js'),
     'dev', '--local-protocol', 'https', '--port', String(WORKER_PORT), '--inspector-port', String(INSPECTOR_PORT), '--test-scheduled',
     '--var', 'TRTC_API_USER:fixture-user', '--var', 'TRTC_API_PASS:fixture-pass',
-    '--var', `TRTC_API_BASE:${FIXTURE}`, '--var', 'TRTC_BOARD_SAMPLE_DELAY_MS:0'],
+    '--var', `TRTC_API_BASE:${FIXTURE}`, '--var', 'TRTC_BOARD_SAMPLE_DELAY_MS:0',
+    '--persist-to', persistDir],
     { cwd: vtree, stdio: ['ignore', 'pipe', 'pipe'] });
   await waitForHttp(`${BASE}/api/delay-stats`, 300000, workerProc);
-  const dbDir = path.join(vtree, '.wrangler/state/v3/d1/miniflare-D1DatabaseObject');
+  const dbDir = path.join(persistDir, 'v3/d1/miniflare-D1DatabaseObject');
 
   // Round 1(slot s02,08:17:56 台北)
   jsonCurl(`${FIXTURE}/__config?slot=s02&advance=1`, ['-X', 'POST']);
@@ -1459,6 +1462,7 @@ try {
     try { execFileSync('git', ['worktree', 'remove', '--force', vtree], { cwd: ROOT, encoding: 'utf8' }); }
     catch (e) { note('R4 worktree 清理失敗(不影響驗收結果,需手動清)', `${vtree}:${(e && e.message) || e}`); }
   }
+  if (persistDir) fs.rmSync(persistDir, { recursive: true, force: true });
 }
 
 say(`\n${failures ? `FAIL ${failures}` : 'PASS'}: 逐班綁定器 R1/R2/R3/R4/R7a/R7b/R8/R11/R12 驗收完成(v1.1)`);

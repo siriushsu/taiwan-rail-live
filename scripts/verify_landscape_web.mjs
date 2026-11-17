@@ -263,6 +263,32 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
       check(`${name} 遠處淡出零 pageerror`, errors.length === 0, errors.slice(0, 3).join(' | '));
       await p.close();
     }
+    // 9. 接手一陣子之後才換地方（放空換車、搜尋、拖過去）：新地景接手時 rail-3d 的地面問新地景（map.railIslandGround），
+    //    換過去那一刻中心那點的圖磚還沒到。rail-3d 不能因此退成平坦高度——退了列車、軌道、跟車鏡頭都掉到約 0 公尺
+    //    （v1117c：接手 12 秒後一換地方就永久退成平坦，潮州高架站的列車畫在站房下方）。潮州是高架站：畫面裡高架段的列車要在地面以上。
+    {
+      const { p, errors } = await open(browser, 'map=landscape&landscape=new&g=all&' + AT);
+      await waitRevealed(p);
+      await p.waitForTimeout(14000);   // 超過 rail-3d 的 DEM 等待（map3d.js DEM_WAIT_MS＝12 秒）
+      await p.evaluate(() => M.raw.jumpTo({ center: [120.5361, 22.5497], zoom: 16, pitch: 50 }));
+      await p.waitForTimeout(1500); await waitRevealed(p); await p.waitForTimeout(2000);
+      const r = await p.evaluate(() => {
+        const st = railIslandIntegration.renderer.stats, m = M.raw, c = m.getCenter().toArray(), g = m.railIslandGround;
+        const bridge = st.poseSamples.filter(s => s.level?.kind === 'bridge' && Math.hypot(s.coordinate[0] - c[0], s.coordinate[1] - c[1]) < .02)
+          .map(s => ({ label: s.label, h: +s.displayHeightM.toFixed(1), ground: g ? +g.at(s.coordinate[0], s.coordinate[1]).toFixed(1) : null }));
+        return { demUnavailable: st.demUnavailable, lastError: st.errors.at(-1) || null, ground: !!g, bridge };
+      });
+      check(`${name} 接手後換到潮州：rail-3d 沒有退成平坦高度`, r.ground && !r.demUnavailable, JSON.stringify(r));
+      check(`${name} 潮州畫面裡高架段的列車都在地面以上（${r.bridge.length} 列）`, r.bridge.every(x => Number.isFinite(x.ground) && x.h > x.ground), JSON.stringify(r.bridge));
+      // 拉遠（z11.5）直接換到沒去過的地方：近景與第一層遠景只載鏡頭附近，畫面上大半的地面是上層遠景塊（L2、L3）。
+      // 軌道每一點都要問得到地面（v1117c 只認第一層，瑞和這樣看畫面九成問不到，軌道只畫出三成，12 秒後還退成平坦高度）
+      await p.evaluate(() => M.raw.jumpTo({ center: [121.165, 22.953], zoom: 11.5, pitch: 60 }));
+      await p.waitForTimeout(1500); await waitRevealed(p); await p.waitForTimeout(14000);
+      const z = await p.evaluate(() => { const st = railIslandIntegration.renderer.stats; return { zoom: +M.raw.getZoom().toFixed(1), demUnavailable: st.demUnavailable, railSegments: st.railSegments, farMissingSamples: st.farMissingSamples }; });
+      check(`${name} 拉遠換到瑞和：軌道每一點都問得到地面、沒有退成平坦高度`, !z.demUnavailable && z.railSegments > 0 && z.farMissingSamples === 0, JSON.stringify(z));
+      check(`${name} 換地方零 pageerror`, errors.length === 0, errors.slice(0, 3).join(' | '));
+      await p.close();
+    }
   } finally { await browser.close(); }
 }
 server.kill();

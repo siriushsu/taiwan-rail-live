@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // B1 V1–V9 一鍵驗收。全程只連本機 fixture / Wrangler，不呼叫真實北捷上游。
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawn, execFileSync } from 'node:child_process';
@@ -176,8 +177,10 @@ async function waitForHttp(url, timeoutMs, child) {
   }
 }
 
+// 本機狀態檔(D1、快取)放樹外:留在樹裡會被資產監看當成異動、無限重載(說明見 verify_thsr_freeseat.mjs 的 startServer)。
+let persistDir = null;
 function findLedgerDb() {
-  const dir = path.join(ROOT, '.wrangler/state/v3/d1/miniflare-D1DatabaseObject');
+  const dir = path.join(persistDir, 'v3/d1/miniflare-D1DatabaseObject');
   for (const file of fs.existsSync(dir) ? fs.readdirSync(dir).filter(f => f.endsWith('.sqlite') && f !== 'metadata.sqlite') : []) {
     const db = new DatabaseSync(path.join(dir, file));
     try { db.prepare('SELECT COUNT(*) FROM trtc_events').get(); return db; } catch { db.close(); }
@@ -281,13 +284,15 @@ async function run() {
   for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => process.exit(1)); // 單打 pid 的 kill／pkill -f 不會觸發 'exit'，轉成 process.exit 讓上一行收得到
   try {
     fs.rmSync(path.join(ROOT, '.wrangler'), { recursive: true, force: true });
+    persistDir = fs.mkdtempSync(path.join(os.tmpdir(), 'board-ledger-persist-'));
     fixtureProc = spawn(process.execPath, [path.join(ROOT, 'scripts/fixture_trtc_board_ledger.mjs'), String(FIXTURE_PORT)],
       { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
     await waitFor(fixtureProc, /"ready":true/, 10000);
     workerProc = spawn('arch', ['-arm64', process.execPath, path.join(ROOT, 'node_modules/wrangler/bin/wrangler.js'),
       'dev', '--local-protocol', 'https', '--port', String(WORKER_PORT), '--inspector-port', String(INSPECTOR_PORT), '--test-scheduled',
       '--var', 'TRTC_API_USER:fixture-user', '--var', 'TRTC_API_PASS:fixture-pass',
-      '--var', `TRTC_API_BASE:${FIXTURE}`, '--var', 'TRTC_BOARD_SAMPLE_DELAY_MS:0'],
+      '--var', `TRTC_API_BASE:${FIXTURE}`, '--var', 'TRTC_BOARD_SAMPLE_DELAY_MS:0',
+      '--persist-to', persistDir],
       { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
     await waitForHttp(`${BASE}/api/delay-stats`, 300000, workerProc);   // 這台實測閒置約 50 秒才能服務;兩個 session 併跑時更久
 
@@ -379,6 +384,7 @@ async function run() {
   } finally {
     if (workerProc && !workerProc.killed) workerProc.kill('SIGTERM');
     if (fixtureProc && !fixtureProc.killed) fixtureProc.kill('SIGTERM');
+    if (persistDir) fs.rmSync(persistDir, { recursive: true, force: true });
   }
 
   say(`\n${failures ? `FAIL ${failures}` : 'PASS'}: B1 V1–V9 驗收完成`);

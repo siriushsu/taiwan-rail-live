@@ -109,6 +109,16 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   // 不能放進那條熱路徑。
   function demWatch(){
     if(!terrainState.terrain){demWaitFrom=0;return;}
+    // 新地景接手時（map.railIslandGround）地面是它的圖磚，換地方時中心這一點要等圖磚到才有值。MapLibre 那條靠地形圖磚每次到貨
+    // （下面 sourcedata）把等待歸零、放棄後恢復，接手期間不聽它，所以這裡自己做：從中心問不到那一刻起算，問得到就歸零；
+    // 放棄之後問得到了就恢復、重建。少了這段，接手 12 秒後一換地方就永久退成平坦高度（列車與跟車鏡頭都掉到約 0 公尺）。
+    // 新地景的地面是查表，每次 update 問一次很便宜。
+    if(engineGround()){
+      if(Number.isFinite(terrainSample(map.getCenter().toArray()))){demWaitFrom=0;if(demUnavailable){demRecovered();dirty=true;}return;}
+      if(!demWaitFrom)demWaitFrom=performance.now();
+      if(!demUnavailable&&performance.now()-demWaitFrom>=DEM_WAIT_MS)demGaveUp('逾時');
+      return;
+    }
     if(!demWaitFrom)demWaitFrom=performance.now();
     if(demUnavailable||performance.now()-demWaitFrom<DEM_WAIT_MS)return;
     if(!Number.isFinite(terrainSample(map.getCenter().toArray())))demGaveUp('逾時');

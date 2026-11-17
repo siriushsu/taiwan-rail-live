@@ -146,9 +146,13 @@ export function attach(map, { tilesBase, hour, date, params: extra = {}, onFail,
       tmCells.set(key, c = [lo, la, e0, n0, (e1 - e0) / d, (n1 - n0) / d, (e2 - e0) / d, (n2 - n0) / d]);
     }
     const dl = lng - c[0], dp = lat - c[1], e = c[2] + c[4] * dl + c[6] * dp, n = c[3] + c[5] * dl + c[7] * dp, T = api.TILE_M;
-    if (!api.tiles.get(`E${Math.floor(e / T)}_N${Math.floor(n / T)}`)?.h && !api.fars.get(`F${Math.floor(e / (T * 4))}_${Math.floor(n / (T * 4))}`)?.h) return NaN;
-    return api.groundAt(e, n);
+    if (api.tiles.get(`E${Math.floor(e / T)}_N${Math.floor(n / T)}`)?.h || api.fars.get(`F${Math.floor(e / (T * 4))}_${Math.floor(n / (T * 4))}`)?.h) return api.groundAt(e, n);
+    // 拉遠時近景與第一層遠景只載鏡頭附近，畫面上的地面是上層遠景塊（L2、L3…，engine groundAt 也查這幾層）：到了就算載到
+    for (const [k, M] of farLevels()) if (api.fars.get(`L${k}:F${Math.floor(e / M)}_${Math.floor(n / M)}`)?.h) return api.groundAt(e, n);
+    return NaN;
   }
+  let farLv = null;
+  const farLevels = () => farLv ||= Object.entries(api.index?.farLod?.levels || {}).filter(([k]) => +k >= 2).map(([k, L]) => [k, L.blockM]).sort((a, b) => a[0] - b[0]);
   const ground = { at: groundLL, rev: 0 }; let groundSig = '', groundAt = 0;
   function syncGround(now) {
     const on = active && revealed && !!api;

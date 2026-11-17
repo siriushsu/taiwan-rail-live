@@ -94,8 +94,10 @@ async function startServer(label, workerSource) {
 
   const port = await freePort();
   const inspectorPort = await freePort();          // 預設兩邊都搶 9230，必須各給一個
+  // --persist-to 放樹外：本機狀態檔留在樹裡會被資產監看當成異動、無限重載（說明見 verify_thsr_freeseat.mjs 的 startServer）。
   const proc = spawn('arch', ['-arm64', 'node', path.join(ROOT, 'node_modules/wrangler/bin/wrangler.js'),
-    'dev', '--local-protocol', 'https', '--port', String(port), '--inspector-port', String(inspectorPort)],
+    'dev', '--local-protocol', 'https', '--port', String(port), '--inspector-port', String(inspectorPort),
+    '--persist-to', path.join(dir, 'persist')],
   { cwd: tree, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, CI: '1' } });
   let log = '';
   proc.stdout.on('data', (d) => { log += d; });
@@ -179,7 +181,7 @@ if (ctrl.ready) {
 if (RUN_MUTATION && ctrl.ready) {
   console.log(`\n===== 2 突變對照：把一處寫回 redirect:'error'（重演事故）=====`);
   const src = WORKER_SRC.toString('utf8');
-  const NEEDLE = "client_secret: env.TDX_CLIENT_SECRET,\n    }),\n    redirect: 'manual',";
+  const NEEDLE = "client_secret: env.TDX_CLIENT_SECRET,\n      }),\n      redirect: 'manual',";
   const mutated = src.replace(NEEDLE, NEEDLE.replace("'manual'", "'error'"));
   check(mutated !== src, "突變真的套用了（比對字串有對到 getTdxToken 那處）", mutated === src ? '沒對到 ⇒ 這段等於沒跑' : '');
   if (mutated !== src) {
