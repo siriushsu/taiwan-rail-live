@@ -1,26 +1,6 @@
 {
-  "updated": "2026-11-05",
+  "updated": "2026-11-17",
   "events": [
-    {
-      "id": "tra-20261013-tainan-underground-switch",
-      "source": "official",
-      "title": "臺南地下化永久軌切換，部分列車停駛",
-      "note": "10/16 晚上 10 點到隔天清晨 6 點，永康到保安一帶 18 列次停駛或截短，改公路接駁",
-      "start": "2026-10-16",
-      "end": "2026-10-17",
-      "anchor": { "kind": "station", "sys": "tra_sched", "name": "臺南" },
-      "url": "https://www.trc.com.tw/tra-tip-web/tip/tip009/tip911/newsDtl?newsNo=8ae4cac3a12c590d01a133ded9e8164c&page=0"
-    },
-    {
-      "id": "tra-20261013-tainan-last-night",
-      "source": "official",
-      "title": "最後一夜．永遠臺南",
-      "note": "臺南車站地上月台告別活動，晚上 9 點開始，145 次自強號 22:29 最後駛離",
-      "start": "2026-10-16",
-      "end": "2026-10-16",
-      "anchor": { "kind": "station", "sys": "tra_sched", "name": "臺南" },
-      "url": "https://www.trc.com.tw/tra-tip-web/tip/tip009/tip911/newsDtl?newsNo=8ae4cac3a12c590d01a1349a61941815&page=0"
-    },
     {
       "id": "tra-20261012-exam-1109",
       "source": "official",
@@ -30,16 +10,6 @@
       "end": "2026-11-09",
       "anchor": { "kind": "system", "sys": "tra_sched" },
       "url": "https://www.trc.com.tw/tra-tip-web/tip/tip009/tip911/newsDtl?newsNo=8ae4cac3a12c590d01a13011e18a09f4&page=0"
-    },
-    {
-      "id": "thsr-20261014-extra-1016",
-      "source": "official",
-      "title": "高鐵 10/16 晚間增開 2 班",
-      "note": "1555、1559 次南港開往台中，標準車廂全自由座",
-      "start": "2026-10-16",
-      "end": "2026-10-16",
-      "anchor": { "kind": "system", "sys": "thsr_sched" },
-      "url": "https://www.thsrc.com.tw/ArticleContent/2aabe3f3-4577-40ea-a9af-c59239ee37d9"
     },
     {
       "id": "trtc-20261012-kidspark-halloween",
@@ -70,16 +40,6 @@
       "end": "2026-12-13",
       "anchor": { "kind": "system", "sys": "tra_sched" },
       "url": "https://www.trc.com.tw/tra-tip-web/tip/tip009/tip911/newsDtl?newsNo=8ae4cac2a0cfb55601a0d3373b9c04fd&page=0"
-    },
-    {
-      "id": "trtc-20260924-exit-music-fest",
-      "source": "official",
-      "title": "2026出口音樂節",
-      "note": "劍潭站 3 號出口旁北藝中心戶外廣場，晚上 6 點開唱；搖滾區票 9/29–10/5 用台北捷運Go登記抽",
-      "start": "2026-10-17",
-      "end": "2026-10-17",
-      "anchor": { "kind": "station", "sys": "mrt", "name": "劍潭" },
-      "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=CC29E06A1A7F151D"
     },
     {
       "id": "trtc-20260923-xinzhongshan-art",
@@ -114,46 +74,6 @@
       "url": "https://afrch.forest.gov.tw/AllNews/0079128"
     },
     {
-      "id": "tymc-20260907-designexpo-qingpu",
-      "source": "official",
-      "title": "2026 台灣設計展",
-      "note": "青埔主展區，桃園體育園區站下車",
-      "start": "2026-09-24",
-      "end": "2026-10-11",
-      "anchor": { "kind": "station", "sys": "tymc", "name": "桃園體育園區站" },
-      "url": "https://www.tymetro.com.tw/tymetro-new/tw/_pages/news/show-2419-1.html"
-    },
-    {
-      "id": "tymc-20260907-designexpo-zhongli",
-      "source": "official",
-      "title": "2026 台灣設計展（中壢展區）",
-      "note": "環北站轉乘免費接駁車可到",
-      "start": "2026-09-24",
-      "end": "2026-10-11",
-      "anchor": { "kind": "station", "sys": "tymc", "name": "環北站" },
-      "url": "https://www.tymetro.com.tw/tymetro-new/tw/_pages/news/show-2419-1.html"
-    },
-    {
-      "id": "tymc-20260907-designexpo-train",
-      "source": "official",
-      "title": "2026 台灣設計展彩繪列車",
-      "note": "全線隨機運行，官方 App 可查它現在在哪",
-      "start": "2026-09-07",
-      "end": "2026-10-11",
-      "anchor": { "kind": "system", "sys": "tymc" },
-      "url": "https://www.tymetro.com.tw/tymetro-new/tw/_pages/news/show-2419-1.html"
-    },
-    {
-      "id": "tymc-20260921-designexpo-extra",
-      "source": "official",
-      "title": "設計展期間 A12–A21 尖峰加班車",
-      "note": "機場第一航廈到環北之間尖峰每小時多 8 列，最密 5 分鐘一班；原本南延的直達車這段期間只開到機場第二航廈",
-      "start": "2026-09-24",
-      "end": "2026-10-11",
-      "anchor": { "kind": "system", "sys": "tymc" },
-      "url": "https://www.tymetro.com.tw/tymetro-new/tw/_pages/news/show-2427-1.html"
-    },
-    {
       "id": "trtc-20260908-jingjun-venues",
       "source": "official",
       "title": "敬軍優惠 三大遊憩場館免費",
@@ -162,17 +82,6 @@
       "end": "2026-12-31",
       "anchor": { "kind": "system", "sys": "mrt" },
       "url": "https://www.metro.taipei/News_Content.aspx?n=30CCEFD2A45592BF&sms=72544237BBE4C5F6&s=267CEA86CE2AB5C2"
-    },
-    {
-      "id": "thsr-20260911-hsinchu-p3-parking",
-      "source": "official",
-      "title": "高鐵新竹站 P3 停車場新費率",
-      "note": "9/15 起 P3 每小時 60 元、每日上限 720 元；P1、P2 維持每小時 50 元、上限 350 元",
-      "start": "2026-09-15",
-      "end": "2026-10-15",
-      "endGuess": true,
-      "anchor": { "kind": "station", "sys": "thsr_sched", "name": "新竹" },
-      "url": "https://www.thsrc.com.tw/ArticleContent/88f56fb0-2613-45d8-8bec-0ccbfe72d2d3"
     },
     {
       "id": "thsr-20260911-domestic-travel-subsidy",
@@ -253,6 +162,26 @@
       "end": "2026-12-29",
       "anchor": { "kind": "station", "sys": "afr_sched", "name": "阿里山" },
       "url": "https://afrch.forest.gov.tw/AllNews/0079549"
+    },
+    {
+      "id": "afr-20261116-cheers-market",
+      "source": "official",
+      "title": "林鐵時光市集",
+      "note": "阿里山林鐵 114 歲生日系列活動，在嘉義市森林之歌辦兩天市集",
+      "start": "2026-12-12",
+      "end": "2026-12-13",
+      "anchor": { "kind": "system", "sys": "afr_sched" },
+      "url": "https://afrch.forest.gov.tw/AllNews/0079630"
+    },
+    {
+      "id": "afr-20261116-cheers-train",
+      "source": "official",
+      "title": "微醺雲端列車-山林交響曲",
+      "note": "林鐵生日系列活動的壓軸，搭阿里山火車到二萬平車站",
+      "start": "2026-12-24",
+      "end": "2026-12-25",
+      "anchor": { "kind": "station", "sys": "afr_sched", "name": "二萬平" },
+      "url": "https://afrch.forest.gov.tw/AllNews/0079630"
     }
   ]
 }

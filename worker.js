@@ -9954,7 +9954,8 @@ async function bountyVerifyTrain(env, rules, M, now, c, stat, lease) {
 // 起因：11-02 對 186 組正式錄程逐站比對，約 15% 標錯車次（App 記的是開錄那刻地圖上跟的車：搭前一班、換車沒停錄都會掛錯）。
 // 點數照給（信任接任務的人），但這些點不能當成那班車的軌跡用。判準與門檻來自那次驗證（native build/bounty-check-1102/懸賞資料可用性驗證.html）。
 // 跟判定、點數完全分開：判定 cron 跑完才跑（scheduled() 的 BOUNTY_CRON 那一支）、自己 try/catch、預算用完就停，只寫 usable／usable_at 兩欄（schema 0020）。
-// 只做台鐵：比的是「表定＋官方逐站誤點（tra_station_events）」；高鐵沒有誤點資料，誤點的班會被當成對不上，所以不挑高鐵（留 NULL）。
+// 台鐵比的是「表定＋官方逐站誤點（tra_station_events）」。高鐵沒有官方誤點，11-17 起只比表定（誤點一律當 0，判定函式不變）：
+// 誤點超過 tolSec 的高鐵班會被標成 0（寧可少收）；班表讀 thsr_sched_hist（ingestThsrSchedule 每天另存的精簡版，見 thsrArchiveDays）。
 const BOUNTY_USABLE = {
   nearKm: 0.4,       // 站里程 ±0.4 km 內的點才算在站上
   stopMps: 1.5,      // 局部速度（前後各 10 秒的位移）低於這個算停住
@@ -10099,7 +10100,7 @@ function bountyUsableFlags(rows, line, sched, events, nameOf) {
 }
 
 // 判定 cron 跑完之後接著跑（同一個子請求計數器，見 scheduled() 的 BOUNTY_CRON）：挑乘車日在 BOUNTY_USABLE.days 天內、
-// 有 ok 的台鐵列還沒標過（usable_at IS NULL）的班車，整班重算、整班重寫——遲傳的批次判 ok 之後，同一班的舊列也跟著重算。
+// 有 ok 的台鐵或高鐵列還沒標過（usable_at IS NULL）的班車，整班重算、整班重寫——遲傳的批次判 ok 之後，同一班的舊列也跟著重算。
 // 一班車：讀列 1＋讀誤點 1（同一天同一車次多人搭只讀一次）＋寫入 1 個 batch；班表與站碼兩個資產檔一個 isolate 各讀一次。
 // 比不了的（那天不在班表檔、沒有官方誤點、整段地下）照樣寫 usable_at、usable 留 NULL，下一發不再挑它。
 // 太大（ok 列的 payload 總長超過 BOUNTY_VERIFY_MAX_TRAIN_BYTES，可以跨好幾晚累積）與出錯的班車也一樣蓋掉：挑班車的順序是固定的，
@@ -10115,30 +10116,33 @@ async function bountyUsableCron(env0) {
   if (!room()) { stat.budgetStop = true; stat.subreq = ctr.n; return stat; }
   const since = isoFromDate(new Date(now + 8 * 3600e3 - U.days * 86400e3));
   const list = (await env.DELAY_DB.prepare(
-    "SELECT actor, trip_date, train_no FROM bounty_samples INDEXED BY idx_samples_pending WHERE verdict='ok' AND trip_date >= ?" +
-    " AND sys='tra_sched' AND usable_at IS NULL GROUP BY actor, trip_date, train_no LIMIT ?"
+    "SELECT actor, trip_date, train_no, sys FROM bounty_samples INDEXED BY idx_samples_pending WHERE verdict='ok' AND trip_date >= ?" +
+    " AND sys IN ('tra_sched','thsr_sched') AND usable_at IS NULL GROUP BY actor, trip_date, train_no, sys LIMIT ?"
   ).bind(since, U.trainsPerRun).all()).results || [];
   if (!list.length) { stat.subreq = ctr.n; return stat; }
   const M = await bountyUnits(env);
-  const S = await cloudRideAsset(env, 'tra_widget_schedule.json');
-  const info = await cloudRideAsset(env, 'tra_station_info.json');
+  // 台鐵的兩個資產檔只在這一發有台鐵班車時才讀（只有高鐵的夜晚省兩次子請求）
+  const hasTra = list.some(c => c.sys === 'tra_sched');
+  const S = hasTra ? await cloudRideAsset(env, 'tra_widget_schedule.json') : null;
+  const info = hasTra ? await cloudRideAsset(env, 'tra_station_info.json') : null;
   const code = new Map(Object.values(info || {}).map(s => [String(s && s.id), s && s.name]));
   const nameOf = sta => code.get(String(sta));
   const evMem = new Map();
+  const hsrMem = new Map();      // 高鐵：乘車日 → 那天的精簡班表（{ 車次: [[站名, 到, 開], …] }），同一天只讀一次
   const SET = 'UPDATE bounty_samples INDEXED BY sqlite_autoindex_bounty_samples_1 SET usable=?, usable_at=?' +
     " WHERE id IN (SELECT value FROM json_each(?)) AND +verdict='ok'";
   const skip = c => env.DELAY_DB.prepare(
-    "UPDATE bounty_samples INDEXED BY idx_samples_trip SET usable=NULL, usable_at=? WHERE actor=? AND trip_date=? AND train_no=? AND verdict='ok' AND sys='tra_sched'"
-  ).bind(now, c.actor, c.trip_date, c.train_no).run();
+    "UPDATE bounty_samples INDEXED BY idx_samples_trip SET usable=NULL, usable_at=? WHERE actor=? AND trip_date=? AND train_no=? AND verdict='ok' AND sys=?"
+  ).bind(now, c.actor, c.trip_date, c.train_no, c.sys).run();
   for (const c of list) {
     if (!room()) { stat.budgetStop = true; break; }
     try {
       // 讀取上界照 bountyVerifyTrain：依讀取順序累加 payload 長度，只送回加到前一列還沒超過上限的列（最多上限再加一列）
       const rows = (await env.DELAY_DB.prepare(
         'SELECT id, ln_id, payload, cum_bytes FROM (SELECT id, ln_id, payload, submitted_at, SUM(length(payload)) OVER (ORDER BY submitted_at, id ROWS UNBOUNDED PRECEDING) AS cum_bytes' +
-        " FROM bounty_samples INDEXED BY idx_samples_trip WHERE actor=? AND trip_date=? AND train_no=? AND verdict='ok' AND sys='tra_sched')" +
+        " FROM bounty_samples INDEXED BY idx_samples_trip WHERE actor=? AND trip_date=? AND train_no=? AND verdict='ok' AND sys=?)" +
         ' WHERE cum_bytes - length(payload) <= ? ORDER BY submitted_at, id LIMIT ?'
-      ).bind(c.actor, c.trip_date, c.train_no, BOUNTY_VERIFY_MAX_TRAIN_BYTES, BOUNTY_MAX_BATCHES_PER_DAY + 1).all()).results || [];
+      ).bind(c.actor, c.trip_date, c.train_no, c.sys, BOUNTY_VERIFY_MAX_TRAIN_BYTES, BOUNTY_MAX_BATCHES_PER_DAY + 1).all()).results || [];
       ctr.rows += rows.length;
       for (const r of rows) ctr.bytes += String(r.payload || '').length;
       if (!rows.length) continue;
@@ -10147,12 +10151,28 @@ async function bountyUsableCron(env0) {
         stat.skipped++;
         continue;
       }
+      let sched = [], ev = [], nameFn = nameOf;
+      if (c.sys === 'thsr_sched') {
+        // 高鐵：那天的精簡班表（thsr_sched_hist）。車次照錄程原樣找，找不到再補零到 4 碼找一次（舊版 App 傳過「143」這種）。
+        // 沒有官方誤點：給起站一筆 0 分，delayAt 對每一站都回 0＝只比表定。事件與班表都用站名，nameOf 原樣回傳。
+        const dk = String(c.trip_date).replace(/-/g, '');
+        let day = hsrMem.get(dk);
+        if (day === undefined) {
+          const r = await env.DELAY_DB.prepare("SELECT json_extract(v, '$.days.' || ?) AS d FROM kv_blobs WHERE k = ?").bind(dk, THSR_HIST_BLOB_KEY).first();
+          try { day = r && r.d ? JSON.parse(r.d) : null; } catch (e) { day = null; }
+          hsrMem.set(dk, day);
+        }
+        const no = String(c.train_no);
+        const st = day && (day[no] || (/^\d{1,3}$/.test(no) ? day[no.padStart(4, '0')] : null));
+        if (Array.isArray(st)) sched = st.map(([name, arr, dep]) => ({ name, arr: Number(arr), dep: Number(dep) }));
+        if (sched.length) ev = [{ sta: sched[0].name, status: 2, delay: 0 }];
+        nameFn = sta => sta;
+      } else {
       // data/tra_widget_schedule.json：dates[日期]＝該日開行的 trains 索引；trains[i]＝[車次, 車種, [[站索引, 到站秒, 停站秒, 1 停／0 過],…]]（見 cloudRideTrainOk）
       const idxs = S && S.dates && S.dates[c.trip_date];
       const t = Array.isArray(idxs) ? idxs.map(i => S.trains[i]).find(x => x && String(x[0]) === String(c.train_no)) : null;
-      const sched = t && Array.isArray(t[2]) ? t[2].filter(s => s && s[3] === 1 && S.stations[s[0]])
+      sched = t && Array.isArray(t[2]) ? t[2].filter(s => s && s[3] === 1 && S.stations[s[0]])
         .map(s => ({ name: S.stations[s[0]][0], arr: Number(s[1]), dep: Number(s[1]) + (Number(s[2]) || 0) })) : [];
-      let ev = [];
       if (sched.length) {
         const ek = c.trip_date + '|' + c.train_no;
         ev = evMem.get(ek);
@@ -10162,12 +10182,13 @@ async function bountyUsableCron(env0) {
           evMem.set(ek, ev);
         }
       }
+      }
       const byLine = new Map();
       for (const r of rows) (byLine.get(r.ln_id) || byLine.set(r.ln_id, []).get(r.ln_id)).push(r);
       const flags = new Map();
       for (const [ln, lr] of byLine) {
-        const line = M.lines['tra_sched|' + ln];
-        for (const [id, v] of line ? bountyUsableFlags(lr, line, sched, ev, nameOf) : lr.map(r => [r.id, null])) flags.set(id, v);
+        const line = M.lines[c.sys + '|' + ln];
+        for (const [id, v] of line ? bountyUsableFlags(lr, line, sched, ev, nameFn) : lr.map(r => [r.id, null])) flags.set(id, v);
       }
       const ids = v => JSON.stringify([...flags].filter(([, x]) => x === v).map(([id]) => id));
       await env.DELAY_DB.batch([1, 0, null].map(v => env.DELAY_DB.prepare(SET).bind(v, now, ids(v))));
@@ -10983,7 +11004,46 @@ async function ingestThsrSchedule(env) {
   }
   await db.prepare("INSERT OR REPLACE INTO kv_blobs(k,v,updated) VALUES(?,?,datetime('now'))").bind(THSR_SCHED_BLOB_KEY, json).run();
   console.log(`[cron thsr-sched] 完成: ${JSON.stringify(results)}, 保留日鍵 ${JSON.stringify(Object.keys(days))}, bytes=${json.length}`);
-  return { results, written: true, dayKeys: Object.keys(days) };
+  // 另存精簡版給懸賞「資料可用」標記用（見 thsrArchiveDays）。自己 try/catch：存不進去不影響上面的前端班表。
+  let archived = null;
+  try {
+    const fresh = {};
+    for (const [d, r] of Object.entries(results)) if (r.ok) { const k = d.replace(/-/g, ''); if (days[k]) fresh[k] = days[k]; }
+    archived = await thsrArchiveDays(db, fresh);
+  } catch (e) { console.warn('[cron thsr-sched] 精簡班表存檔失敗（前端班表已寫好，不受影響）:', (e && e.message) || String(e)); }
+  return { results, written: true, dayKeys: Object.keys(days), archived };
+}
+
+// 高鐵逐日班表的精簡存檔（懸賞「資料可用」標記用，11-17）：thsr_sched 只留 8 個日鍵（今天起 7 天＋前一天），
+// 乘車日兩天前的班表就沒了，補傳的錄程比不到。這裡把每天「最後抓到的那一版」只留車次與停靠站的到開秒
+// （不留座標、顏色），滾動保留 THSR_HIST_KEEP_DAYS 個日鍵（一天約 30 KB）。前端不讀這份。
+// 形狀：{ updatedAt, days: { YYYYMMDD: { 車次: [[站名, 到站秒, 開車秒], …只有停靠站] } } }
+const THSR_HIST_BLOB_KEY = 'thsr_sched_hist';
+const THSR_HIST_KEEP_DAYS = 40;   // 30 天的可用標記窗（BOUNTY_USABLE.days）＋今天起抓的 7 天＋餘裕
+function thsrCompactDay(doc) {
+  const out = {};
+  for (const t of (doc && doc.trains) || []) {
+    const st = ((t && t.stops) || []).filter(s => s && s.stop !== false && s.name && Number.isFinite(s.arrSec) && Number.isFinite(s.depSec));
+    if (t && t.train && st.length >= 2) out[String(t.train)] = st.map(s => [s.name, s.arrSec, s.depSec]);
+  }
+  return out;
+}
+async function thsrArchiveDays(db, docs) {
+  const keysIn = Object.keys(docs || {});
+  if (!keysIn.length) return { written: false, days: 0 };
+  let days = {};
+  const row = await db.prepare('SELECT v FROM kv_blobs WHERE k=?').bind(THSR_HIST_BLOB_KEY).first();
+  if (row && row.v) { try { const p = JSON.parse(row.v); if (p && p.days && typeof p.days === 'object') days = { ...p.days }; } catch (e) {} }
+  for (const k of keysIn) { const c = thsrCompactDay(docs[k]); if (Object.keys(c).length) days[k] = c; }
+  const keys = Object.keys(days).sort();
+  while (keys.length > THSR_HIST_KEEP_DAYS) delete days[keys.shift()];
+  let json = JSON.stringify({ updatedAt: new Date().toISOString(), days });
+  while (json.length > THSR_BLOB_MAX_BYTES && Object.keys(days).length > 1) {   // 同 thsr_sched：塞不下就從最舊的丟
+    delete days[Object.keys(days).sort()[0]];
+    json = JSON.stringify({ updatedAt: new Date().toISOString(), days });
+  }
+  await db.prepare("INSERT OR REPLACE INTO kv_blobs(k,v,updated) VALUES(?,?,datetime('now'))").bind(THSR_HIST_BLOB_KEY, json).run();
+  return { written: true, days: Object.keys(days).length, bytes: json.length };
 }
 
 // ── 高鐵班表自我檢查(掛每分鐘 cron)────────────────────────────────────────────
@@ -11786,7 +11846,7 @@ export const _ts = { tracksideBind, tracksideUnbind, tracksidePushAll, trackside
 // env.TDX_AUTH_URL_OVERRIDE/env.THSR_SEAT_BASE_URL_OVERRIDE(scripts/verify_thsr_seat.mjs)。
 export const _thsr = {
   thsrConvertDaily, thsrBuildStationMap, thsrSelectServedDay, thsrKeyToMs, thsrScheduleUrl,
-  fetchThsrDaily, thsrStationMap, ingestThsrSchedule, thsrSchedule, authUrl,
+  fetchThsrDaily, thsrStationMap, ingestThsrSchedule, thsrSchedule, authUrl, thsrCompactDay, thsrArchiveDays, THSR_HIST_BLOB_KEY, THSR_HIST_KEEP_DAYS,
   thsrConvertFreeSeat, thsrFreeSeatUrl, thsrFreeSeat,
   thsrConvertSeatList, isThsrSeatCode, thsrSeatUrl, thsrSeat,
   // 自我檢查:測試要自備 env(DELAY_DB/ASSETS/TDX 覆寫)與 event.scheduledTime(節奏閘門看它,不看真時鐘)。

@@ -10,10 +10,10 @@
 //     所以第 0、1 列（29700–29819）與第 28–30 列（含 31421 之後的點）是 0，第 2–27 列（26 列）是 1。
 // 每一條判準寫的時候都先答「哪一筆輸入能讓它變紅」。
 //
-// 分組：U 純函式（比對與分列）　C 挑班車與寫入（bountyUsableCron）　S 掛在 scheduled() 的判定 cron 之後、出錯不影響判定
+// 分組：U 純函式（比對與分列）　C 挑班車與寫入（bountyUsableCron）　H 高鐵只比表定（11-17）　A 高鐵精簡班表存檔　S 掛在 scheduled() 的判定 cron 之後、出錯不影響判定
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import worker, { _bounty } from '../worker.js';
+import worker, { _bounty, _thsr } from '../worker.js';
 import { openTestDb } from './d1_local.mjs';
 
 console.log(`[G0] worker.js md5=${createHash('md5').update(readFileSync(new URL('../worker.js', import.meta.url))).digest('hex')}`);
@@ -224,7 +224,6 @@ function cWorld(over) {
   put(w.db, { actor: 'a1', pts: ride({ tailTo: 31600 }).slice(-10), verdict: 'pending', first: 100 });   // 同一班還在 pending 的一列：不動
   put(w.db, { actor: 'a4', trainNo: 'U9', pts: ride() });                          // 班表裡沒有 U9：比不了
   put(w.db, { actor: 'a5', pts: ride({ shift: 600 }) });                           // 同一天同一車次的另一個人，搭的是後一班
-  put(w.db, { actor: 'b1', sys: 'thsr_sched', lnId: 'THSR', trainNo: '0123', pts: ride() });   // 高鐵：不挑
   put(w.db, { actor: 'b2', date: OLD, pts: ride() });                               // 超過 30 天：不挑
   put(w.db, { actor: 'b3', pts: ride(), verdict: 'unusable' });                    // 不是 ok：不挑
   putEvents(w.db, EV0);
@@ -241,9 +240,9 @@ await attempt('C1', async () => {
   ok('C1b 同一班車的另一個人搭的是後一班：31 列全是 0', a5.length === 31 && a5.every(x => x.usable === 0 && x.usable_at === NOW_MS), J(a5.map(x => x.usable)));
   const a4 = rowsDb(w.db, 'a4');
   ok('C1c 班表裡沒有這班車：usable 留 NULL、usable_at 照寫（下一發不再挑）', a4.length === 31 && a4.every(x => x.usable === null && x.usable_at === NOW_MS), J(a4.slice(0, 2)));
-  const others = ['b1', 'b2', 'b3'].flatMap(a => rowsDb(w.db, a));
-  ok('C1d 不挑的不碰：同一班還在 pending 的列、高鐵、超過 30 天、判 unusable 的，usable 與 usable_at 都還是 NULL',
-    pend.length === 1 && [...pend, ...others].every(x => x.usable === null && x.usable_at === null) && others.length === 93, J({ pend, n: others.length }));
+  const others = ['b2', 'b3'].flatMap(a => rowsDb(w.db, a));
+  ok('C1d 不挑的不碰：同一班還在 pending 的列、超過 30 天、判 unusable 的，usable 與 usable_at 都還是 NULL（高鐵改由 H 組驗）',
+    pend.length === 1 && [...pend, ...others].every(x => x.usable === null && x.usable_at === null) && others.length === 62, J({ pend, n: others.length }));
   // 手算：挑班車 1＋資產（題庫、班表、站碼）3＋a1（讀列、讀誤點、寫）3＋a4（讀列、寫；沒班表不讀誤點）2＋a5（讀列、寫；誤點同一天同一車次已讀過）2＝11
   ok('C1e 子請求恰 11 次（query 5、fetch 3、batch 3）；三班車、列 93（可用 26、對不上 36、比不了 31）',
     r.n === 11 && r.by.query === 5 && r.by.fetch === 3 && r.by.batch === 3 && r.st.trains === 3 && r.st.rows === 93 && r.st.usable === 26 && r.st.mismatch === 36 && r.st.unknown === 31,
@@ -319,6 +318,85 @@ await attempt('C5', async () => {
   const r2 = await run(w, { ...env, BOUNTY_NOW: String(NOW2) });
   ok('C5b 下一發不再卡在同三班：出錯 0、照 C1 標完三班',
     r2.st.errors === 0 && r2.st.trains === 3 && J(rowsDb(w.db, 'a1').filter(x => x.verdict === 'ok').map(x => x.usable)) === J(want1), J(r2.st));
+});
+
+
+// ═══ H 組：高鐵只比表定（11-17）═════════════════════════════════════════════
+// 同一條假線改叫高鐵：班表放 kv_blobs 的 thsr_sched_hist（只有 07-28 這天、只有 0123 次），沒有官方誤點，誤點一律當 0。
+// 期望照 U1a 手算的同一組時刻：準點那趟＝want1。
+const D27 = '2026-07-27';
+const HIST = { updatedAt: 'x', days: { '20260728': { '0123': STOPS.map(([i, arr, dep]) => ['S' + i, arr, dep]) } } };
+function hWorld({ hist = HIST } = {}) {
+  const w = world();
+  w.env.ASSETS = { fetch: async r => {
+    const u = String(r.url);
+    const body = u.includes('bounty_units') ? { ...UNITS, lines: { ...UNITS.lines, 'thsr_sched|THSR': { ...LINE, sys: 'thsr_sched', lnId: 'THSR', name: '高鐵' } } } : RULES;
+    return new Response(J(body), { status: 200 });
+  } };
+  if (hist) w.db.prepare("INSERT INTO kv_blobs (k,v,updated) VALUES ('thsr_sched_hist', ?, datetime('now'))").run(J(hist));
+  const H = { sys: 'thsr_sched', lnId: 'THSR' };
+  put(w.db, { actor: 'h1', trainNo: '0123', ...H, pts: ride() });                    // 準點
+  put(w.db, { actor: 'h2', trainNo: '0123', ...H, pts: ride({ shift: 600 }) });      // [對照] 搭的是晚 10 分鐘那班
+  put(w.db, { actor: 'h3', trainNo: '0123', ...H, pts: ride({ shift: 300 }) });      // 誤點 5 分鐘（沒有官方誤點可以補）
+  put(w.db, { actor: 'h4', trainNo: '0124', ...H, pts: ride() });                    // 那天班表裡沒有這班車
+  put(w.db, { actor: 'h5', trainNo: '0123', ...H, date: D27, pts: ride() });         // 那天沒有存檔班表
+  put(w.db, { actor: 'h6', trainNo: '123', ...H, pts: ride() });                     // 舊版 App 沒補零的車次
+  return w;
+}
+const uOf = (db, a) => rowsDb(db, a).map(x => x.usable);
+
+await attempt('H1', async () => {
+  const w = hWorld();
+  const r = await run(w);
+  ok('H1a 高鐵準點的一趟：照 U1a 同一組分列（0,0,1×26,0,0,0），usable_at 是這一發', J(uOf(w.db, 'h1')) === J(want1) && rowsDb(w.db, 'h1').every(x => x.usable_at === NOW_MS), J(uOf(w.db, 'h1')));
+  ok('H1b [對照] 標成這班、實際搭晚 10 分鐘那班：31 列全是 0', uOf(w.db, 'h2').length === 31 && uOf(w.db, 'h2').every(x => x === 0), J(uOf(w.db, 'h2')));
+  ok('H1c 誤點 5 分鐘（超過 180 秒）：只比表定所以全是 0（刻意的代價：寧可少收）', uOf(w.db, 'h3').every(x => x === 0), J(uOf(w.db, 'h3')));
+  ok('H1d 那天班表裡沒有這班車、或那天沒有存檔班表：usable 留 NULL、usable_at 照寫',
+    ['h4', 'h5'].every(a => rowsDb(w.db, a).every(x => x.usable === null && x.usable_at === NOW_MS)), J(['h4', 'h5'].map(a => rowsDb(w.db, a)[0])));
+  ok('H1e 車次「123」補零成「0123」找得到：跟 H1a 同一組值', J(uOf(w.db, 'h6')) === J(want1), J(uOf(w.db, 'h6')));
+  // 手算：挑班車 1＋題庫 1（只有高鐵：不讀台鐵班表與站碼）＋六班各讀列 1、寫 1（12）＋存檔班表 07-28、07-27 各讀一次 2＝16；沒讀 tra_station_events
+  ok('H1f 子請求恰 16 次（query 9、fetch 1、batch 6）：同一天的班表只讀一次、不讀台鐵資產與誤點表',
+    r.n === 16 && r.by.query === 9 && r.by.fetch === 1 && r.by.batch === 6 && r.st.trains === 6, J({ n: r.n, by: r.by, st: r.st }));
+});
+
+await attempt('H2', async () => {
+  const w = hWorld({ hist: null });
+  await run(w);
+  ok('H2a [對照] 沒有存檔班表（thsr_sched_hist 不存在）：六班全部 usable 留 NULL（不是 0），usable_at 照寫',
+    ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].every(a => rowsDb(w.db, a).every(x => x.usable === null && x.usable_at === NOW_MS)), J(rowsDb(w.db, 'h1')[0]));
+});
+
+await attempt('H3', async () => {
+  // 同一天同一車次台鐵與高鐵各有一列（車次號碼撞號）：各自用自己的班表，互不影響
+  const w = hWorld();
+  put(w.db, { actor: 'h1', trainNo: '0123', pts: ride({ shift: 600 }), first: 500 });   // 同一人同一天、台鐵也有「0123」：台鐵班表沒有這班 → NULL
+  await run(w);
+  const rows = w.db.prepare("SELECT sys, usable FROM bounty_samples WHERE actor='h1'").all();
+  const hs = rows.filter(x => x.sys === 'thsr_sched').map(x => x.usable), ts = rows.filter(x => x.sys === 'tra_sched').map(x => x.usable);
+  ok('H3a 同人同日同車次、台鐵高鐵各一組：高鐵照 H1a，台鐵那組 NULL（台鐵班表沒有 0123）', J(hs) === J(want1) && ts.length === 31 && ts.every(x => x === null), J({ hs: hs.slice(0, 4), ts: ts.slice(0, 2) }));
+});
+
+// ═══ A 組：高鐵精簡班表存檔（thsrArchiveDays）══════════════════════════════
+await attempt('A1', async () => {
+  const { DELAY_DB, db } = openTestDb('');
+  const doc = (trains) => ({ trains: trains.map(([no, stops]) => ({ train: no, stops: stops.map(([name, a, d, stop = true]) => ({ name, lat: 1, lon: 2, arrSec: a, depSec: d, stop })) })) });
+  const d1 = doc([['0101', [['南港', 100, 100], ['台北', 400, 460], ['板橋', 700, 700, false], ['左營', 9000, 9000]]], ['0199', [['台北', 1, 1]]]]);
+  const r1 = await _thsr.thsrArchiveDays(DELAY_DB, { '20261101': d1 });
+  const got = JSON.parse(db.prepare("SELECT v FROM kv_blobs WHERE k='thsr_sched_hist'").get().v);
+  ok('A1a 精簡形狀：只留停靠站的 [站名, 到, 開]（通過的板橋不留、座標不留），只有一站的車不收',
+    r1.written && J(got.days['20261101']) === J({ '0101': [['南港', 100, 100], ['台北', 400, 460], ['左營', 9000, 9000]] }), J(got.days));
+  // 滾動：先存 45 天，只留最新 40 個日鍵；之後再存一天，舊的日鍵照樣在（只補不刪）
+  const many = {};
+  for (let i = 0; i < 45; i++) many['202612' + String(i + 1).padStart(2, '0').slice(-2)] = d1;   // 20261201…20261245（字串序＝時間序就夠）
+  await _thsr.thsrArchiveDays(DELAY_DB, many);
+  const keys = Object.keys(JSON.parse(db.prepare("SELECT v FROM kv_blobs WHERE k='thsr_sched_hist'").get().v).days).sort();
+  // 日鍵共 46 個（20261101＋20261201…20261245）→ 丟最舊的 6 個（20261101、20261201–20261205）
+  ok('A1b 超過 40 個日鍵從最舊的丟：留 40 個、最舊的 20261101 與 20261201–20261205 被丟', keys.length === _thsr.THSR_HIST_KEEP_DAYS && keys[0] === '20261206' && !keys.includes('20261101'), J({ n: keys.length, first: keys[0] }));
+  await _thsr.thsrArchiveDays(DELAY_DB, { '20261246': d1 });
+  const keys2 = Object.keys(JSON.parse(db.prepare("SELECT v FROM kv_blobs WHERE k='thsr_sched_hist'").get().v).days).sort();
+  ok('A1c 再存一天：讀回既有的再合併（不是整份蓋掉），仍是 40 個、最舊的往後推一天', keys2.length === 40 && keys2[0] === '20261207' && keys2.includes('20261246'), J({ n: keys2.length, first: keys2[0] }));
+  const r0 = await _thsr.thsrArchiveDays(DELAY_DB, {});
+  ok('A1d 沒有新抓到的日子：不讀不寫', r0.written === false, J(r0));
 });
 
 // ═══ S 組：掛在 scheduled() 的判定 cron 之後 ═══════════════════════════════
