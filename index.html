@@ -5273,6 +5273,52 @@
   .freq-card.fc-min .fc-no { flex-shrink: 0; }
   .freq-card.fc-min .fc-dir, .freq-card.fc-min .fc-next, .freq-card.fc-min .fc-crowd,
   .freq-card.fc-min .ri-formation-caption, .freq-card.fc-min .fc-status, .freq-card.fc-min .xfer-conn, .freq-card.fc-min .fc-close { display: none !important; }
+
+  /* ── 電腦首頁開場（#hop）：序幕影片 → 出隧道揭幕 → 全畫面地圖。節點只在這一次要開場時由首繪 script 建立，
+     其他訪客沒有任何節點，這段樣式對他們不起作用。程式見首繪的 RI_HOME_OPENING 與檔尾 homeOpeningMain。 ── */
+  @property --hop-r { syntax: '<percentage>'; inherits: false; initial-value: 0%; }
+  body.hop-on { overflow: hidden; }
+  #hop { position: fixed; inset: 0; z-index: 9000; color: #fff; user-select: none; -webkit-user-select: none; }
+  #hop .hop-st { position: absolute; inset: 0; overflow: hidden; background: #0b1020; cursor: pointer; }
+  #hop .hop-sc { position: absolute; inset: 0; opacity: 0; background: center / cover no-repeat; transition: opacity 1.2s ease; }
+  #hop .hop-sc.on { opacity: 1; }
+  #hop video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  #hop .hop-scrim { position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(to top, rgba(8,13,26,.78) 0%, rgba(8,13,26,.34) 26%, rgba(8,13,26,0) 52%), linear-gradient(to right, rgba(8,13,26,.38) 0%, rgba(8,13,26,0) 46%); }
+  #hop .hop-prog { position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: #D2A12A; transition: width .6s ease, opacity .6s ease .3s; }
+  #hop .hop-prog.done { opacity: 0; }
+  #hop .hop-ui { opacity: 0; transition: opacity .45s ease; }
+  #hop.hop-main .hop-ui { opacity: 1; }
+  #hop .hop-tx { position: absolute; left: 6.6vw; bottom: 13vh; pointer-events: none; }
+  #hop .hop-tag { font-size: 27px; font-weight: 800; letter-spacing: 7px; line-height: 1.3; text-shadow: 0 2px 14px rgba(0,0,0,.55); }
+  #hop .hop-cap { margin-top: 10px; display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 700; letter-spacing: 2px; color: rgba(255,255,255,.86); text-shadow: 0 1px 8px rgba(0,0,0,.6); }
+  #hop .hop-cap::before { content: ""; width: 28px; height: 2px; background: #D2A12A; }
+  #hop .hop-go { position: absolute; left: 50%; bottom: 58px; transform: translateX(-50%); margin: 0; padding: 6px 12px; border: 0; background: none; color: #fff; font: inherit; font-size: 15px; font-weight: 800;
+    letter-spacing: 8px; text-indent: 8px; white-space: nowrap; text-shadow: 0 1px 10px rgba(0,0,0,.7); cursor: pointer; }
+  #hop .hop-go.ready { animation: hop-breathe 2.4s ease-in-out infinite; }
+  @keyframes hop-breathe { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+  #hop .hop-snd { position: absolute; top: 18px; right: 20px; display: inline-flex; align-items: center; gap: 8px; height: 36px; margin: 0; padding: 0 14px; border-radius: 999px;
+    border: 1.5px solid rgba(255,255,255,.55); background: rgba(8,13,26,.42); color: #fff; font: inherit; font-size: 12.5px; font-weight: 800; letter-spacing: 1px;
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); cursor: pointer; }
+  #hop .hop-snd svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  #hop .hop-snd .off { display: none; }
+  #hop .hop-snd[aria-pressed="false"] .off { display: inline; }
+  #hop .hop-snd[aria-pressed="false"] .wave { display: none; }
+  #hop .hop-snd small { font-size: 11.5px; font-weight: 700; color: rgba(255,255,255,.72); letter-spacing: .5px; }
+  #hop .hop-snd small:empty { display: none; }
+  /* 大站名牌：header 那塊的複本放大；揭幕時縮回左上角後淡掉（現行全畫面左上是時鐘，沒有站名牌） */
+  #hop .hop-plate { position: absolute; left: 6.6vw; bottom: calc(13vh + 82px); transform: scale(1.7); transform-origin: 0 100%; pointer-events: none; }
+  #hop .hop-plate .plate { min-width: 252px; } /* 不用 <header> 包：body.fs 會藏掉所有 header；這兩條比照 header .plate／header h1 */
+  #hop .hop-plate h1 { font-size: calc(26px * var(--ui)); font-weight: 900; letter-spacing: 8px; text-indent: 8px; color: var(--plate-ink); margin: 0; line-height: 1.2; }
+  #hop.leaving .hop-tx, #hop.leaving .hop-go, #hop.leaving .hop-snd { opacity: 0; animation: none; transition: opacity .35s ease; }
+  #hop.leaving { pointer-events: none; }
+  /* 出隧道：光圈從畫面中間打開，約 1.5 秒（定案稿的 iris） */
+  #hop.iris .hop-st {
+    -webkit-mask-image: radial-gradient(circle at 50% 54%, transparent calc(var(--hop-r) - 9%), #000 var(--hop-r));
+    mask-image: radial-gradient(circle at 50% 54%, transparent calc(var(--hop-r) - 9%), #000 var(--hop-r));
+    animation: hop-iris 1.5s cubic-bezier(.55,0,.25,1) forwards;
+  }
+  @keyframes hop-iris { from { --hop-r: 0%; } to { --hop-r: 112%; } }
 </style>
 <link rel="stylesheet" href="./night-theme.css">
 <script>
@@ -5346,6 +5392,80 @@
   // iOS 的 <audio>.volume 唯讀 ⇒ 藏音量滑桿;但 App 走原生播放器(RailAudioPlugin)時音量可控,滑桿回歸
   if ((iOS || nativeApp) && !window.RAIL_NATIVE_AUDIO) document.body.classList.add('music-volume-unavailable');
 } catch (e) {} })();
+</script>
+<script>
+/* 電腦首頁開場・序幕：首繪就鋪上海報與影片，地圖在後面載入。文字、音樂、揭幕交給檔尾 homeOpeningMain。
+   只在電腦（與網頁 2.0 全螢幕鈕同一條 MQ）、直接打開首頁時播；分享連結、減少動態、3D 跑不動就直接進地圖。 */
+(function () {
+  var HOME_OPENING_ON = false; // 預設開關；?opening=1 強制開、?opening=0 強制關
+  var R = window.RI_HOME_OPENING = { eligible: false, run: false, done: false, q: [],
+    after: function (fn) { if (R.run && !R.done) R.q.push(fn); else fn(); },
+    scenes: [ // name＝畫面上的地名；big＝大範圍鏡頭（挑音樂用）
+      { id: 'taipei-day', name: '臺北盆地上空', big: 1 },
+      { id: 'coast-day', name: '花東海岸・多良', big: 1 },
+      { id: 'garage-day', name: '車庫・阿里山林鐵', big: 0 },
+      { id: 'metro-day', name: '高架上的捷運・內湖', big: 0 },
+      { id: 'taipei-night', name: '夜裡的臺北・信義區', big: 0, night: 1 }] };
+  try {
+    var qs = new URLSearchParams(location.search), ov = qs.get('opening');
+    if (!(ov === '1' || (ov !== '0' && HOME_OPENING_ON))) return;
+    if (!matchMedia('(min-width: 700px) and (any-pointer: fine)').matches) return;
+    var nativeApp = typeof window.RAIL_ONLINE_BASEMAPS_AVAILABLE !== 'undefined'
+      || Object.keys(window).some(function (k) { return /^RAIL_NATIVE_/.test(k) && !!window[k]; });
+    try { nativeApp = nativeApp || !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()); } catch (e) {}
+    if (nativeApp) return;
+    R.eligible = true; // 設定頁的開關只給這些人看
+    if (localStorage.getItem('ri-home-opening') === '0') return;
+    // 帶任何其他參數（分享的列車、車站、行程、車庫、說明、帳號、場景…）都直接進地圖
+    var keep = /^(opening|lang|map|landscape|utm_\w+|fbclid|gclid)$/, deep = false;
+    qs.forEach(function (v, k) { if (!keep.test(k)) deep = true; });
+    if (deep) return;
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (localStorage.getItem('ri-trains-enabled') === '0') return;
+    try { if (sessionStorage.getItem('trainmap-3d-autodegraded')) return; } catch (e) {}
+    var cv = document.createElement('canvas'), gl = null, ga = { failIfMajorPerformanceCaveat: true };
+    try { gl = cv.getContext('webgl2', ga) || cv.getContext('webgl', ga); } catch (e) {}
+    if (!gl) return; // 沒有硬體 WebGL：3D 跑不動
+    try { var lx = gl.getExtension('WEBGL_lose_context'); if (lx) lx.loseContext(); } catch (e) {}
+
+    var h = new Date().getHours();
+    try { h = +new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Taipei', hour: 'numeric', hourCycle: 'h23' }).format(new Date()) % 24; } catch (e) {}
+    R.night = h >= 18 || h < 6;
+    R.pool = R.scenes.filter(function (s) { return !!s.night === R.night; });
+    var last = localStorage.getItem('ri-home-opening-last');
+    var pick = R.pool.filter(function (s) { return s.id !== last; });
+    if (!pick.length) pick = R.pool;
+    R.scene = pick[Math.floor(Math.random() * pick.length)];
+    localStorage.setItem('ri-home-opening-last', R.scene.id);
+
+    var el = function (tag, cls) { var e = document.createElement(tag); if (cls) e.className = cls; return e; };
+    R.video = function (s) { // 一景＝海報當底＋影片；只在要播那一景時才建，所以只下載抽到的那一段
+      var sc = el('div', 'hop-sc'), v = el('video');
+      sc.style.backgroundImage = 'url(./assets/opening/' + s.id + '.jpg)';
+      v.muted = v.defaultMuted = true; v.playsInline = true; v.autoplay = true; v.preload = 'auto';
+      v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.setAttribute('aria-hidden', 'true');
+      v.poster = './assets/opening/' + s.id + '.jpg'; v.src = './assets/opening/' + s.id + '.mp4';
+      if (R.pool.length < 2) v.loop = true;
+      sc.appendChild(v); return sc;
+    };
+    var root = R.root = el('div'); root.id = 'hop';
+    var st = el('div', 'hop-st'), sc = R.video(R.scene); sc.classList.add('on');
+    st.appendChild(sc); st.appendChild(el('div', 'hop-scrim'));
+    root.appendChild(st); root.appendChild(el('div', 'hop-prog'));
+    // 檔尾主程式還沒接手前就按鍵或點擊：記下來，接手後當作「要進入」
+    R.early = false;
+    R.onEarly = function (e) { if (!R.main && !(e.metaKey || e.ctrlKey || e.altKey)) R.early = true; };
+    addEventListener('keydown', R.onEarly, true); root.addEventListener('click', R.onEarly);
+    document.body.appendChild(root); document.body.classList.add('hop-on');
+    R.run = true;
+    setTimeout(function () { // 保險：主程式沒接手（例如腳本出錯），20 秒後收掉序幕、照常進地圖
+      if (R.main || !root.parentNode) return;
+      R.done = true; root.remove(); document.body.classList.remove('hop-on');
+      removeEventListener('keydown', R.onEarly, true);
+      R.q.splice(0).forEach(function (fn) { try { fn(); } catch (e) {} });
+    }, 20000);
+  } catch (e) { R.run = false; try { if (R.root) R.root.remove(); document.body.classList.remove('hop-on'); } catch (e2) {} }
+})();
 </script>
 <div class="wrap">
   <header class="header-row">
@@ -7491,7 +7611,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1117c：地景地圖操作順暢：立體路線重建分段做、站點圓視距名單在鏡頭移動中節流（所有訪客，20732392f／8d0c26d68）；新地景接手時列車與軌道貼新地景的地形（2786b7766）、遠處路線淡出（保守檔，4622217c8）；自動降畫質原型預設關（?ls.auto=1，2e45cf034）。
 // v1117d：新地景接手一陣子後換地方（放空換車、搜尋），立體列車、軌道與跟車鏡頭不再退成平坦高度掉到約 0 公尺；拉遠時軌道照樣貼新地景地形（0b61e57b9）。
 // v1117e：只動伺服器端（Worker），網頁畫面不變：營運推播雜訊修正、推播註冊收 Android、通行證每月點數與點數彙總端點、行程問答端點（/api/trip-ask*）、高鐵班表可查指定日期（/api/thsr-schedule?date=）。
-const BUILD = 'v1117e';
+// v1117f：電腦首頁全畫面開場（序幕影片→出隧道揭幕→全畫面地圖，assets/opening）上線但開關維持關（HOME_OPENING_ON＝false），帶 ?opening=1 才播（ba2530258）。
+const BUILD = 'v1117f';
 // v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
@@ -40944,12 +41065,15 @@ function setupMapTools() {
       try { localStorage.setItem('trainmap-howto-seen', '1'); } catch (e) {}
       if (opener && typeof opener.focus === 'function') opener.focus();
     };
-    wrap.hidden = false;
     document.getElementById('howtoGo').onclick = done;
     document.getElementById('howtoSkip').onclick = done;
     wrap.addEventListener('click', e => { if (e.target === wrap) done(); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && !wrap.hidden) done(); }); // v0718i:Esc 可關,比照 takeoutModal 家族
-    requestAnimationFrame(() => { const go = document.getElementById('howtoGo'); if (go) go.focus(); }); // v0718i:開啟時 focus 主要按鈕,不做完整 focus trap
+    // 電腦首頁開場在播時，等揭幕後才出現（RI_HOME_OPENING.after；沒在播就立刻執行）
+    window.RI_HOME_OPENING.after(() => {
+      wrap.hidden = false;
+      requestAnimationFrame(() => { const go = document.getElementById('howtoGo'); if (go) go.focus(); }); // v0718i:開啟時 focus 主要按鈕,不做完整 focus trap
+    });
   })();
   setupCollectDemo(); // ?demo=collect／off:備援站確認設計用的示範收集資料(只在沒有真實資料時寫入)
   setupBountyDemo(); // ?demo=bounty／off:合成一筆已校正旅程,撐住懸賞地圖層的金色線(A-2)
@@ -43927,6 +44051,193 @@ window.addEventListener('load', boot);
     };
     setTimeout(tryShow, 1400);
   } catch (e) {}
+})();
+
+// ── 電腦首頁開場・主程式：序幕（影片、金線）由 body 開頭的首繪 script 建好；這裡補字、音樂、設定列與揭幕。
+// 整段自成一體：網頁 2.0 接手時，連同首繪那段、#hop 樣式、setupHowto 的 RI_HOME_OPENING.after 一起搬。
+(function homeOpeningMain() {
+  const R = window.RI_HOME_OPENING;
+  if (!R) return;
+  const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+  const prefOn = () => { try { return localStorage.getItem('ri-home-opening') !== '0'; } catch (e) { return true; } };
+  // 設定列：觀看設定 › 畫面，「背景音樂」下面；只有會播開場的電腦看得到。
+  // 那一頁是 view-controls.js 開機後才把「更多」裡的列搬過去組成的，所以等它組好再跟著搬一次
+  try {
+    if (R.eligible) {
+      const row = el('button', 'ms-row'), tg = el('span', 'toggle');
+      row.id = 'homeOpeningRow'; row.type = 'button'; row.setAttribute('role', 'switch');
+      row.append(el('span', '', t('開場畫面')), tg);
+      const sync = () => { const on = prefOn(); tg.classList.toggle('on', on); row.setAttribute('aria-checked', String(on)); };
+      row.addEventListener('click', () => { try { localStorage.setItem('ri-home-opening', prefOn() ? '0' : '1'); } catch (e) {} sync(); });
+      sync();
+      const place = () => { const a = document.querySelector('.ms-row[data-proxy="musicBtn"]'); if (a && a.nextElementSibling !== row) a.after(row); return !!window.railViewControls; };
+      if (!place()) { let n = 0; const iv = setInterval(() => { if (place() || ++n > 120) clearInterval(iv); }, 500); }
+    }
+  } catch (e) {}
+  if (!R.run || R.done || !R.root || !R.root.isConnected) return;
+  R.main = true;
+  removeEventListener('keydown', R.onEarly, true);
+  const root = R.root, st = root.querySelector('.hop-st'), scrim = root.querySelector('.hop-scrim'), prog = root.querySelector('.hop-prog');
+  let cur = R.scene, curEl = st.querySelector('.hop-sc'), nextEl = null, nextSc = null;
+  let want = !!R.early, ready = false, leaving = false, armed = false, fsDone = false, readyAt = 0, progF = 0.1;
+  const t0 = performance.now();
+
+  // 音樂：小範圍鏡頭抽 Evening Interchange／Peaceful Piano，大範圍抽 Moonlake／Peaceful Piano；揭幕後交回網站自己的播放器
+  const NAMES = { '_pass/urban-jazz/Evening Interchange.mp3': 'Evening Interchange', 'Moonlake/Untitled-5.mp3': 'Moonlake',
+    'peaceful piano/Inspired by peaceful piano.mp3': 'Peaceful Piano' };
+  const pool = cur.big ? ['Moonlake/Untitled-5.mp3', 'peaceful piano/Inspired by peaceful piano.mp3']
+    : ['_pass/urban-jazz/Evening Interchange.mp3', 'peaceful piano/Inspired by peaceful piano.mp3'];
+  const track = pool[Math.floor(Math.random() * pool.length)], trackName = NAMES[track];
+  const musicOk = () => !!(state.music && state.music.enabled && musicAvailable());
+  const arm = () => { // 在使用者按鍵／點擊那一拍以音量 0 開播（瀏覽器才認得是手勢），序幕維持無聲，揭幕再淡入
+    const m = state.music;
+    if (armed || !musicOk()) return;
+    armed = true;
+    m.list = [track].concat(m.list.filter(f => f !== track)); m.idx = 0; m._fails = 0;
+    clearInterval(m._fade); musicLoadCur(); m.audio.volume = 0;
+    const p = m.audio.play(); if (p && p.catch) p.catch(() => { armed = false; });
+  };
+  const fadeIn = () => {
+    if (!armed) arm();
+    if (!armed) return;
+    const m = state.music;
+    const go = () => { if (!m.enabled) return; musicRamp(m.vol, 2000); showToast(t('正在播放　{name}', { name: trackName })); };
+    if (!m.audio.paused) go(); else m.audio.addEventListener('playing', go, { once: true });
+  };
+
+  // 畫面上的字：大站名牌（header 那塊的複本）、一句話、地名、進入提示、右上角音樂鈕
+  let plate = null;
+  try {
+    const src = document.querySelector('header.header-row .plate');
+    if (src) {
+      const c = src.cloneNode(true);
+      c.querySelectorAll('[id]').forEach(n => n.removeAttribute('id'));
+      const ends = GROUPS[0].plate; // 全台同框那塊牌：基隆◀▶高雄、ALL LINES · TAIWAN
+      c.querySelector('h1').textContent = t('軌島');
+      const sub = c.querySelector('.plate-sub'); if (sub) sub.textContent = t(ends.sub);
+      const stn = c.querySelectorAll('.plate-foot .stn');
+      if (stn[0]) stn[0].textContent = stationName(ends.plateL, 'tra_sched');
+      if (stn[1]) stn[1].textContent = stationName(ends.plateR, 'tra_sched');
+      plate = el('div', 'hop-plate hop-ui'); plate.setAttribute('aria-hidden', 'true'); plate.appendChild(c);
+      root.appendChild(plate);
+    }
+  } catch (e) { plate = null; }
+  const tx = el('div', 'hop-tx hop-ui'), cap = el('div', 'hop-cap', t(cur.name));
+  tx.append(el('div', 'hop-tag', t('一張會動的台灣鐵道地圖')), cap);
+  const goEl = el('button', 'hop-go hop-ui', t('地圖準備中')); goEl.type = 'button';
+  const snd = el('button', 'hop-snd hop-ui'); snd.type = 'button';
+  snd.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18V6L7.5 9.5z"/>'
+    + '<path class="wave" d="M15.5 9a4.2 4.2 0 0 1 0 6M18 6.5a7.6 7.6 0 0 1 0 11"/><path class="off" d="M16 9.5l5 5M21 9.5l-5 5"/></svg><span></span><small></small>';
+  const sndSync = () => {
+    const on = musicOk();
+    snd.setAttribute('aria-pressed', String(on));
+    snd.querySelector('span').textContent = on ? t('音樂 開') : t('音樂 關');
+    snd.querySelector('small').textContent = on ? t('進入後播放　{name}', { name: trackName }) : '';
+  };
+  snd.addEventListener('click', e => { // 只切音樂偏好（跟網站音樂鈕同一個記憶），不揭幕
+    e.stopPropagation();
+    const m = state.music; if (!m || !musicAvailable()) return;
+    m.enabled = !m.enabled; saveMusicPref(); updateMusicBtn(); sndSync();
+    if (!m.enabled && armed) { clearInterval(m._fade); m.audio.pause(); armed = false; }
+  });
+  if (!musicAvailable()) snd.hidden = true;
+  sndSync();
+  root.append(tx, goEl, snd);
+  requestAnimationFrame(() => root.classList.add('hop-main'));
+
+  // 白天每段播完換一段（不連續重複）；下一段在快播完時才開始載
+  const prepNext = () => {
+    const cands = R.pool.filter(s => s.id !== cur.id);
+    nextSc = cands[Math.floor(Math.random() * cands.length)];
+    nextEl = R.video(nextSc);
+    nextEl.querySelector('video').autoplay = false;
+    st.insertBefore(nextEl, scrim);
+  };
+  const swap = () => {
+    if (leaving) return;
+    if (!nextEl) prepNext();
+    const old = curEl, nv = nextEl.querySelector('video');
+    nextEl.classList.add('on'); old.classList.remove('on');
+    const p = nv.play(); if (p && p.catch) p.catch(() => {});
+    curEl = nextEl; cur = nextSc; nextEl = nextSc = null;
+    cap.textContent = t(cur.name);
+    try { localStorage.setItem('ri-home-opening-last', cur.id); } catch (e) {}
+    setTimeout(() => old.remove(), 1300);
+    wire(curEl);
+  };
+  const wire = sc => {
+    if (R.pool.length < 2) return;
+    const v = sc.querySelector('video');
+    v.addEventListener('timeupdate', () => { if (!nextEl && !leaving && v.duration && v.currentTime > v.duration - 4) prepNext(); });
+    v.addEventListener('ended', swap, { once: true });
+  };
+  wire(curEl);
+
+  // 地圖在後面載：state.ready → 圖磚 → 3D 列車；金線跟著走。ready 之後最多再等 8 秒，整體 30 秒一定放行
+  const enterFs = () => { // 揭幕前先排成現行網站的全畫面地圖；只用 CSS 版，不叫瀏覽器真全螢幕
+    fsDone = true;
+    if (!state._setFs || document.body.classList.contains('fs')) return;
+    const de = document.documentElement;
+    try { de.requestFullscreen = null; state._setFs(true); } catch (e) {} finally { try { delete de.requestFullscreen; } catch (e) {} }
+  };
+  const poll = () => {
+    if (leaving) return;
+    let target = document.readyState === 'complete' ? 0.35 : 0.22;
+    if (state.ready) {
+      if (!fsDone) enterFs();
+      if (!readyAt) readyAt = performance.now();
+      let tiles = false;
+      try { tiles = !!(M.raw && M.raw.isStyleLoaded() && M.raw.areTilesLoaded()); } catch (e) {}
+      const ri = window.railIslandIntegration;
+      const trains = !ri || ri.active || ri.deferred || (ri.errors && ri.errors.length > 0);
+      target = 0.6 + (tiles ? 0.2 : 0) + (trains ? 0.15 : 0);
+      if ((tiles && trains) || performance.now() - readyAt > 8000) ready = true;
+    }
+    if (performance.now() - t0 > 30000) ready = true;
+    progF = ready ? 1 : Math.max(progF, progF + (target - progF) * 0.25);
+    prog.style.width = (progF * 100).toFixed(1) + '%';
+    if (!ready) { setTimeout(poll, 250); return; }
+    prog.classList.add('done');
+    goEl.textContent = t('按任意鍵進入'); goEl.classList.add('ready');
+    if (want) reveal();
+  };
+  const request = () => {
+    if (leaving) return;
+    arm(); want = true;
+    if (ready) reveal(); else goEl.textContent = t('馬上好');
+  };
+  const onKey = e => {
+    if (leaving) return;
+    if (e.metaKey || e.ctrlKey || e.altKey || /^(Tab|Shift|Control|Alt|Meta|CapsLock|Fn|F\d+)$/.test(e.key)) return; // 瀏覽器快捷鍵照常
+    if ((e.key === 'Enter' || e.key === ' ') && e.target && e.target.closest && e.target.closest('.hop-snd')) return; // 音樂鈕自己的 Enter／空白鍵
+    e.preventDefault(); e.stopImmediatePropagation(); // 序幕期間按鍵不漏到地圖（空白鍵暫停、Esc 退出全畫面…）
+    request();
+  };
+  addEventListener('keydown', onKey, true);
+  root.addEventListener('click', e => { if (!e.target.closest('.hop-snd')) request(); });
+
+  // 揭幕：出隧道光圈約 1.5 秒；站名牌縮回左上角淡掉；音樂淡入；之後才放首訪教學卡等排隊的東西
+  const reveal = () => {
+    if (leaving) return;
+    leaving = true;
+    if (!fsDone && state.ready) enterFs();
+    removeEventListener('keydown', onKey, true);
+    root.classList.add('leaving', 'iris');
+    if (plate) {
+      const s = 0.55, h0 = plate.offsetHeight, dx = 12 - plate.offsetLeft, dy = 12 + h0 * s - (plate.offsetTop + h0);
+      plate.style.transition = 'transform 1.1s cubic-bezier(.55,0,.25,1), opacity .45s ease .95s';
+      plate.style.transform = `translate(${dx}px, ${dy}px) scale(${s})`;
+      plate.style.opacity = '0';
+    }
+    fadeIn();
+    setTimeout(() => {
+      R.done = true;
+      root.querySelectorAll('video').forEach(v => { try { v.pause(); v.removeAttribute('src'); v.load(); } catch (e) {} });
+      root.remove(); document.body.classList.remove('hop-on');
+      R.q.splice(0).forEach(fn => { try { fn(); } catch (e) {} });
+    }, 1550);
+  };
+  poll();
 })();
 
 // ── 網頁版語言提示(v0929b) ──
