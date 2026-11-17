@@ -7490,7 +7490,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1117b：新地景 engine 的 .mjs 模組原本被 .assetsignore 的 *.mjs 排除、正式站 404（v1117a 帶 ?landscape=new 只會退回舊地景），放行 landscape-web/**/*.mjs。
 // v1117c：地景地圖操作順暢：立體路線重建分段做、站點圓視距名單在鏡頭移動中節流（所有訪客，20732392f／8d0c26d68）；新地景接手時列車與軌道貼新地景的地形（2786b7766）、遠處路線淡出（保守檔，4622217c8）；自動降畫質原型預設關（?ls.auto=1，2e45cf034）。
 // v1117d：新地景接手一陣子後換地方（放空換車、搜尋），立體列車、軌道與跟車鏡頭不再退成平坦高度掉到約 0 公尺；拉遠時軌道照樣貼新地景地形（0b61e57b9）。
-const BUILD = 'v1117d';
+// v1117e：只動伺服器端（Worker），網頁畫面不變：營運推播雜訊修正、推播註冊收 Android、通行證每月點數與點數彙總端點、行程問答端點（/api/trip-ask*）、高鐵班表可查指定日期（/api/thsr-schedule?date=）。
+const BUILD = 'v1117e';
 // v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');

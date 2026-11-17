@@ -101,7 +101,9 @@ function tdxItems(alerts) {
   }
   return bySystem;
 }
-const routineNormal = v => /^\[1\]/.test(v); // TDX 例行「正常營運」：本身出現或消失都不算變化，非正常那筆消失才算
+// TDX 例行狀態：「正常營運」與每天收班後的「非營運時段」（台中捷運每天 00:5x 出現、05:4x 消失），本身出現或消失都不算變化，
+// 其他非正常那筆消失才算。非營運時段以前被當成事件，每天早上寫一則「台中捷運恢復正常營運」推播草稿（10/25～11/16 共 23 則）。
+const routineNormal = v => /^\[1\]/.test(v) || /^\[\d+\]\s*非營運時段\s*$/.test(v);
 
 const twTime = ms => new Date(ms).toLocaleString('sv-SE', { timeZone: 'Asia/Taipei' }).slice(0, 16);
 export const monthKey = ms => 'spend:' + new Date(ms + 8 * 3600e3).toISOString().slice(0, 7);

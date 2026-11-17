@@ -1,4 +1,4 @@
-// AI 營運整理的推播（P2，iOS）：整理頁每出新的一版，就替改到的系統各寫一則推播草稿，送核可請求到管理者的手機；
+// AI 營運整理的推播（P2 iOS、P3 Android）：整理頁每出新的一版，就替改到的系統各寫一則推播草稿，送核可請求到管理者的手機；
 // 管理者按「核可送出」之後才分批推給使用者。第一版每一則都要人核可，沒人處理就過期，不會自動發。
 // 同時跑 AI 檢查（影子模式）：另一個模型拿官方原文核對草稿，結論寫進紀錄、附在核可請求上，不影響發送。
 // schema：schema/0016_rail_push.sql。整理本身在 rail_ai_status.mjs。
@@ -10,7 +10,9 @@
 //   恢復正常沿用這件事推過的範圍：之前推全體，恢復也推全體。關掉某個系統的人，三種等級都不推。
 //
 // Claude API 用 fetch 直接呼叫、不引 SDK（理由同 rail_ai_status.mjs 檔頭）。
+// iOS 走 APNs、Android 走 FCM（fcm_core.mjs）；核可請求只送 iOS（管理者的手機是 iPhone，Android 不做核可按鈕）。
 import { laJwt, laJwtReset } from './la_push_core.mjs';
+import { fcmConfigured, fcmAuth, fcmReset, fcmSend } from './fcm_core.mjs';
 import {
   RAIL_AI_SYSTEMS, labelOf, latestRevision, sourceBlocks, kvGet, kvPut, addSpend, monthKey, MONTHLY_CAP_USD, isNormal,
 } from './rail_ai_status.mjs';
@@ -33,6 +35,8 @@ const FAIL_MAX = 3; // 同一個 token 連續幾次 BadDeviceToken 就刪掉
 const RECIPIENT_KEEP_MS = 30 * 86400e3;
 const TOPICS = new Set(['tw.railisland.app', 'tw.railisland.app.nativedev']);
 const TOKEN_RE = /^(?:[0-9a-f]{2}){32,100}$/;
+const FCM_TOKEN_RE = /^[A-Za-z0-9_:-]{64,1024}$/; // FCM registration token（emulator 實測 142 字，長度沒有保證）
+const NOTICE_URL = 'railisland://open/rail-status?sys=';
 const LANGS = ['zh', 'en', 'ja'];
 const APNS_PROD = 'api.push.apple.com', APNS_SANDBOX = 'api.sandbox.push.apple.com';
 const TIER_LABEL = { national: '全國', suspension: '停駛', general: '一般' };
@@ -47,7 +51,9 @@ const sha256 = async s => hex(await crypto.subtle.digest('SHA-256', new TextEnco
 // ── 分級 ─────────────────────────────────────────────────────────────────────────────────
 export function tierOf(sys, category, incident) {
   if (category === 'none') return null;
-  if (category === 'recovery') return incident && incident.tier !== 'general' ? incident.tier : 'general';
+  // 恢復沿用這件事推過的範圍；這件事沒推過（沒人核可、被略過或已過 7 天）就不發「已恢復」：沒收過事故通知的人收到恢復通知只是雜訊，
+  // AI 檢查也一律判「推給誰」不通過（10/25～11/16 這種草稿 13 則）。測試請求不受影響（draftOne 對測試另外補 general）。
+  if (category === 'recovery') return incident ? incident.tier : null;
   if (NATIONAL.has(sys) && (category === 'suspension' || category === 'major')) return 'national';
   return category === 'suspension' ? 'suspension' : 'general';
 }
@@ -244,13 +250,24 @@ export function noticePayload(req, lang) {
   return {
     aps: { alert: { title: title[lang] || title.zh, body: body[lang] || body.zh }, sound: 'default', 'thread-id': 'rail-status-' + req.system },
     rp: { kind: 'notice', id: req.id, sys: req.system },
-    url: 'railisland://open/rail-status?sys=' + req.system,
+    url: NOTICE_URL + req.system,
+  };
+}
+
+// Android：data-only 訊息，App 自己畫通知（頻道、點開去哪、關掉的系統再擋一次），App 在背景也會叫到收訊服務。
+// FCM 的 data 值只能是字串。collapse_key、ttl 對齊 iOS 的 apns-collapse-id 與 3 小時效期。
+export function fcmNoticeMessage(req, lang, token) {
+  const title = JSON.parse(req.title), body = JSON.parse(req.body);
+  return {
+    token,
+    data: { kind: 'notice', id: String(req.id), sys: req.system, title: title[lang] || title.zh, body: body[lang] || body.zh, url: NOTICE_URL + req.system },
+    android: { priority: 'HIGH', ttl: '10800s', collapse_key: 'rs-' + req.system },
   };
 }
 
 async function sendApproval(env, db, r, fetchImpl) {
   if (!env.APNS_KEY_P8) return 0;
-  const admins = (await db.prepare('SELECT token, topic, apns_env FROM rail_push_devices WHERE admin = 1').all()).results;
+  const admins = (await db.prepare(`SELECT token, topic, apns_env FROM rail_push_devices WHERE admin = 1 AND platform = 'ios'`).all()).results;
   if (!admins.length) return 0;
   const jwt = await laJwt(env);
   const payload = approvalPayload(r);
@@ -292,7 +309,7 @@ async function apnsSend(env, jwt, row, payload, { collapseId, ttlSec }, fetchImp
 async function sendApproved(env, db, now, fetchImpl) {
   const req = await db.prepare(`SELECT * FROM rail_push_requests WHERE status = 'approved' ORDER BY decided_ms, id LIMIT 1`).first();
   if (!req) return null;
-  if (!env.APNS_KEY_P8) return { skipped: 'no apns key' };
+  if (!env.APNS_KEY_P8 && !fcmConfigured(env)) return { skipped: 'no push keys' };
   const got = await db.prepare(`INSERT INTO rail_ai_kv (k, v, updated_ms) VALUES ('push_send_lock', ?, ?)
     ON CONFLICT(k) DO UPDATE SET v = excluded.v, updated_ms = excluded.updated_ms WHERE CAST(rail_ai_kv.v AS INTEGER) < ?`)
     .bind(String(now + SEND_LOCK_MS), now, now).run();
@@ -305,29 +322,48 @@ async function sendApproved(env, db, now, fetchImpl) {
       await kvPut(db, 'push-incident:' + req.system, { id: req.incident, tier: wider, at: now }, now).run();
     }
     const [where, binds] = audienceWhere(req, now);
-    const rows = (await db.prepare(`SELECT d.token, d.topic, d.apns_env, d.lang, d.fail_streak FROM rail_push_devices d
+    const rows = (await db.prepare(`SELECT d.token, d.platform, d.topic, d.apns_env, d.lang, d.fail_streak FROM rail_push_devices d
       WHERE d.token > ? AND ${where} ORDER BY d.token LIMIT ?`).bind(req.cursor || '', ...binds, SEND_BATCH).all()).results;
-    const jwt = rows.length ? await laJwt(env) : null;
+    const android = d => d.platform === 'android';
+    const jwt = env.APNS_KEY_P8 && rows.some(d => !android(d)) ? await laJwt(env) : null;
+    let fcm = null;
+    if (fcmConfigured(env) && rows.some(android)) {
+      try { fcm = await fcmAuth(env, fetchImpl); } catch (e) { console.error('[cron rail-push] FCM access token 拿不到:', String((e && e.message) || e)); }
+    }
     const writes = [];
-    let sent = 0, failed = 0, reset403 = false;
+    let sent = 0, failed = 0, reset403 = false, resetFcm = false;
+    const drop = d => writes.push(db.prepare('DELETE FROM rail_push_devices WHERE token = ?').bind(d.token));
+    const strike = d => writes.push(d.fail_streak + 1 >= FAIL_MAX ? db.prepare('DELETE FROM rail_push_devices WHERE token = ?').bind(d.token)
+      : db.prepare('UPDATE rail_push_devices SET fail_streak = fail_streak + 1 WHERE token = ?').bind(d.token));
+    const delivered = (d, update) => {
+      sent++;
+      writes.push(update);
+      if (req.tier === 'general' && !req.test) writes.push(db.prepare('INSERT OR IGNORE INTO rail_push_recipients (incident, token, at_ms) VALUES (?, ?, ?)').bind(req.incident, d.token, now));
+    };
     for (let i = 0; i < rows.length; i += SEND_PARALLEL) {
       await Promise.all(rows.slice(i, i + SEND_PARALLEL).map(async d => {
-        const r = await apnsSend(env, jwt, d, noticePayload(req, LANGS.includes(d.lang) ? d.lang : 'zh'), { collapseId: 'rs-' + req.system, ttlSec: 3 * 3600 }, fetchImpl);
-        if (r.ok) {
-          sent++;
-          writes.push(db.prepare('UPDATE rail_push_devices SET apns_env = ?, fail_streak = 0 WHERE token = ?').bind(r.env, d.token));
-          if (req.tier === 'general' && !req.test) writes.push(db.prepare('INSERT OR IGNORE INTO rail_push_recipients (incident, token, at_ms) VALUES (?, ?, ?)').bind(req.incident, d.token, now));
+        const lang = LANGS.includes(d.lang) ? d.lang : 'zh';
+        if (android(d)) {
+          if (!fcm) { failed++; return; }
+          const r = await fcmSend(fcm, fcmNoticeMessage(req, lang, d.token), fetchImpl);
+          if (r.ok) return delivered(d, db.prepare('UPDATE rail_push_devices SET fail_streak = 0 WHERE token = ?').bind(d.token));
+          failed++;
+          if (r.code === 'UNREGISTERED') drop(d);
+          else if (r.code === 'INVALID_ARGUMENT' || r.code === 'SENDER_ID_MISMATCH') strike(d);
+          else if (r.status === 401 || r.status === 403) resetFcm = true;
           return;
         }
+        if (!jwt) { failed++; return; }
+        const r = await apnsSend(env, jwt, d, noticePayload(req, lang), { collapseId: 'rs-' + req.system, ttlSec: 3 * 3600 }, fetchImpl);
+        if (r.ok) return delivered(d, db.prepare('UPDATE rail_push_devices SET apns_env = ?, fail_streak = 0 WHERE token = ?').bind(r.env, d.token));
         failed++;
-        if (r.status === 410) writes.push(db.prepare('DELETE FROM rail_push_devices WHERE token = ?').bind(d.token));
-        else if (r.status === 400 && (r.reason === 'BadDeviceToken' || r.reason === 'DeviceTokenNotForTopic')) {
-          writes.push(d.fail_streak + 1 >= FAIL_MAX ? db.prepare('DELETE FROM rail_push_devices WHERE token = ?').bind(d.token)
-            : db.prepare('UPDATE rail_push_devices SET fail_streak = fail_streak + 1 WHERE token = ?').bind(d.token));
-        } else if (r.status === 403) reset403 = true;
+        if (r.status === 410) drop(d);
+        else if (r.status === 400 && (r.reason === 'BadDeviceToken' || r.reason === 'DeviceTokenNotForTopic')) strike(d);
+        else if (r.status === 403) reset403 = true;
       }));
     }
     if (reset403) laJwtReset();
+    if (resetFcm) fcmReset();
     const done = rows.length < SEND_BATCH;
     writes.push(db.prepare(`UPDATE rail_push_requests SET cursor = ?, sent = sent + ?, failed = failed + ?, status = ?, done_ms = ? WHERE id = ?`)
       .bind(rows.length ? rows[rows.length - 1].token : req.cursor, sent, failed, done ? 'sent' : 'approved', done ? now : null, req.id));
@@ -394,14 +430,16 @@ export async function railPushScheduled(event, env, { fetch: fetchImpl = fetch }
 }
 
 // ── 端點（worker.js 先做方法與限流檢查）──────────────────────────────────────────────────────
-// 註冊不驗身分：token 只驗格式，假的 token 送幾次 BadDeviceToken 就會被刪（同跟車卡的做法）。
+// 註冊不驗身分：token 只驗格式，假的 token 送幾次 BadDeviceToken（Android：INVALID_ARGUMENT／UNREGISTERED）就會被刪（同跟車卡的做法）。
+// topic 是 App 的 bundle id／Android 套件名，兩平台同名。
 // admin、tester、apns_env 不在這裡改：前兩個只能用 SQL 手動設定，環境是送成功才記。
 export async function railPushRegister(request, env, now = Date.now()) {
   let b;
   try { b = await request.json(); } catch (e) { return json({ error: 'bad_json' }, 400); }
   const sysList = v => Array.isArray(v) && v.length <= 20 ? [...new Set(v.filter(x => SYSTEM_IDS.has(x)))] : null;
   const token = String((b && b.token) || ''), off = sysList(b && b.off), watching = sysList((b && b.watching) || []);
-  if (!TOKEN_RE.test(token) || b.platform !== 'ios' || !TOPICS.has(b.topic) || !off || !watching) return json({ error: 'bad_device' }, 400);
+  const tokenOk = b.platform === 'ios' ? TOKEN_RE.test(token) : b.platform === 'android' ? FCM_TOKEN_RE.test(token) : false;
+  if (!tokenOk || !TOPICS.has(b.topic) || !off || !watching) return json({ error: 'bad_device' }, 400);
   const lang = LANGS.includes(b.lang) ? b.lang : 'zh';
   const until = watching.length ? Math.min(Number(b.watchingUntil) || 0, now + 24 * 3600e3) : 0;
   try {
@@ -417,8 +455,9 @@ export async function railPushRegister(request, env, now = Date.now()) {
 export async function railPushUnregister(request, env) {
   let b;
   try { b = await request.json(); } catch (e) { return json({ ok: true }); }
-  if (b && TOKEN_RE.test(String(b.token || ''))) {
-    try { await env.DELAY_DB.prepare('DELETE FROM rail_push_devices WHERE token = ?').bind(String(b.token)).run(); } catch (e) {}
+  const t = String((b && b.token) || '');
+  if (TOKEN_RE.test(t) || FCM_TOKEN_RE.test(t)) {
+    try { await env.DELAY_DB.prepare('DELETE FROM rail_push_devices WHERE token = ?').bind(t).run(); } catch (e) {}
   }
   return json({ ok: true });
 }

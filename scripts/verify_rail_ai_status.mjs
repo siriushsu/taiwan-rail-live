@@ -201,6 +201,19 @@ check('第一次拿到 TDX：已經有營運相關公告的系統直接排整理
 alerts.metro[0].desc = '因強風，預計 16 時恢復';
 d = await railAiDetect(env, { now: later + 21 * 60e3, fetch: fakeFetch, alerts });
 check('TDX 公告內容改變標成待整理（高雄輕軌）', d.dirty.join() === 'klrt', JSON.stringify(d));
+{
+  // 台中捷運每天收班：例行正常 → 非營運時段 → 例行正常，兩次變化都不算事件（以前每天早上寫一則「恢復正常營運」推播草稿）
+  const tmrt = (status, title) => ({ sysLabel: '台中捷運', status, title, desc: title });
+  const metroNow = m => ({ ...alerts, metro: [alerts.metro[0], m] });
+  d = await railAiDetect(env, { now: later + 24 * 60e3, fetch: fakeFetch, alerts: metroNow(tmrt(1, '正常營運')) });
+  const night = await railAiDetect(env, { now: later + 27 * 60e3, fetch: fakeFetch, alerts: metroNow(tmrt(0, '非營運時段')) });
+  const morning = await railAiDetect(env, { now: later + 30 * 60e3, fetch: fakeFetch, alerts: metroNow(tmrt(1, '正常營運')) });
+  check('台中捷運收班的「非營運時段」出現與消失都不排整理', !night.dirty.includes('tmrt') && !morning.dirty.includes('tmrt') && night.events >= 1 && night.relevant === 0 && morning.relevant === 0,
+    JSON.stringify({ night, morning }));
+  const stop = await railAiDetect(env, { now: later + 33 * 60e3, fetch: fakeFetch, alerts: metroNow(tmrt(2, '全線暫停營運')) });
+  check('對照：台中捷運真的停駛仍排整理', stop.dirty.includes('tmrt'), JSON.stringify(stop));
+  await railAiDetect(env, { now: later + 36 * 60e3, fetch: fakeFetch, alerts: metroNow(tmrt(1, '正常營運')) });
+}
 
 // 16. 資料表不存在（正式庫漏套 migration）時 API 回 503，不丟例外
 const bad = await railAiStatus(new Request('https://railisland.tw/api/rail-status'), { DELAY_DB: { prepare() { throw new Error('no such table: rail_ai_revisions'); } } });

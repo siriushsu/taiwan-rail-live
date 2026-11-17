@@ -44,6 +44,7 @@
     "check-live-activity": "node scripts/verify_live_activity.mjs",
     "check-rail-ai-status": "node scripts/verify_rail_ai_status.mjs",
     "check-rail-push": "node scripts/verify_rail_push.mjs",
+    "check-trip-ask": "node scripts/verify_trip_ask.mjs",
     "check-transfer": "npm run check-transfer-departures && npm run check-transfer-connections && npm run check-transfer-pin && npm run check-transfer-transitions && npm run check-transfer-mobile && npm run check-transfer-follow-pin && npm run check-transfer-collapse && npm run check-transfer-live-handoff",
     "build-gps-runs": "node scripts/build_gps_runs.mjs",
     "build-run-profiles": "node scripts/build_run_profiles.mjs",

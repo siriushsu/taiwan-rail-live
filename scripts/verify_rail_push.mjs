@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// AI 營運整理推播（scripts/rail_push.mjs）的離線驗收：真 SQL（d1_local＋schema/*.sql）、假 Claude、假 APNs。
+// AI 營運整理推播（scripts/rail_push.mjs）的離線驗收：真 SQL（d1_local＋schema/*.sql）、假 Claude、假 APNs、假 Google OAuth＋FCM。
 // 不連網、不花錢、不推任何東西。用法：node scripts/verify_rail_push.mjs
-import { generateKeyPairSync } from 'node:crypto';
+import { generateKeyPairSync, verify as cryptoVerify } from 'node:crypto';
 import { openTestDb } from './d1_local.mjs';
-import { railPushScheduled, railPushRegister, railPushUnregister, railPushDecide, tierOf, approvalPayload } from './rail_push.mjs';
+import { railPushScheduled, railPushRegister, railPushUnregister, railPushDecide, tierOf, approvalPayload, fcmNoticeMessage } from './rail_push.mjs';
 
 let fails = 0;
 const check = (name, ok, extra = '') => { console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${extra ? '  ' + extra : ''}`); if (!ok) fails++; };
@@ -18,7 +18,11 @@ const MIN = 60e3;
 
 // ── 假世界 ─────────────────────────────────────────────────────────────────────────────────
 // apns[token]＝這個 token 屬於哪個環境：'prod'／'sandbox'／'gone'（410）／'bad'（兩邊都 BadDeviceToken）
-const world = { draft: null, check: null, claudeCalls: [], apns: {}, pushes: [] };
+// fcm[token]＝'gone'（UNREGISTERED）／'bad'（INVALID_ARGUMENT）／'down'（503）／'auth'（401），沒寫＝成功
+const world = { draft: null, check: null, claudeCalls: [], apns: {}, pushes: [], fcm: {}, fcmSends: [], oauth: [] };
+const fcmKeys = generateKeyPairSync('rsa', { modulusLength: 2048 });
+const fcmErr = (status, code) => new Response(JSON.stringify({ error: { code: status, status: code === 'UNREGISTERED' ? 'NOT_FOUND' : code,
+  details: [{ '@type': 'type.googleapis.com/google.firebase.fcm.v1.FcmError', errorCode: code }] } }), { status });
 const reply = (model, out, usage = { input_tokens: 2000, output_tokens: 300 }) => new Response(JSON.stringify({
   model, stop_reason: 'end_turn', usage, content: [{ type: 'thinking', thinking: '' }, { type: 'text', text: JSON.stringify(out) }],
 }), { status: 200 });
@@ -30,7 +34,25 @@ async function fakeFetch(url, init = {}) {
     const fn = body.model === 'claude-haiku-5-5' ? world.draft : world.check;
     return fn(body);
   }
-  const m = url.match(/^https:\/\/(api(?:\.sandbox)?\.push\.apple\.com)\/3\/device\/([0-9a-f]+)$/);
+  if (url === 'https://oauth2.googleapis.com/token') {
+    const form = new URLSearchParams(init.body), jwt = form.get('assertion').split('.');
+    const claims = JSON.parse(Buffer.from(jwt[1], 'base64url'));
+    const sigOk = cryptoVerify('RSA-SHA256', Buffer.from(`${jwt[0]}.${jwt[1]}`), fcmKeys.publicKey, Buffer.from(jwt[2], 'base64url'));
+    world.oauth.push({ grant: form.get('grant_type'), header: JSON.parse(Buffer.from(jwt[0], 'base64url')), claims, sigOk, redirect: init.redirect });
+    return new Response(JSON.stringify({ access_token: 'ya29.test-' + world.oauth.length, expires_in: 3599, token_type: 'Bearer' }), { status: 200 });
+  }
+  if (url.startsWith('https://fcm.googleapis.com/')) {
+    const message = JSON.parse(init.body).message;
+    world.fcmSends.push({ url, headers: init.headers, message });
+    const kind = world.fcm[message.token];
+    if (kind === 'gone') return fcmErr(404, 'UNREGISTERED');
+    if (kind === 'bad') return fcmErr(400, 'INVALID_ARGUMENT');
+    if (kind === 'down') return fcmErr(503, 'UNAVAILABLE');
+    if (kind === 'auth') return new Response(JSON.stringify({ error: { code: 401, status: 'UNAUTHENTICATED' } }), { status: 401 });
+    return new Response(JSON.stringify({ name: 'projects/railisland-test/messages/1' }), { status: 200 });
+  }
+  // token 不限 hex：Android 的 FCM token 被誤送到 APNs 時也要記到
+  const m = url.match(/^https:\/\/(api(?:\.sandbox)?\.push\.apple\.com)\/3\/device\/([^/]+)$/);
   if (m) {
     const host = m[1], token = m[2], kind = world.apns[token] || 'prod';
     world.pushes.push({ host, token, headers: init.headers, payload: JSON.parse(init.body) });
@@ -90,7 +112,7 @@ check('註銷：刪掉；不存在或格式錯也回 200', !devRow(tok('9')) && 
 // ── 2. 分級規則 ────────────────────────────────────────────────────────────────────────────
 check('分級：台鐵、高鐵的停駛與重大事件＝全國', tierOf('tra', 'suspension') === 'national' && tierOf('thsr', 'major') === 'national' && tierOf('tra', 'minor') === 'general');
 check('分級：其他系統整線停駛＝停駛，重大事故沒停駛＝一般', tierOf('trtc', 'suspension') === 'suspension' && tierOf('trtc', 'major') === 'general');
-check('分級：恢復沿用這件事推過的範圍，沒推過就是一般', tierOf('trtc', 'recovery', { tier: 'suspension' }) === 'suspension' && tierOf('trtc', 'recovery', { tier: 'general' }) === 'general' && tierOf('trtc', 'recovery', null) === 'general');
+check('分級：恢復沿用這件事推過的範圍，沒推過就不發', tierOf('trtc', 'recovery', { tier: 'suspension' }) === 'suspension' && tierOf('trtc', 'recovery', { tier: 'general' }) === 'general' && tierOf('trtc', 'recovery', null) === null);
 check('分級：不值得推＝不送', tierOf('tra', 'none') === null);
 
 // ── 3. 第一次上線：只記基準 ──────────────────────────────────────────────────────────────────
@@ -180,6 +202,15 @@ await post(railPushDecide, { id: req.id, nonce: approvalOf(req.id).payload.rp.no
 await tick(T0 + 203 * MIN);
 check('一般恢復：送給 E', world.pushes.filter(p => p.payload.rp.kind === 'notice').map(p => p.token).join() === E);
 
+// ── 8b. 沒推過的事件恢復：不寫核可請求、不叫檢查（以前會變成一般等級，AI 檢查一律判「推給誰」不通過）──────────
+world.pushes = []; world.claudeCalls = [];
+world.draft = b => reply(b.model, draftOut('recovery', '高捷恢復正常'));
+revise(T0 + 210 * MIN, { krtc: entry('正常', '正常', T0 + 210 * MIN) });
+await tick(T0 + 211 * MIN);
+req = lastReq();
+check('沒推過的事件恢復：記成 dropped、不叫檢查、不送核可', req.system === 'krtc' && req.status === 'dropped' && req.category === 'recovery'
+  && world.claudeCalls.length === 1 && world.pushes.length === 0, `${req.system} ${req.status} calls=${world.claudeCalls.length} pushes=${world.pushes.length}`);
+
 // ── 9. 台鐵加開＝全國；不值得推＝不送核可；同系統新的一則取代舊的 ────────────────────────────────────
 world.pushes = [];
 world.draft = b => reply(b.model, draftOut('major', '台鐵加開 3 列自強號'));
@@ -268,6 +299,89 @@ check('worker：GET /api/rail-push/decide 回 405', wr.status === 405);
 wr = await worker.fetch(new Request('https://railisland.tw/api/push/unregister', { method: 'POST', body: JSON.stringify({ token: tok('7') }) }),
   { DELAY_DB, LA_LIMITER: { limit: async () => ({ success: false }) } }, { waitUntil() {} });
 check('worker：被限流回 429、不刪', wr.status === 429 && !!devRow(tok('7')));
+
+// ── 15. Android（FCM）──────────────────────────────────────────────────────────────────────
+// 服務帳號沿用 Firestore 那一組；私鑰故意寫成字面 \n（密碼管理器常見的貼法）。
+env.FIRESTORE_PROJECT_ID = 'railisland-test';
+env.FIRESTORE_SERVICE_ACCOUNT_EMAIL = 'firebase-adminsdk@railisland-test.iam.gserviceaccount.com';
+env.FIRESTORE_SERVICE_ACCOUNT_PRIVATE_KEY = fcmKeys.privateKey.export({ type: 'pkcs8', format: 'pem' }).trim().replace(/\n/g, '\\n');
+db.prepare(`DELETE FROM rail_push_devices WHERE token LIKE '0%'`).run(); // 第 12 段的 205 台，這段不需要
+const ftok = c => 'f' + c + ':APA91b' + c.repeat(150);
+const G = ftok('G'), H = ftok('H'), I = ftok('I'), J = ftok('J'), K = ftok('K'), L = ftok('L');
+const regA = (t, extra = {}, now = T0) => post(railPushRegister, { token: t, platform: 'android', topic: 'tw.railisland.app.nativedev', lang: 'zh', off: [], ...extra }, now);
+r = await regA(G);
+check('Android 註冊：合法 FCM token 回 200、存成 android', r.status === 200 && devRow(G).platform === 'android' && devRow(G).topic === 'tw.railisland.app.nativedev' && devRow(G).apns_env === null);
+check('Android 註冊：token 有空白／太短、iOS 平台配 FCM token、不認得的平台都回 400',
+  (await regA('abc def'.repeat(20))).status === 400 && (await regA('fG:short')).status === 400
+  && (await reg(ftok('M'))).status === 400 && (await post(railPushRegister, { token: ftok('M'), platform: 'web', topic: 'tw.railisland.app', off: [] }, T0)).status === 400 && !devRow(ftok('M')));
+await regA(ftok('N'));
+await post(railPushUnregister, { token: ftok('N') }, T0);
+check('Android 註銷：刪掉', !devRow(ftok('N')));
+await regA(H, { lang: 'ja', off: ['trtc'] });
+await regA(I); world.fcm[I] = 'gone';
+await regA(J); world.fcm[J] = 'bad';
+await regA(K); world.fcm[K] = 'down';
+await regA(L, { lang: 'en' });
+db.prepare('UPDATE rail_push_devices SET admin = 1 WHERE token = ?').run(G);
+
+world.pushes = []; world.fcmSends = []; world.oauth = [];
+world.draft = b => reply(b.model, draftOut('suspension', '北捷板南線停駛'));
+world.check = b => reply(b.model, checkOut('pass'));
+revise(T0 + 1000 * MIN, { trtc: entry('停駛', '板南線停駛', T0 + 1000 * MIN) });
+await tick(T0 + 1001 * MIN);
+req = lastReq();
+check('Android 核可請求：管理者旗標在 Android 上也不送（核可只走 iOS）', req.status === 'pending' && world.fcmSends.length === 0
+  && world.pushes.length === 1 && world.pushes[0].token === A && req.admin_sent === 1);
+check('Android 預估人數：算進 Android、排除關掉北捷的 H', req.estimate === db.prepare(`SELECT COUNT(*) n FROM rail_push_devices WHERE token != ?`).get(C).n - 1, String(req.estimate));
+await post(railPushDecide, { id: req.id, nonce: approvalOf(req.id).payload.rp.nonce, decision: 'approve' }, T0 + 1002 * MIN);
+world.pushes = [];
+await tick(T0 + 1003 * MIN);
+req = lastReq();
+const oa = world.oauth[0];
+check('FCM access token：服務帳號簽 RS256 JWT（iss、scope、aud、簽章對得上公鑰）、不跟轉址',
+  world.oauth.length === 1 && oa.sigOk && oa.header.alg === 'RS256' && oa.grant === 'urn:ietf:params:oauth:grant-type:jwt-bearer'
+  && oa.claims.iss === env.FIRESTORE_SERVICE_ACCOUNT_EMAIL && oa.claims.scope === 'https://www.googleapis.com/auth/firebase.messaging'
+  && oa.claims.aud === 'https://oauth2.googleapis.com/token' && oa.claims.exp - oa.claims.iat === 3600 && oa.redirect === 'manual');
+const fsTo = t => world.fcmSends.filter(x => x.message.token === t);
+const fg = fsTo(G)[0];
+check('FCM 送出：v1 messages:send、帶 Bearer access token', !!fg && fg.url === 'https://fcm.googleapis.com/v1/projects/railisland-test/messages:send' && fg.headers.authorization === 'Bearer ya29.test-1');
+check('FCM 送出：data-only、值全是字串、HIGH、collapse_key 與 ttl 對齊 iOS', !!fg && !fg.message.notification
+  && Object.values(fg.message.data).every(v => typeof v === 'string') && fg.message.android.priority === 'HIGH'
+  && fg.message.android.collapse_key === 'rs-trtc' && fg.message.android.ttl === '10800s');
+check('FCM 送出：點開帶系統（url 同 iOS）、依裝置語言給字', fg.message.data.kind === 'notice' && fg.message.data.sys === 'trtc' && fg.message.data.id === String(req.id)
+  && fg.message.data.url === 'railisland://open/rail-status?sys=trtc' && fg.message.data.title === '北捷板南線停駛' && fsTo(L)[0].message.data.title === 'EN 北捷板南線停駛');
+check('FCM 送出：全體排除關掉北捷的 Android 裝置 H', fsTo(H).length === 0 && fsTo(G).length === 1 && fsTo(L).length === 1);
+check('FCM 送出：UNREGISTERED 刪掉、INVALID_ARGUMENT 只記一次失敗、503 不動', !devRow(I) && devRow(J).fail_streak === 1 && devRow(K).fail_streak === 0);
+const iosSent = world.pushes.filter(p => p.payload.rp && p.payload.rp.kind === 'notice').length;
+check('FCM 送出：iOS 照送，計數含兩個平台', iosSent > 0 && req.status === 'sent' && req.sent === iosSent + 2 && req.failed === 3, `${req.status} ${req.sent}/${req.failed} ios=${iosSent}`);
+
+// 下一則：access token 沿用快取；401 作廢快取，再下一則重換
+world.fcmSends = []; world.fcm[G] = 'auth';
+db.prepare(`UPDATE rail_push_requests SET status = 'approved', cursor = NULL, decided_ms = ? WHERE id = ?`).run(T0 + 1010 * MIN, req.id);
+await tick(T0 + 1011 * MIN);
+check('FCM：下一則沿用快取的 access token，不重換', world.oauth.length === 1 && world.fcmSends.every(x => x.headers.authorization === 'Bearer ya29.test-1'));
+check('FCM：401 不刪 token、不算 token 的錯', !!devRow(G) && devRow(G).fail_streak === 0);
+delete world.fcm[G]; world.fcmSends = [];
+db.prepare(`UPDATE rail_push_requests SET status = 'approved', cursor = NULL, decided_ms = ? WHERE id = ?`).run(T0 + 1020 * MIN, req.id);
+await tick(T0 + 1021 * MIN);
+check('FCM：401 之後作廢快取，下一輪重換 access token', world.oauth.length === 2 && world.fcmSends[0].headers.authorization === 'Bearer ya29.test-2');
+check('FCM：INVALID_ARGUMENT 連續 3 次才刪', !devRow(J));
+
+// 沒有服務帳號：Android 算失敗、token 留著，iOS 照送
+const sa = env.FIRESTORE_SERVICE_ACCOUNT_PRIVATE_KEY; delete env.FIRESTORE_SERVICE_ACCOUNT_PRIVATE_KEY;
+world.fcmSends = []; world.pushes = [];
+db.prepare(`UPDATE rail_push_requests SET status = 'approved', cursor = NULL, sent = 0, failed = 0, decided_ms = ? WHERE id = ?`).run(T0 + 1030 * MIN, req.id);
+await tick(T0 + 1031 * MIN);
+const noKey = db.prepare('SELECT * FROM rail_push_requests WHERE id = ?').get(req.id);
+check('沒設服務帳號：不叫 FCM、Android 算失敗不刪、iOS 照送', world.fcmSends.length === 0 && !!devRow(G) && !!devRow(L)
+  && world.pushes.length > 0 && noKey.failed === db.prepare(`SELECT COUNT(*) n FROM rail_push_devices WHERE platform = 'android' AND token != ?`).get(H).n, `${noKey.sent}/${noKey.failed}`);
+env.FIRESTORE_SERVICE_ACCOUNT_PRIVATE_KEY = sa;
+
+const longReq = { id: 1, system: 'ntmetro', title: JSON.stringify({ zh: '很長'.repeat(20), ja: '長'.repeat(40) }), body: JSON.stringify({ zh: '很長'.repeat(80), ja: '長'.repeat(160) }) };
+const bigFcm = JSON.stringify(fcmNoticeMessage(longReq, 'ja', ftok('Z')));
+check('FCM：最長的標題與內文也在 4 KB 上限內', new TextEncoder().encode(bigFcm).length < 4096, String(new TextEncoder().encode(bigFcm).length));
+wr = await worker.fetch(new Request('https://railisland.tw/api/push/register', { method: 'POST', body: JSON.stringify({ token: ftok('W'), platform: 'android', topic: 'tw.railisland.app', off: [] }) }), wenv, { waitUntil() {} });
+check('worker：POST /api/push/register 收 Android', wr.status === 200 && devRow(ftok('W')).platform === 'android');
 
 console.log(fails ? `\n${fails} 項失敗` : '\n全部通過');
 process.exit(fails ? 1 : 0);

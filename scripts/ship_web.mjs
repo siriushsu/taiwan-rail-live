@@ -164,6 +164,14 @@ try {
   const railPush = spawnSync('node', [path.join(wt, 'scripts', 'verify_rail_push.mjs')], { cwd: wt, encoding: 'utf8' });
   process.stdout.write(railPush.stdout || ''); process.stderr.write(railPush.stderr || '');
   if (railPush.status !== 0) fail('AI 營運整理推播守門未過（單獨重跑：npm run check-rail-push）');
+  // AI 一句話排行程（/api/trip-ask*）：試用與上限、說明的車次時刻驗證、7 天刪除。本機 D1＋假 Claude＋假 Firebase。
+  const tripAsk = spawnSync('node', [path.join(wt, 'scripts', 'verify_trip_ask.mjs')], { cwd: wt, encoding: 'utf8' });
+  process.stdout.write(tripAsk.stdout || ''); process.stderr.write(tripAsk.stderr || '');
+  if (tripAsk.status !== 0) fail('AI 一句話排行程守門未過（單獨重跑：npm run check-trip-ask）');
+  // 高鐵指定日期（/api/thsr-schedule?date=）：只給 D1 那一天、日期範圍、快取鍵帶日期；不帶 date 行為不變。
+  const thsrDay = spawnSync('node', [path.join(wt, 'scripts', 'verify_thsr_schedule_day.mjs')], { cwd: wt, encoding: 'utf8' });
+  process.stdout.write(thsrDay.stdout || ''); process.stderr.write(thsrDay.stderr || '');
+  if (thsrDay.status !== 0) fail('高鐵指定日期守門未過（單獨重跑：node scripts/verify_thsr_schedule_day.mjs）');
 
   // 🔴 位置不可移到 strip 之後:check_i18n 的 evaluateConstBlock 拿【註解】當區塊結束標記
   //    （'// 有精選特色'、'// 播放/速度/時間'），strip 把註解刪光之後它會報「找不到內容區塊」

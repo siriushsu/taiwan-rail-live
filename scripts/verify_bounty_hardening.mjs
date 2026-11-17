@@ -2145,6 +2145,20 @@ async function plCapture() {
   const ride = { actor: A, day: '2026-07-29', trainKey: 'mrt|BR|veh-0001', startedAt: tpe('2026-07-29', 9), sec: 600, requestId: nextReq(), client: APP };
   st.cloud = (await call(_bounty.cloudRide, post('/api/cloud-ride', ride), w.env)).status;
   st.cloudResend = (await call(_bounty.cloudRide, post('/api/cloud-ride', ride), w.env)).status;   // 重送：照 ref 找回第一次入帳幾點那一句
+  // 通行證每月點數：U 有一張訂閱、時間撥到 12 月 1 日（規則檔 chips.passMonthly.from＝2026-12），走到入帳那一句；再讀一次這個月的點數彙總。
+  // RevenueCat 只在這兩步之間有替身（形狀同 verify_bounty_monthly.mjs），其餘照舊離線（Z 那一條照樣數）。
+  const fetch0 = globalThis.fetch;
+  globalThis.fetch = async (u, init) => /^https:\/\/api\.revenuecat\.com\//.test(String(u))
+    ? new Response(J({ object: 'list', next_page: null, url: String(u), items: String(u).includes('/subscriptions?environment=production')
+      ? [{ id: 'sub_pl', customer_id: U, gives_access: true, environment: 'production', store: 'app_store', store_subscription_identifier: 'pl-tx',
+        entitlements: { items: [{ lookup_key: 'plus' }] } }] : [] }), { status: 200 })
+    : fetch0(u, init);
+  try {
+    const dec = { ...w.env, BOUNTY_NOW: String(Date.parse('2026-12-01T02:00:00Z')), REVENUECAT_PROJECT_ID: 'proj_pl', REVENUECAT_V2_SECRET_KEY: 'sk_pl' };
+    const pm = await call(_bounty.passMonthly, post('/api/pass-monthly', {}, bearer(U)), dec);
+    st.passMonthly = `${pm.status} ${pm.json && pm.json.state} ${pm.json && pm.json.grantedNow}`;
+    st.pointsSummary = (await call(_bounty.pointsSummary, get('/api/points-summary?period=2026-12', bearer(U)), dec)).status;
+  } finally { globalThis.fetch = fetch0; }
   st.merge = (await merge(w, A, U)).status;
   st.del = (await delAccount(w, { actor: B }, U)).status;
   return { sqls: seen, st };
@@ -2184,6 +2198,9 @@ const PL_PINS = [
   ['兌換：交易內餘額守衛', / AND \(SELECT COALESCE\(SUM\(delta\),0\) \+ MAX\(0, .* FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=\?\) >= \?$/],
   ['雲端搭乘：入帳（這一次搭乘真的是自己那一格）', /^INSERT OR IGNORE INTO chip_ledger .* WHERE EXISTS \(SELECT 1 FROM cloud_rides INDEXED BY sqlite_autoindex_cloud_rides_1 WHERE actor=\? AND day=\? AND request_id=\? AND simulator=0\)$/],
   ['合併：帳本改名', /^UPDATE chip_ledger INDEXED BY idx_chip_ledger_actor_day SET actor=\? WHERE actor=\?/],
+  ['每月點數：領過的月份', /FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=\? AND kind='adjust' AND substr\(ref,1,12\)='passmonthly\|' ORDER BY created_at DESC LIMIT 24$/],
+  ['每月點數：入帳（這個帳號這個月還沒有一列）', /^INSERT OR IGNORE INTO chip_ledger .* WHERE NOT EXISTS \(SELECT 1 FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=\? AND day >= \? AND day <= \? AND kind='adjust' AND substr\(ref,1,20\)=\?\) RETURNING delta$/],
+  ['點數彙總：一段期間', /FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=\?\) WHERE d >= \? AND d <= \?$/],
   ['錢包：解鎖清單', /FROM garage_unlocks INDEXED BY sqlite_autoindex_garage_unlocks_1 WHERE actor=\? ORDER BY nth/],
   ['兌換：已解鎖座數（寫帳本那句）', /^INSERT OR IGNORE INTO chip_ledger .*\(SELECT COUNT\(\*\) FROM garage_unlocks INDEXED BY sqlite_autoindex_garage_unlocks_1 WHERE actor=\?\)/],
   ['兌換：已解鎖座數（寫解鎖那句）', /^INSERT OR IGNORE INTO garage_unlocks .*\(SELECT COUNT\(\*\) FROM garage_unlocks INDEXED BY sqlite_autoindex_garage_unlocks_1 WHERE actor=\?\)/],
@@ -2244,10 +2261,11 @@ const PL_ORDER_FREE = [
 await attempt('PL', async () => {
   const { sqls, st } = await plCapture();
   ok('PL0 [前提] 每一步都真的走到了：上傳、認領、看板 200；A 那班 ok、B 那班超量 suspect；資料可用略過 4 MB 以上的一班；估值上架 1 個新單位；bounty-me 有首位校正者；' +
-    'chips-me、兌換、換車、雲端搭乘與它的重送、合併、刪帳號都 200',
+    'chips-me、兌換、換車、雲端搭乘與它的重送、通行證每月點數（這一次入帳）、點數彙總、合併、刪帳號都 200',
     st.submit === 200 && st.claim === 200 && st.board === 200 && st.fire === 'ok' && st.verdictA === 'ok' && st.verdictB === 'suspect' && st.usableSkip === 1 &&
       JSON.parse(st.valuation).inserted === 1 && st.chipsMe === 200 && st.bountyMe === 200 && Array.isArray(st.firsts) && st.firsts.length > 0 &&
-      st.redeem === 200 && st.collect === 200 && st.cloud === 200 && st.cloudResend === 200 && st.merge === 200 && st.del === 200, J(st));
+      st.redeem === 200 && st.collect === 200 && st.cloud === 200 && st.cloudResend === 200 &&
+      st.passMonthly === '200 granted true' && st.pointsSummary === 200 && st.merge === 200 && st.del === 200, J(st));
   // PLa：worker.js（整行註解以外）每一處 INDEXED BY 所在的字串片段；片段數必須等於 INDEXED BY 出現的次數（抽取本身沒有漏）。
   const code = readFileSync(join(ROOT, 'worker.js'), 'utf8').split('\n').filter(l => !/^\s*\/\//.test(l));
   const frags = [];

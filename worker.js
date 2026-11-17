@@ -1,6 +1,7 @@
 import { withRailWeatherNotice } from './scripts/rail_weather_bulletin.mjs';
 import { railAiScheduled, railAiStatus } from './scripts/rail_ai_status.mjs';
 import { railPushScheduled, railPushRegister, railPushUnregister, railPushDecide } from './scripts/rail_push.mjs';
+import { tripAsk, tripExplain, tripAskStatus, tripAskScheduled, tripAskPurge } from './scripts/trip_ask.mjs';
 import { WEATHER_CRON, weatherScheduled, weatherApi } from './scripts/weather_frames.mjs';
 import traScheduleSupplements from './scripts/tra_schedule_supplements.json' with { type: 'json' };
 import {createPlatformProxy} from './scripts/tra_platform_proxy.mjs';
@@ -4045,6 +4046,30 @@ async function railPushRoute(handler, request, env) {
   return handler(request, env);
 }
 
+// AI 一句話排行程（scripts/trip_ask.mjs）。身分：有通行證＝plus；登入但沒有通行證＝試用（checkPlusEntitlement 的 403 也帶 uid）；
+// 沒登入 401 login_required；Firebase／RevenueCat 查不到 503。
+// 本機測試身分：只有 .dev.vars 設 TRIP_ASK_DEV_AUTH=1、而且請求打的是 localhost 才收「Bearer dev:<名字>:<plus|free>」。
+// 正式站的網址不會是 localhost，所以就算環境變數設錯也用不到。
+async function tripAskIdentity(request, env) {
+  const host = new URL(request.url).hostname;
+  if (env.TRIP_ASK_DEV_AUTH === '1' && (host === 'localhost' || host === '127.0.0.1')) {
+    const m = (request.headers.get('Authorization') || '').match(/^Bearer dev:([A-Za-z0-9_-]{1,40}):(plus|free)$/);
+    if (m) return { ok: true, uid: 'dev-' + m[1], plus: m[2] === 'plus' };
+  }
+  const check = await checkPlusEntitlement(request, env);
+  if (check.ok) return { ok: true, uid: check.uid, plus: true };
+  if (check.status === 403 && check.uid) return { ok: true, uid: check.uid, plus: false };
+  return check;
+}
+// 節流在 Firebase／RevenueCat 呼叫之前（理由同 delayHistory）；會寫 D1 ⇒ failClosed（同 railPushRoute）。
+async function tripAskRoute(handler, method, request, env) {
+  if (request.method !== method) return jsonRes({ error: 'method not allowed' }, 405, 'no-store');
+  if (await rateLimited(env.TRIP_AI_LIMITER, request, true)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+  const who = await tripAskIdentity(request, env);
+  if (!who.ok) return jsonRes({ error: who.status === 401 ? 'login_required' : 'unavailable' }, who.status === 401 ? 401 : 503, 'no-store');
+  return handler(request, env, who);
+}
+
 // /api/rail-status：只有最新一版（不帶 rev、list）走邊緣快取 30 秒，App 從推播點進整理頁時不會一人打一次 D1。
 // 失敗（503）不快取。本體先定成字串再各自造 Response（理由見 bodyResCached）。
 async function railStatusCached(request, env) {
@@ -5752,6 +5777,9 @@ async function deleteAccountData(request, env) {
     let purged;
     try { purged = await bountyPurgeUid(env, uid, deviceActor); }
     catch (e) { return jsonRes({ error: 'calibration data deletion failed' }, 502, 'no-store'); }
+    // AI 一句話排行程：問過的話、試用次數、用量（表還沒建當作沒有資料）。
+    try { await tripAskPurge(env, uid); }
+    catch (e) { return jsonRes({ error: 'trip ai data deletion failed' }, 502, 'no-store'); }
     if (env.REVENUECAT_PROJECT_ID && env.REVENUECAT_V2_SECRET_KEY) {
       const rc = await fetch(`https://api.revenuecat.com/v2/projects/${encodeURIComponent(env.REVENUECAT_PROJECT_ID)}/customers/${encodeURIComponent(uid)}`, {
         method: 'DELETE', headers: { Authorization: `Bearer ${env.REVENUECAT_V2_SECRET_KEY}`, Accept: 'application/json' },
@@ -6844,7 +6872,7 @@ const APP_ORIGINS = new Set(['capacitor://localhost', 'https://localhost']);
 // 不可以改成「全部放行」——擋掉的是「隨手對唯讀端點打 POST」這類探測,而那正是最便宜的防線。
 // ⚠️ 這道門的粒度是「路徑」不是「方法」：列進來等於該路徑的所有非 GET 方法都到得了處理函式。
 // /api/pass-admin 正是需要這樣（POST 匯入、DELETE 清批），它自己在函式內分派方法、未知的回 405。
-const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/api/bounty-submit', '/api/bounty-merge', '/api/garage-redeem', '/api/garage-collect', '/api/cloud-ride', '/api/revenuecat-webhook', '/api/la/bind', '/api/la/unbind', '/api/metro-wait/bind', '/api/metro-wait/unbind', '/api/tra-wait/bind', '/api/tra-wait/unbind', '/api/trackside/bind', '/api/trackside/unbind', '/api/pass-claim', '/api/pass-admin', '/api/journey-share', '/api/push/register', '/api/push/unregister', '/api/rail-push/decide']);
+const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/api/bounty-submit', '/api/bounty-merge', '/api/garage-redeem', '/api/garage-collect', '/api/cloud-ride', '/api/revenuecat-webhook', '/api/la/bind', '/api/la/unbind', '/api/metro-wait/bind', '/api/metro-wait/unbind', '/api/tra-wait/bind', '/api/tra-wait/unbind', '/api/trackside/bind', '/api/trackside/unbind', '/api/pass-claim', '/api/pass-admin', '/api/journey-share', '/api/push/register', '/api/push/unregister', '/api/rail-push/decide', '/api/pass-monthly', '/api/trip-ask', '/api/trip-ask/explain']);
 // /api 端點白名單——只給流量埋點的 blob 用(不是路由閘門,路由在 fetch 裡)。不在名單內一律記成
 // 'other',否則隨便打 /api/<亂數> 就能把 blob 基數炸開。新增端點時要一起加進來。
 const API_ENDPOINTS = new Set([
@@ -6854,6 +6882,8 @@ const API_ENDPOINTS = new Set([
   'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge', 'chips-me', 'garage-redeem', 'garage-collect', 'cloud-ride', 'plus-status', 'revenuecat-webhook',
   'la/bind', 'la/unbind', 'metro-wait/bind', 'metro-wait/unbind', 'tra-wait/bind', 'tra-wait/unbind', 'pass-claim', 'pass-admin',
   'trackside/bind', 'trackside/unbind', 'push/register', 'push/unregister', 'rail-push/decide', 'weather',
+  'pass-monthly', 'points-summary',
+  'trip-ask', 'trip-ask/explain', 'trip-ask/status',
 ]);
 
 function addAppCors(headers, origin) {
@@ -9428,6 +9458,165 @@ async function bountyPlusEntitled(env, uid) {
   }
 }
 
+// ── 通行證每月點數（月報線，2026-11-17）────────────────────────────────
+// 放在 bountyPlusEntitled 旁邊：點數區（chipsMe 那一區）不查通行證資格。
+// 規則：data/bounty_rules.json 的 chips.passMonthly = { points, from }。points 不是正整數、或 from 不是 'YYYY-MM'＝整個功能關著。
+// POST /api/pass-monthly（一定要帶 Firebase Bearer）：台北時間每個月 1 號起，有通行證的帳號來領當月那一份。
+//   沒來領的月份不補：伺服器沒有「誰有通行證」的名單，只在帳號自己來領的當下向 RevenueCat 查。
+// 帳本一列：kind 'adjust'（帳本 kind 的 CHECK 只收五種，加新的要重建整張正式表，同通行證錄程加成）、
+//   ref 'passmonthly|<YYYY-MM>|<這張通行證的雜湊>'、id 'adjust|'＋ref、day＝領的那天（台北）、unit 'point'。
+//   ・同一個帳號同一個月只入一次：寫入那一句帶 NOT EXISTS（這個帳號這個月已經有一列）。單一句、D1 單寫者，查與寫之間沒有空隙。
+//   ・同一張通行證同一個月只入一次：ref 帶通行證的雜湊，UNIQUE(kind, ref)＋OR IGNORE 擋——同一張通行證輪流登入不同的軌島帳號
+//     （RevenueCat 換帳號還原購買時會把訂閱移到新帳號），只有第一個帳號領得到。
+//   ・退款、過期：領的當下照 /api/plus-status 同一條查（訂閱 gives_access、終身仍 owned），查不到就不給；查不完整回 503，不當成沒有。
+// 餘額照常加總這一列；每日上限、今天已得、可信身分只數 trip（與人工重判列），不受影響。刪帳號照 actor 刪帳本，這一列一起刪。
+const PASS_MONTHLY_PREFIX = 'passmonthly|';
+function passMonthlyRule(chips) {
+  const c = chips && chips.passMonthly;
+  if (!c || !Number.isInteger(c.points) || c.points <= 0 || typeof c.from !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(c.from)) return null;
+  return { points: c.points, from: c.from };
+}
+// 這個帳號領過的每月點數（新到舊，最多 24 個月）。
+async function passMonthlyHistory(db, uid) {
+  const r = await db.prepare("SELECT ref, delta, created_at FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=? AND kind='adjust' AND substr(ref,1,12)='passmonthly|' ORDER BY created_at DESC LIMIT 24")
+    .bind(uid).all();
+  return (r.results || []).map(x => ({ month: String(x.ref).slice(12, 19), points: Number(x.delta), at: Number(x.created_at) }));
+}
+// 這個 uid 現在持有的通行證，每張一把鍵（去重、排序）；沒有回 []，查不完整回 null（「查不到」不能當成「沒有」）。
+// 鍵＝SHA-256(環境|種類|商店|商店的交易識別) 的前 24 個十六進位字。用商店的識別（App Store 原始交易、Google 的購買），
+// 換帳號還原購買時不變；缺了才退回 RevenueCat 自己的 id，兩個都缺就綁 uid（只少擋跨帳號，不會誤擋別人）。帳本只存雜湊。
+// sandbox 規則同錄程加成（bountyPlusEntitled）：正式環境沒有、而且 uid 在允許清單裡，才查 sandbox。
+async function passMonthlyKeys(env, uid) {
+  if (!env.REVENUECAT_PROJECT_ID || !env.REVENUECAT_V2_SECRET_KEY) return null;
+  const want = env.REVENUECAT_ENTITLEMENT || 'plus';
+  const ask = async environment => {
+    const truth = await fetchRevenueCatPlusTruth(uid, env, want, environment);
+    if (!truth.ok) return null;
+    const subs = plusAccessSubscriptions(truth.subscriptions, want, environment)
+      .map(s => `${environment}|sub|${s.store || ''}|${s.store_subscription_identifier || s.id || uid}`);
+    const owned = (plusLifetimeOwned(truth.lifetimePurchases) ? truth.lifetimePurchases.items : [])
+      .map(p => `${environment}|otp|${p.store || ''}|${p.store_purchase_identifier || p.id || uid}`);
+    return [...subs, ...owned];
+  };
+  try {
+    let raw = await ask(RC_ENV_PRODUCTION);
+    if (raw && !raw.length && plusSandboxAllowedUids(env).has(uid)) raw = await ask(RC_ENV_SANDBOX);
+    if (raw === null) return null;
+    const keys = await Promise.all(raw.map(async m => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(m)))]
+      .map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 24)));
+    return [...new Set(keys)].sort();
+  } catch (e) {
+    console.error(`[pass-monthly] 通行證查詢例外：${e && e.message}`);
+    return null;
+  }
+}
+
+// POST /api/pass-monthly：領這個月的通行證點數。冪等：重送、兩支手機同時開，都只入一次。回應：
+//   { unit:'point', month, points, from, state, grantedNow, balance, history:[{month, points, at}] }
+//   state：'granted' 這個月已入帳（grantedNow＝這一次才寫進去）｜'no_pass' 現在沒有通行證｜'pass_used' 這張通行證這個月已在別的帳號領過｜
+//          'not_started' 還沒到開始送的月份｜'off' 規則檔沒開。
+// 錯誤：401 auth_required／unauthorized、429 rate_limited、503 bounty_paused（寫入總閘關著，而且這個月還沒領）、
+//       503 entitlement_unavailable（RevenueCat 查不完整，稍後再來）、503 not_ready（規則檔或資料庫不可用）。
+// 這個月還沒領才查 RevenueCat：領過之後每次開 App 都只讀帳本。
+async function passMonthly(request, env) {
+  if (request.method !== 'POST') return jsonRes({ error: 'method_not_allowed' }, 405, 'no-store');
+  if (await rateLimited(env.AUTH_LIMITER, request)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+  const auth = (request.headers.get('Authorization') || '').match(/^Bearer\s+(.+)$/i);
+  if (!auth) return jsonRes({ error: 'auth_required' }, 401, 'no-store');
+  const uid = await firebaseUid(env, auth[1]);
+  if (!uid) return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
+  try {
+    const chips = await bountyChipsRules(env);
+    const db = env.DELAY_DB;
+    await bountyEnsureAccount(env, uid);
+    const now = Number(env.BOUNTY_NOW) || Date.now();
+    const day = taipeiDay(now), month = day.slice(0, 7);
+    const rule = passMonthlyRule(chips);
+    const reply = async (state, grantedNow = false) => jsonRes({
+      unit: 'point', month, points: rule ? rule.points : 0, from: rule ? rule.from : null, state, grantedNow,
+      balance: await pointsBalanceOf(db, uid, chips), history: await passMonthlyHistory(db, uid),
+    }, 200, 'no-store');
+    if (!rule) return reply('off');
+    if (month < rule.from) return reply('not_started');
+    if ((await passMonthlyHistory(db, uid)).some(h => h.month === month)) return reply('granted');
+    if (bountyWritesOff(env)) return jsonRes({ error: 'bounty_paused' }, 503, 'no-store');
+    const keys = await passMonthlyKeys(env, uid);
+    if (keys === null) return jsonRes({ error: 'entitlement_unavailable' }, 503, 'no-store');
+    if (!keys.length) return reply('no_pass');
+    const monthRef = `${PASS_MONTHLY_PREFIX}${month}|`;
+    for (const key of keys) {
+      const ref = monthRef + key;
+      const got = await db.prepare(
+        "INSERT OR IGNORE INTO chip_ledger (id,actor,kind,delta,ref,day,created_at,unit) SELECT 'adjust|' || ?, ?, 'adjust', ?, ?, ?, ?, 'point'" +
+        " WHERE NOT EXISTS (SELECT 1 FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=? AND day >= ? AND day <= ? AND kind='adjust' AND substr(ref,1,20)=?) RETURNING delta"
+      ).bind(ref, uid, rule.points, ref, day, now, uid, `${month}-01`, `${month}-31`, monthRef).first();
+      if (got) return reply('granted', true);
+      // 沒寫進去：同一個帳號另一個請求剛好先寫了（照常回已入帳），或這張通行證這個月已被別的帳號領走（換下一張再試）。
+      if ((await passMonthlyHistory(db, uid)).some(h => h.month === month)) return reply('granted');
+    }
+    return reply('pass_used');
+  } catch (e) {
+    console.error(`[pass-monthly] ${e && e.message}`);
+    return jsonRes({ error: 'not_ready' }, 503, 'no-store');
+  }
+}
+
+// 點數彙總放在這裡、不放點數區：它會分出通行證錄程加成（plus|）與每月點數兩類，點數區（chipsMe 那一區）的守門不准出現通行證的字樣。
+// GET /api/points-summary?period=YYYY-MM 或 YYYY：一段期間（台北日期）的島民點數賺與花，給月度、年度回顧用。只讀，寫入總閘關著照樣回。
+// 身分同 chips-me：Bearer（帳號），或 ?actor=（匿名裝置；帳號與併進帳號的裝置要改帶 Bearer，規則同 bountyIdentity 'wallet'）。
+// 每一列算在哪一天：有 day 的照 day（錄程＝乘車日、雲端搭乘＝那一天、每月點數＝領的那天），沒有 day 的（兌換、v2 換算、合併）照寫入時間的台北日期。
+// 分類照 kind 與 ref 前綴（v2 的籌碼列照 chipToPoints 換算）：
+//   trip＝錄程列（含補差額）＋人工重判列；trips＝有點數的班數（錄程列不含補差額、人工重判列，一班一列）；
+//   cloud／clouds＝雲端搭乘點數與次數；plus＝通行證錄程加成；monthly＝通行證每月點數；
+//   other＝其餘人工調整（不含 v2 籌碼換算列：那是舊籌碼換成點數，不是這段期間賺的）；spent＝兌換花掉的（正數）。合併列（搬移與退款）不算。
+async function pointsSummary(request, env) {
+  const url = new URL(request.url);
+  const period = url.searchParams.get('period') || '';
+  const pm = period.match(/^(20\d\d)(?:-(0[1-9]|1[0-2]))?$/);
+  if (!pm) return jsonRes({ error: 'bad_period' }, 400, 'no-store');
+  const from = pm[2] ? `${pm[1]}-${pm[2]}-01` : `${pm[1]}-01-01`, to = pm[2] ? `${pm[1]}-${pm[2]}-31` : `${pm[1]}-12-31`;
+  let who = url.searchParams.get('actor') || '';
+  const auth = (request.headers.get('Authorization') || '').match(/^Bearer\s+(.+)$/i);
+  if (auth) {
+    if (await rateLimited(env.AUTH_LIMITER, request)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+    const uid = await firebaseUid(env, auth[1]);
+    if (!uid) return jsonRes({ error: 'unauthorized' }, 401, 'no-store');
+    who = uid;
+  } else if (await rateLimited(env.BOUNTY_LIMITER, request)) {
+    return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+  }
+  if (!isActorId(who)) return jsonRes({ error: 'bad_actor' }, 400, 'no-store');
+  try {
+    const chips = await bountyChipsRules(env);
+    let actor = who;                                     // Bearer 路徑：驗過的 uid 就是最終身分（同 chipsMe）
+    if (auth) await bountyEnsureAccount(env, who);
+    else {
+      const idn = await bountyIdentity(request, env, who, 'wallet');
+      if (idn.res) return idn.res;
+      actor = idn.who;
+    }
+    const s = await env.DELAY_DB.prepare(
+      "SELECT COALESCE(SUM(CASE WHEN kind='trip' OR (kind='adjust' AND substr(ref,1,8)='rejudge|') THEN p END),0) AS trip," +
+      " COALESCE(SUM(CASE WHEN (kind='trip' AND instr(ref,'|topup|')=0) OR (kind='adjust' AND substr(ref,1,8)='rejudge|') THEN 1 END),0) AS trips," +
+      " COALESCE(SUM(CASE WHEN kind='cloud' THEN p END),0) AS cloud, COALESCE(SUM(CASE WHEN kind='cloud' THEN 1 END),0) AS clouds," +
+      " COALESCE(SUM(CASE WHEN kind='adjust' AND substr(ref,1,5)='plus|' THEN p END),0) AS plus," +
+      " COALESCE(SUM(CASE WHEN kind='adjust' AND substr(ref,1,12)='passmonthly|' THEN p END),0) AS monthly," +
+      " COALESCE(SUM(CASE WHEN kind='adjust' AND substr(ref,1,8)<>'rejudge|' AND substr(ref,1,5)<>'plus|' AND substr(ref,1,12)<>'passmonthly|' AND substr(ref,1,9)<>'v3points|' THEN p END),0) AS other," +
+      " COALESCE(SUM(CASE WHEN kind='redeem' THEN -p END),0) AS spent" +
+      " FROM (SELECT kind, ref, " + BOUNTY_POINTS_OF_ROW + " AS p, COALESCE(day, date(created_at / 1000 + 28800, 'unixepoch')) AS d" +
+      " FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=?) WHERE d >= ? AND d <= ?"
+    ).bind(chips.chipToPoints, actor, from, to).first();
+    const n = k => Number(s && s[k]) || 0;
+    return jsonRes({
+      unit: 'point', period, from, to,
+      earned: { trip: n('trip'), cloud: n('cloud'), plus: n('plus'), monthly: n('monthly'), other: n('other') },
+      spent: n('spent'), trips: n('trips'), clouds: n('clouds'),
+    }, 200, 'no-store');
+  } catch (e) {
+    return jsonRes({ error: 'not_ready' }, 503, 'no-store');
+  }
+}
+
 // ── 判定 cron 一發處理哪些班車──────────────────────────────────────────
 // 第一段只列「班車清單」（每班一列：actor、乘車日、車次、批數、記在誰名下），不讀 payload；第二段才一班一班讀那班車的批次。
 // 舊版一句 SELECT * 最多 4,001 列連 payload 一起讀進記憶體（每批上限 600 點，最壞近 100 MB，Workers 一個 isolate 只有 128 MB），
@@ -11289,6 +11478,8 @@ async function traDailyTrains(request, env) {
 // (見 thsrSelectServedDay),blob 不存在或空一律 404 not_ready——前端 fetchJSON 對非 2xx 回 null,
 // 會自動退到 SYS_DEFS.thsr_sched 的 fallbackUrl(打包靜態檔),不需要在這裡特別處理降級文案。
 async function thsrSchedule(request, env) {
+  const date = new URL(request.url).searchParams.get('date');
+  if (date !== null) return thsrScheduleOnDay(request, env, date);
   const cacheKey = new Request(new URL('/api/thsr-schedule', request.url), { method: 'GET' });
   const edge = caches.default;
   const hit = await edge.match(cacheKey);
@@ -11302,6 +11493,30 @@ async function thsrSchedule(request, env) {
   const picked = thsrSelectServedDay((blob && blob.days) || {}, twToday().replace(/-/g, ''));
   if (!picked) return jsonRes({ error: 'not_ready' }, 404, 'public, s-maxage=60');
   return await jsonResCached(edge, cacheKey, picked.doc, 200, 'public, s-maxage=300, stale-while-revalidate=3600');
+}
+
+// /api/thsr-schedule?date=YYYY-MM-DD:App 排「別天」的行程(AI 一句話說明天、週六)用。只給那一天:
+// cron 存了今天起 THSR_SCHED_FETCH_DAYS 天,沒有那天就 404 no_day,不退最近日(拿週日的表排週一會排出不存在的車)。
+// 日期限今天到 THSR_SCHED_DAY_AHEAD 天後,快取鍵帶日期。
+const THSR_SCHED_DAY_AHEAD = 14;
+async function thsrScheduleOnDay(request, env, date) {
+  const today = twToday();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || isoFromDate(new Date(date + 'T00:00:00Z')) !== date
+      || date < today || date > addDays(today, THSR_SCHED_DAY_AHEAD)) {
+    return jsonRes({ error: 'bad_date' }, 400, 'no-store');
+  }
+  const key = date.replace(/-/g, '');
+  const cacheKey = new Request(new URL('/api/thsr-schedule?date=' + key, request.url), { method: 'GET' });
+  const edge = caches.default;
+  const hit = await edge.match(cacheKey);
+  if (hit) return hit;
+  let row;
+  try { row = await env.DELAY_DB.prepare('SELECT v FROM kv_blobs WHERE k=?').bind(THSR_SCHED_BLOB_KEY).first(); }
+  catch (e) { return jsonRes({ error: 'not_ready' }, 404, 'public, s-maxage=60'); }
+  let days = null;
+  try { days = row && row.v ? JSON.parse(row.v).days : null; } catch (e) { days = null; }
+  if (!days || !Object.prototype.hasOwnProperty.call(days, key)) return jsonRes({ error: 'no_day' }, 404, 'public, s-maxage=60');
+  return await jsonResCached(edge, cacheKey, days[key], 200, 'public, s-maxage=300, stale-while-revalidate=3600');
 }
 
 // ══ 高鐵自由座車廂(免費功能)═══════════════════════════════════════════════════════
@@ -11519,6 +11734,14 @@ export default {
         return { error: String((e && e.message) || e) };
       });
       if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(railPushTask);
+      // AI 一句話排行程：每小時一次刪掉 7 天前使用者打的那句話（scripts/trip_ask.mjs）。自帶 .catch，理由同上。
+      if (new Date(event.scheduledTime || Date.now()).getUTCMinutes() === 17) {
+        const tripTask = tripAskScheduled(env).catch(e => {
+          console.error('[cron trip-ask] 失敗:', (e && e.stack) || String(e));
+          return { error: String((e && e.message) || e) };
+        });
+        if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(tripTask);
+      }
       // 同一次執行內 +30 秒還有一輪只挪車的(跟車卡進站軌道契約,見 waitCardHalfMinute)。
       const laTask = laPushWithHalf(env, ctx, 'https://railisland.tw').catch(e => {
         console.error('[cron la-push] 失敗:', (e && e.stack) || String(e));
@@ -11774,6 +11997,8 @@ export default {
     else if (url.pathname === '/api/bounty-me') res = await bountyMe(request, env);
     else if (url.pathname === '/api/bounty-merge') res = await bountyMerge(request, env);
     else if (url.pathname === '/api/chips-me') res = await chipsMe(request, env);
+    else if (url.pathname === '/api/points-summary') res = await pointsSummary(request, env);
+    else if (url.pathname === '/api/pass-monthly') res = await passMonthly(request, env);
     else if (url.pathname === '/api/garage-redeem') res = await garageRedeem(request, env);
     else if (url.pathname === '/api/garage-collect') res = await garageCollect(request, env);
     else if (url.pathname === '/api/cloud-ride') res = await cloudRide(request, env);
@@ -11790,6 +12015,9 @@ export default {
     else if (url.pathname === '/api/push/register') res = await railPushRoute(railPushRegister, request, env);
     else if (url.pathname === '/api/push/unregister') res = await railPushRoute(railPushUnregister, request, env);
     else if (url.pathname === '/api/rail-push/decide') res = await railPushRoute(railPushDecide, request, env);
+    else if (url.pathname === '/api/trip-ask') res = await tripAskRoute(tripAsk, 'POST', request, env);
+    else if (url.pathname === '/api/trip-ask/explain') res = await tripAskRoute(tripExplain, 'POST', request, env);
+    else if (url.pathname === '/api/trip-ask/status') res = await tripAskRoute(tripAskStatus, 'GET', request, env);
     else res = await env.ASSETS.fetch(request);
     const h = new Headers(res.headers);
     for (const [k, v] of Object.entries(SEC_HEADERS)) h.set(k, v);
@@ -11874,7 +12102,7 @@ export const _accountDelete = { deleteAccountData, deletePlusEntitlement };
 // D1 寫入之前」「回應裡有沒有夾帶 reject_code」這類只在編排層才成立的性質。
 export const _bounty = { bountyCardId, bountySegLine, groupBoardRows, bountyBoard, isActorId, resolveActor,
   bountyClaim, hasGeoKeys, sanitizeSamples, sanitizeClient, bountySubmit, firebaseUid, bountyMe, bountyMerge, bountyPurgeUid,
-  chipsMe, garageRedeem, garageCollect, cloudRide,
+  chipsMe, garageRedeem, garageCollect, cloudRide, passMonthly, pointsSummary,
   bountyMedian, bountyL1, bountyL2, bountyPointsOf, bountyUnlocked, bountyValuationCron,
   assembleTrip, integrityGate, qualityGate, verdictOf, coverageOf, bountyCoverage, bountyKeptSegments, bountyUnionLen, bountyLineMeters, bountyPriorGroups, bountyVerifyCron, bountyResetMemCaches, bountyCounted, BOUNTY_BYTES_PER_ROW, bountyUsableFlags, bountyUsableCron, BOUNTY_USABLE };
 // 純函式導出,供離線回歸測試 import:trtcParse 雙路徑解析(含上游故障回 HTML 錯誤頁、

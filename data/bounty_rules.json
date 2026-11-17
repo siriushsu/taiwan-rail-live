@@ -4,7 +4,7 @@
   "coverN": { "TRA": 1, "THSR": 1, "metro": 3 },
   "coverDistinct": { "TRA": 50, "THSR": 15 },
   "chips": {
-    "note": "點數規則（懸賞 v3：沿線 1 公里 1 點；區塊名與鍵名沿用 v2，數字都是點數）。伺服器入帳與客端顯示共讀這一份；純函式在 scripts/bounty_chips_core.mjs。一趟＝各條 ok 線收下的里程（公里）× perKm，remoteLines 那幾條線 × remoteMultiplier、期間活動相乘，加總後捨去成整數；dailyChipCap、prices、cloud.points 都是點。perTrip 0 與 cloud.perChip 1 是給舊客端讀的相容值：舊網頁拿 perTrip 寫「一趟得 N 顆」，0 就不寫；舊 App 的雲端搭乘要 perChip 是正整數。chipToPoints：v2 的 1 顆籌碼值幾點，上線後只准調高（調高會補差額給已換算的人，調低不會收回）。prices 最後一格沿用到之後每一座。plusBonusPct：通行證錄程加成的百分比（整數，0＝關）；判定時帳號有通行證，就照那趟實際入帳的錄程點數另寫一列加成（捨去，不吃每日上限），見 docs/bounty/contract-v3.md 1.1 節。",
+    "note": "點數規則（懸賞 v3：沿線 1 公里 1 點；區塊名與鍵名沿用 v2，數字都是點數）。伺服器入帳與客端顯示共讀這一份；純函式在 scripts/bounty_chips_core.mjs。一趟＝各條 ok 線收下的里程（公里）× perKm，remoteLines 那幾條線 × remoteMultiplier、期間活動相乘，加總後捨去成整數；dailyChipCap、prices、cloud.points 都是點。perTrip 0 與 cloud.perChip 1 是給舊客端讀的相容值：舊網頁拿 perTrip 寫「一趟得 N 顆」，0 就不寫；舊 App 的雲端搭乘要 perChip 是正整數。chipToPoints：v2 的 1 顆籌碼值幾點，上線後只准調高（調高會補差額給已換算的人，調低不會收回）。prices 最後一格沿用到之後每一座。plusBonusPct：通行證錄程加成的百分比（整數，0＝關）；判定時帳號有通行證，就照那趟實際入帳的錄程點數另寫一列加成（捨去，不吃每日上限），見 docs/bounty/contract-v3.md 1.1 節。passMonthly：通行證每月點數，台北時間每月 1 號起、有通行證的軌島帳號開 App 來領（POST /api/pass-monthly），一個帳號一個月一次、一張通行證一個月一次；from（YYYY-MM）之前的月份不送，沒來領的月份不補；拿掉這個鍵＝關，見 docs/bounty/contract-v3.md 1.2 節。",
     "unit": "point",
     "perKm": 1,
     "perTrip": 0,
@@ -18,6 +18,7 @@
     "items": { "train:dr3000": 150, "train:ct250": 150, "train:fuxing": 150, "train:emu300": 150, "train:tengyun": 150, "train:emu200": 150, "train:dr2800": 150, "train:e100": 150, "train:s200": 150, "train:shay31": 150, "train:tsc346": 150, "train:wufen": 150, "train:s400": 150, "train:emu400": 150, "train:pc32701": 150, "train:sa32820": 150, "train:shinkansen0": 150 },
     "chipToPoints": 50,
     "plusBonusPct": 50,
+    "passMonthly": { "points": 300, "from": "2026-12" },
     "scenes": ["south-coast", "shifen", "viaduct", "alishan", "duoliang", "crossing", "guanghua", "taipei-metro", "wenhu", "airport-mrt", "ntpc-metro", "ntpc-lrt", "taichung-metro", "kaohsiung-metro", "kaohsiung-lrt", "thsr", "hsinchu", "tainan", "taichung-old", "chiayi", "baoan", "jiji", "dongshan", "kaohsiung-old", "haixian", "shengxing", "taipei-under"],
     "events": [],
     "evergreen": ["tra_sched|南迴線", "tra_sched|臺東線"]
