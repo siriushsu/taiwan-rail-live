@@ -67,9 +67,11 @@ export function createRailStructures(scene){
   };
   mesh.frustumCulled=false;mesh.layers.enable(2);mesh.renderOrder=-1;scene.add(mesh);
   const stats={bedStyle,decks:0,piers:0,caps:0,parapets:0,beds:0,rails:0,ties:0,portals:0,portalTracks:0,portalSamples:[],detail:0,vertices:0,samples:[],buildMs:0};
-  function set(segments,piers,detail=0,portals=[]){
-    lastSet=[segments,piers,detail,portals];
-    gravelAmount.value=bedStyle==='gravel'&&detail>=2?1:0;
+  // 建置拆成「算」與「換上」：build 是產生器，due() 說這一段時間用完了就讓出主執行緒（map3d.js 的分段重建用）；
+  // 算完回傳的函式才把新幾何換上去，途中畫面與 stats 都還是上一份。set 是一次做完的原介面，結果相同。
+  function set(...args){const job=build(...args);let step;do step=job.next();while(!step.done);step.value();}
+  function* build(segments,piers,detail=0,portals=[],due=()=>false){
+    const builtStyle=bedStyle,st={decks:0,piers:0,caps:0,parapets:0,beds:0,rails:0,ties:0,portals:0,portalTracks:0,portalSamples:[],detail,samples:[]};
     const style=bedStyles[bedStyle],started=performance.now(),positions=[],colors=[],glows=[],bedSurfaces=[];
     const deck=new THREE.Color('#b2ad9e'),side=new THREE.Color('#989588'),
           ballast=new THREE.Color(style.ballast),steel=new THREE.Color(style.steel),tie=new THREE.Color(style.tie),
@@ -77,14 +79,14 @@ export function createRailStructures(scene){
           // 填方邊坡自己一個色：道碴色畫到坡腳時，整座土堆會變成比地表暗三成的實心塊。
           // 坡面退到接近地表的淺色、只留道碴頂面那條深色，看到的才是一條軌道而不是一道土牆。
           bank=new THREE.Color(style.bank),pierColor=new THREE.Color('#bdbbad'),pierSide=new THREE.Color('#b1afa2');
-    stats.decks=stats.piers=stats.caps=stats.parapets=stats.beds=stats.rails=stats.ties=stats.portals=0;stats.detail=detail;stats.samples=[];stats.portalTracks=0;stats.portalSamples=[];
     let portalMasks=null,portalEmission=0;
     function quad(a,b,c,d,color){
       const polygons=portalMasks?outsidePortalClearance([a,b,c,d],portalMasks):[[a,b,c,d]];
       for(const poly of polygons)for(let i=1;i<poly.length-1;i++)for(const p of [poly[0],poly[i],poly[i+1]]){positions.push(...p);colors.push(color.r,color.g,color.b);glows.push(portalEmission);bedSurfaces.push(color===ballast?1:0);}
     }
     const joins=new Map(),joinKey=p=>p.map(v=>Math.round(v*1000)).join(',');
-    for(const {a,b} of segments){const dx=b[0]-a[0],dy=b[1]-a[1],len=Math.hypot(dx,dy);if(len<1e-5)continue;
+    let joinN=0;
+    for(const {a,b} of segments){if(!(++joinN&127)&&due())yield;const dx=b[0]-a[0],dy=b[1]-a[1],len=Math.hypot(dx,dy);if(len<1e-5)continue;
       for(const p of [a,b]){const key=joinKey(p),items=joins.get(key)||[];items.push([-dy/len,dx/len]);joins.set(key,items);}}
     function edge(p,ux,uy){const items=joins.get(joinKey(p))||[];let x=ux,y=uy;
       for(const [nx,ny] of items){const sign=nx*ux+ny*uy>=0?1:-1;x+=nx*sign;y+=ny*sign;}
@@ -108,7 +110,7 @@ export function createRailStructures(scene){
       quad(...p,steel);
       quad(p[0],[p[0][0],p[0][1],base],[p[3][0],p[3][1],endBase],p[3],steel);
       quad(p[2],[p[2][0],p[2][1],endBase],[p[1][0],p[1][1],base],p[1],steel);
-      stats.rails++;
+      st.rails++;
     }
     // 枕木只畫頂面：它嵌在道碴裡，側面本來就看不見，省下三分之二的頂點。
     function ties(a,b,top,scale){
@@ -120,7 +122,7 @@ export function createRailStructures(scene){
        // 繞向要跟 prism 頂面一致（先沿 -u 再沿 +t），否則法線朝下、枕木會被算成背光的深色。
        quad([cx+ux*half-tx*hw,cy+uy*half-ty*hw,z],[cx-ux*half-tx*hw,cy-uy*half-ty*hw,z],
             [cx-ux*half+tx*hw,cy-uy*half+ty*hw,z],[cx+ux*half+tx*hw,cy+uy*half+ty*hw,z],tie);
-       stats.ties++;
+       st.ties++;
       }
     }
     // 並行股道偵測：雙線高架的兩片橋面各自畫護欄，中間會多出一道牆。段中點丟進空間格，
@@ -137,24 +139,25 @@ export function createRailStructures(scene){
         return true;}
       return false;
     }
-    segments.forEach(({a,b,groundA,groundB,bridge,transition=false,scale=1},i)=>{
+    const eachSegment=({a,b,groundA,groundB,bridge,transition=false,scale=1},i)=>{
       const topA=[a[0],a[1],a[2]-DECK_DROP*scale],topB=[b[0],b[1],b[2]-DECK_DROP*scale];
       if(![...a,...b,groundA,groundB,scale].every(Number.isFinite)||Math.min(topA[2]-groundA,topB[2]-groundB)<.05*scale)return;
       // 逐段判：軌面離地超過 VIADUCT_LIFT_M 的填方段照高架橋畫（林口走廊的過渡段除外，它另有畫法）。
       const railLift=Math.max(0,Math.min(a[2]-groundA,b[2]-groundB));
       if(bridge||(!transition&&railLift>=VIADUCT_LIFT_M*scale)){
-        prism(topA,topB,DECK_W*scale,Math.max(groundA-.3*scale,topA[2]-GIRDER_DEPTH*scale),Math.max(groundB-.3*scale,topB[2]-GIRDER_DEPTH*scale),deck,GIRDER_BOTTOM_W*scale,null,{a,b});stats.decks++;
+        prism(topA,topB,DECK_W*scale,Math.max(groundA-.3*scale,topA[2]-GIRDER_DEPTH*scale),Math.max(groundB-.3*scale,topB[2]-GIRDER_DEPTH*scale),deck,GIRDER_BOTTOM_W*scale,null,{a,b});st.decks++;
         if(detail>=1){const dx=b[0]-a[0],dy=b[1]-a[1],len=Math.hypot(dx,dy);if(len>1e-5){const ux=-dy/len,uy=dx/len,e=(DECK_W-PARAPET_W)/2*scale;
           for(const sign of [1,-1]){if(neighbor(i,sign,scale))continue;
-            prism([a[0]+ux*e*sign,a[1]+uy*e*sign,topA[2]+PARAPET_H*scale],[b[0]+ux*e*sign,b[1]+uy*e*sign,topB[2]+PARAPET_H*scale],PARAPET_W*scale,topA[2],topB[2],parapet);stats.parapets++;}}}
+            prism([a[0]+ux*e*sign,a[1]+uy*e*sign,topA[2]+PARAPET_H*scale],[b[0]+ux*e*sign,b[1]+uy*e*sign,topB[2]+PARAPET_H*scale],PARAPET_W*scale,topA[2],topB[2],parapet);st.parapets++;}}}
       }else{
         // 路基：離地愈高底愈寬（填方邊坡）；林口走廊的過渡段沿舊做法畫成薄板。
         const widthAt=(top,ground)=>Math.min(style.max*scale,style.bottom*scale+2*style.slope*Math.max(0,top-ground)),bottomW=widthAt(topA[2],groundA);
-        prism(topA,topB,style.top*scale,transition?Math.max(groundA-.3*scale,topA[2]-1.15*scale):groundA-.3*scale,transition?Math.max(groundB-.3*scale,topB[2]-1.15*scale):groundB-.3*scale,ballast,transition?style.bottom*scale:bottomW,bank,{a,b,bottomEnd:transition?style.bottom*scale:widthAt(topB[2],groundB)});stats.beds++;
+        prism(topA,topB,style.top*scale,transition?Math.max(groundA-.3*scale,topA[2]-1.15*scale):groundA-.3*scale,transition?Math.max(groundB-.3*scale,topB[2]-1.15*scale):groundB-.3*scale,ballast,transition?style.bottom*scale:bottomW,bank,{a,b,bottomEnd:transition?style.bottom*scale:widthAt(topB[2],groundB)});st.beds++;
       }
       if(detail>=2)ties(topA,topB,topA[2],scale);
       if(detail>=1){const top=a[2]-(detail>=2?.15*scale:.2*scale);rail(topA,topB,GAUGE/2,top,scale,top+b[2]-a[2]);rail(topA,topB,-GAUGE/2,top,scale,top+b[2]-a[2]);}
-    });
+    };
+    for(let i=0;i<segments.length;i++){if(!(i&63)&&due())yield;eachSegment(segments[i],i);}
     // 外牆、拱圈、洞身共用同一個中空斷面；洞內不能封底，兩股道之間也不能補牆。
     function portal({p,angle,scale=1,ground,halfWidth=BORE_R,spring=2.8,grade=0,members=[],system}){
       if(![...p,angle,scale,halfWidth,spring].every(Number.isFinite))return;
@@ -219,35 +222,46 @@ export function createRailStructures(scene){
         for(const offset of [-GAUGE/2,GAUGE/2])rail(aa,bb,offset,a[2]-.15*k,k,b[2]-.15*k);
         if(detail>=2)ties(aa,bb,aa[2],k);
       }
-      stats.portals++;stats.portalTracks+=members.length||1;
-      stats.portalSamples.push({p,angle,scale,halfWidth,spring,grade,system,tracks:members.length||1,coordinate:members[0]?.coordinate});
+      st.portals++;st.portalTracks+=members.length||1;
+      st.portalSamples.push({p,angle,scale,halfWidth,spring,grade,system,tracks:members.length||1,coordinate:members[0]?.coordinate});
     }
     if(detail>=1){const masks=portalClearanceVolumes(portals);
-      for(const item of portals){const reach=(item.halfWidth+PORTAL_DEPTH+PORTAL_WING+6)*item.scale;
+      for(const item of portals){if(due())yield;const reach=(item.halfWidth+PORTAL_DEPTH+PORTAL_WING+6)*item.scale;
         portalMasks=masks.filter(m=>m.box[0]<item.p[0]+reach&&m.box[3]>item.p[0]-reach&&m.box[1]<item.p[1]+reach&&m.box[4]>item.p[1]-reach);portal(item);}
       portalMasks=null;
     }
 
     // 橋墩：墩頂接在箱梁底；近看多一顆墩帽，墩身再往下接地。
-    for(const {p,ground,angle,scale=1,coordinate,railHeightM,groundM}of piers){
+    let pierN=0;
+    for(const {p,ground,angle,scale=1,coordinate,railHeightM,groundM}of piers){if(!(++pierN&63)&&due())yield;
       const girderBottom=p[2]-(DECK_DROP+GIRDER_DEPTH)*scale,top=detail>=1?girderBottom-CAP_DEPTH*scale:girderBottom;
       if(![...p,ground,angle,scale].every(Number.isFinite)||top-ground<.3*scale)continue;
       const dx=Math.cos(angle),dy=Math.sin(angle);
-      if(detail>=1){const h=CAP_ALONG/2*scale;prism([p[0]-dx*h,p[1]-dy*h,girderBottom],[p[0]+dx*h,p[1]+dy*h,girderBottom],CAP_ACROSS*scale,top,top,pierColor,CAP_ACROSS*scale,pierSide);stats.caps++;}
+      if(detail>=1){const h=CAP_ALONG/2*scale;prism([p[0]-dx*h,p[1]-dy*h,girderBottom],[p[0]+dx*h,p[1]+dy*h,girderBottom],CAP_ACROSS*scale,top,top,pierColor,CAP_ACROSS*scale,pierSide);st.caps++;}
       const h=PIER_ALONG/2*scale;
-      prism([p[0]-dx*h,p[1]-dy*h,top],[p[0]+dx*h,p[1]+dy*h,top],PIER_ACROSS*scale,ground-.5*scale,ground-.5*scale,pierColor,PIER_ACROSS*scale,pierSide);stats.piers++;
-      if(stats.samples.length<60)stats.samples.push({coordinate,railHeightM,groundM,topM:railHeightM-(DECK_DROP+GIRDER_DEPTH)-(detail>=1?CAP_DEPTH:0),baseM:groundM-.5});
+      prism([p[0]-dx*h,p[1]-dy*h,top],[p[0]+dx*h,p[1]+dy*h,top],PIER_ACROSS*scale,ground-.5*scale,ground-.5*scale,pierColor,PIER_ACROSS*scale,pierSide);st.piers++;
+      if(st.samples.length<60)st.samples.push({coordinate,railHeightM,groundM,topM:railHeightM-(DECK_DROP+GIRDER_DEPTH)-(detail>=1?CAP_DEPTH:0),baseM:groundM-.5});
     }
     // 先在雙精度移到畫面附近，再交給 GPU；跟車時不以全台公尺座標做浮點大數相減。
     const origin=segments[0]?.a||portals[0]?.p||piers[0]?.p||[0,0,0];
     // 64m＝512 顆粒週期；重建時先用雙精度移到附近，保留世界座標的紋理相位。
     const grainX=Math.floor(origin[0]/64)*64,grainY=Math.floor(origin[1]/64)*64,bedUvs=[];
+    if(due())yield;
     for(let i=0;i<positions.length;i+=3)bedUvs.push(positions[i]-grainX,positions[i+1]-grainY);
     for(let i=0;i<positions.length;i+=3)for(let k=0;k<3;k++)positions[i+k]-=origin[k];
-    mesh.position.fromArray(origin);
-    geometry.dispose();geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));geometry.setAttribute('railGlow',new THREE.Float32BufferAttribute(glows,1));geometry.setAttribute('railBedUv',new THREE.Float32BufferAttribute(bedUvs,2));geometry.setAttribute('railBedSurface',new THREE.Float32BufferAttribute(bedSurfaces,1));geometry.computeVertexNormals();mesh.geometry=geometry;stats.vertices=positions.length/3;stats.buildMs=performance.now()-started;
+    if(due())yield;
+    const next=new THREE.BufferGeometry();next.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));next.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
+    if(due())yield;
+    next.setAttribute('railGlow',new THREE.Float32BufferAttribute(glows,1));next.setAttribute('railBedUv',new THREE.Float32BufferAttribute(bedUvs,2));next.setAttribute('railBedSurface',new THREE.Float32BufferAttribute(bedSurfaces,1));
+    if(due())yield;
+    next.computeVertexNormals();
+    // three 第一次畫一份新幾何時會為了排序算它的包圍球（projectObject）；先在這裡算掉，換上那一格就不用再掃一次全部頂點。
+    if(due())yield;
+    next.computeBoundingSphere();
+    // 換上。分段建置途中道床樣式若被改過，這一份是舊樣式：照新樣式一次重做。buildMs 是從開始算到換上的時間，分段時含中間讓出的空檔。
+    return ()=>{lastSet=[segments,piers,detail,portals];gravelAmount.value=bedStyle==='gravel'&&detail>=2?1:0;mesh.position.fromArray(origin);geometry.dispose();geometry=next;mesh.geometry=next;Object.assign(stats,st);stats.vertices=positions.length/3;stats.buildMs=performance.now()-started;if(bedStyle!==builtStyle)set(...lastSet);};
   }
-  return {stats,set,setBedStyle(value){
+  return {stats,set,build,setBedStyle(value){
     if(!Object.hasOwn(bedStyles,value))throw new RangeError('未知道床樣式：'+value);
     if(value===bedStyle)return;bedStyle=value;stats.bedStyle=value;gravelAmount.value=value==='gravel'?1:0;
     if(lastSet)set(...lastSet);

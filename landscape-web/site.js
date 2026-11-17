@@ -17,6 +17,18 @@ const mercY = lat => (180 - (180 / Math.PI) * Math.log(Math.tan(Math.PI / 4 + la
 const BASEMAP_SOURCES = new Set(['openmaptiles', 'ne2_shaded', 'taiwan-worldcover', 'offline-land', 'terrain']);
 // 網站自己加的 3D 圖層裡，新地景已經有的東西（站房與車站周邊建物、隧道口、樹）：藏起來，不然會疊兩份
 const HIDE_CUSTOM = new Set(['station-building-context', 'island-stations', 'live-tunnel-apertures', 'landscape-trees']);
+// 遠處淡出：傾斜看出去時，MapLibre 會把遠平面以前的路線都畫出來，遠處的線全擠在地平線底下那一排、疊在遠山與天空交界。
+// 距離一律用「鏡頭沿視線到畫面中心（再到海平面）的距離 s」的倍數（跟 MapLibre 算霧同一式），跟縮放、畫面大小無關；
+// 鏡頭深度 from·s 開始淡、to·s 淡完：
+//   1. 路線（rail-3d/integration/profile-lines.js 畫的立體線，網站看到的路線主要是它）：著色器照鏡頭深度淡成透明，強度跟 MapLibre 的霧
+//      一樣隨俯角 60°→70° 漸強，60° 以下不淡（俯視、看全台時路線照舊）。
+//   2. 貼在地形上的 MapLibre 圖層：地形的霧（sky 的 fog-*，霧色全透明＝只淡出、不上色），起點換算成同一個 from。
+//   3. 俯角 70° 以上把 MapLibre 的遠平面拉近到 to·s（比 MapLibre 自己算的近才拉）：再遠就不畫，立體列車、站點也一樣；
+//      70°→73° 從 MapLibre 自己的遠平面漸進過去，俯仰時不會跳。
+//   站名、平面列車畫在網站自己的畫布，另有視距上限（index.html 的 detailOpacity）。
+const FADE = { conservative: { from: 2, to: 5 }, aggressive: { from: 1.5, to: 3 }, off: null }, FADE_DEFAULT = 'conservative', CLEAR = 'rgba(0,0,0,0)';
+const fogStart = f => (1 - 1 / f.from) / (1 - 1 / f.to);   // MapLibre 霧的深度＝(1/s − 1/z)／(1/s − 1/遠平面)：z＝from·s 的那一點
+const fadeSky = g => ({ 'sky-color': CLEAR, 'horizon-color': CLEAR, 'fog-color': CLEAR, 'fog-ground-blend': g, 'horizon-fog-blend': 1, 'sky-horizon-blend': 0, 'atmosphere-blend': 0 });
 
 // 4×4（行優先，跟 WebGL／three 一樣）相乘：out = a·b
 function mul(a, b) {
@@ -120,8 +132,57 @@ export function attach(map, { tilesBase, hour, date, params: extra = {}, onFail,
   }).catch(err => { failed = true; state.error = err; console.warn('[地景] 新地景載入失敗，退回舊地景', err); onFail?.(err); throw err; });
   loaded.catch(() => {});
 
+  // 地面高度給網站的立體列車與軌道（rail-3d/integration/map3d.js 的 terrainSample 讀 map.railIslandGround）：新地景接手後，
+  // 列車、軌道、橋墩、隧道口貼的是畫面上看到的這一份地形，不是 MapLibre 的 DEM（兩份來源不同、取樣也不同，差幾公尺就浮空或陷下去）。
+  // 經緯度 → TM2 每 0.01 度一格用線性近似（格內誤差約 2 公分；toTM2 一次約一微秒，重建一次要問上萬點）；這一點的近景圖磚與遠景塊都還沒到就回 NaN（等於「還沒載到」）。
+  // rev 在圖磚到貨、換掉時加一，rail-3d 看到就重建（跟 MapLibre DEM 到貨重建同一條路）。
+  const tmCells = new Map();
+  function groundLL(lng, lat) {
+    if (!api) return NaN;
+    const i = Math.floor(lng * 100), j = Math.floor(lat * 100), key = i * 1e5 + j;
+    let c = tmCells.get(key);
+    if (!c) {
+      const lo = (i + .5) / 100, la = (j + .5) / 100, d = .001, [e0, n0] = toTM2(lo, la), [e1, n1] = toTM2(lo + d, la), [e2, n2] = toTM2(lo, la + d);
+      tmCells.set(key, c = [lo, la, e0, n0, (e1 - e0) / d, (n1 - n0) / d, (e2 - e0) / d, (n2 - n0) / d]);
+    }
+    const dl = lng - c[0], dp = lat - c[1], e = c[2] + c[4] * dl + c[6] * dp, n = c[3] + c[5] * dl + c[7] * dp, T = api.TILE_M;
+    if (!api.tiles.get(`E${Math.floor(e / T)}_N${Math.floor(n / T)}`)?.h && !api.fars.get(`F${Math.floor(e / (T * 4))}_${Math.floor(n / (T * 4))}`)?.h) return NaN;
+    return api.groundAt(e, n);
+  }
+  const ground = { at: groundLL, rev: 0 }; let groundSig = '', groundAt = 0;
+  function syncGround(now) {
+    const on = active && revealed && !!api;
+    if (!on) { if (map.railIslandGround === ground) { delete map.railIslandGround; ground.rev++; groundSig = ''; } return; }
+    if (map.railIslandGround !== ground) { map.railIslandGround = ground; ground.rev++; groundSig = ''; }
+    if (now - groundAt < 200) return; groundAt = now;
+    let a = 0, b = 0; for (const t of api.tiles.values()) if (t.h) a++; for (const f of api.fars.values()) if (f.h) b++;
+    const sig = a + ':' + b + ':' + api.tiles.size + ':' + api.fars.size;
+    if (sig !== groundSig) { groundSig = sig; ground.rev++; }
+  }
+
+  // 自動降畫質原型（預設關，網址帶 ?ls.auto=1 才開）。engine 自己的 adapt 看「兩格間隔 > 20 ms」，嵌進網站後停著時
+  // 列車每 30 ms 才重畫一格，會被當成太慢一路降到底；這裡只在地圖操作中（isMoving）量間隔，停著與剛開始動的那一格不算。
+  // 操作中每秒超過 20 ms 的格數過兩成、連兩秒 → engine 像素比降 0.25（最低 1）；操作中連 4 秒都順（< 5%）→ 升回 0.25。
+  // 只動 engine 的畫布；時間若花在主執行緒（列車、路線），降像素比幫不上忙，所以先不預設開。
+  const autoPr = extra.auto === '1' ? { last: 0, t0: 0, n: 0, slow: 0, bad: 0, good: 0, top: 0, log: [] } : null;
+  function autoFrame(now) {
+    const dt = now - autoPr.last; autoPr.last = now;
+    if (!map.isMoving() || dt > 250) { autoPr.t0 = autoPr.n = autoPr.slow = 0; return; }
+    if (!autoPr.top) autoPr.top = api.renderer.getPixelRatio();
+    if (!autoPr.t0) { autoPr.t0 = now; return; }
+    autoPr.n++; if (dt > 20) autoPr.slow++;
+    if (now - autoPr.t0 < 1000) return;
+    const share = autoPr.slow / autoPr.n, pr = api.renderer.getPixelRatio(); autoPr.t0 = now; autoPr.n = autoPr.slow = 0;
+    let next = pr;
+    if (share > .2) { autoPr.good = 0; if (++autoPr.bad >= 2) { autoPr.bad = 0; next = Math.max(1, pr - .25); } }
+    else if (share < .05) { autoPr.bad = 0; if (++autoPr.good >= 4) { autoPr.good = 0; next = Math.min(autoPr.top, pr + .25); } }
+    else autoPr.bad = autoPr.good = 0;
+    if (next !== pr) { api.renderer.setPixelRatio(next); if (autoPr.log.length < 100) autoPr.log.push([Math.round(now), next, +share.toFixed(2)]); }
+  }
+
   function draw() {
     if (!api || !active || !mainMatrix) return;
+    if (autoPr) autoFrame(performance.now());
     // 網站時刻／日期 → engine 的太陽、月亮與夜景（engine 每次 setTime 都重讀 params 的 date）
     const d = date?.(); if (d && d !== params.get('date')) { params.set('date', d); lastHour = -Infinity; }
     const h = hour(); if (!(Math.abs(h - lastHour) <= 1 / 60)) { lastHour = h; api.setTime(h); }
@@ -136,6 +197,7 @@ export function attach(map, { tilesBase, hour, date, params: extra = {}, onFail,
     if (!revealed && ((api.pending() === 0 && [...api.tiles.values()].some(t => t.state === 'ready')) || tilesSettled(now) || now - activeSince > REVEAL_MAX_MS)) {
       revealed = true; queueMicrotask(() => { enforce(); onState?.(state); });   // 不在 MapLibre 畫這一格的途中改樣式
     }
+    syncGround(now);
     if (api.pending() > 0 || !revealed) map.triggerRepaint();
   }
 
@@ -205,6 +267,38 @@ export function attach(map, { tilesBase, hour, date, params: extra = {}, onFail,
   }
   const occLayer = { id: OCC_ID, type: 'custom', renderingMode: '3d', render(gl, args) { drawOccluder(gl, Float64Array.from(args.defaultProjectionData.mainMatrix)); } };
 
+  // 遠處淡出只在新地景接手時開；切回舊地景放回原本的 sky 與 MapLibre 自己算的遠平面。style 整個換掉時 sky 會被清掉，enforce 每次都對一遍。
+  // 接手期間天空也歸這裡管：天空與遠景的霧地景自己會畫，MapLibre 的 sky-color 會蓋在地景的天空與遠山上（畫在地平線以上），
+  // 網站日夜光影（rail-3d/environment/sun.mjs）每 30 秒塗一次有色的霧，會把遠景整片塗成地平線色。別人這段期間的 setSky 先記著，切回舊地景再放回去。
+  let fade = FADE[FADE_DEFAULT], fadeSaved = null, farElev = NaN;
+  const setSkyRaw = map.setSky.bind(map), isFadeSky = s => !!s && s['sky-color'] === CLEAR && s['fog-color'] === CLEAR;
+  // 別人在接手期間記下的「原本 sky」可能就是這裡的透明 sky（例如換底圖時），舊地景時收到它就當成沒有 sky
+  map.setSky = (sky, opts) => { if (fadeSaved) { fadeSaved.sky = sky; return map; } return setSkyRaw(isFadeSky(sky) ? undefined : sky, opts); };
+  // style 換到一半時 setSky 會丟錯：離開新地景就不放回（新 style 帶自己的 sky），接手中就等 styledata／render 再對一次
+  function applyFade() {
+    const want = active && revealed ? fade : null, ready = !!map.style?._loaded;
+    applyFar();
+    if (!want) { if (fadeSaved) { const prev = fadeSaved.sky; fadeSaved = null; if (ready) setSkyRaw(isFadeSky(prev) ? undefined : prev); } return; }
+    if (!ready) return;
+    if (!fadeSaved) fadeSaved = { sky: map.getSky() };
+    if (map.getSky?.()?.['fog-ground-blend'] !== fogStart(want)) setSkyRaw(fadeSky(fogStart(want)));
+  }
+  // 每次鏡頭動：交給立體線的淡出距離（map.railIslandDistanceFade，rail-3d/integration/map3d.js 讀）與遠平面
+  function applyFar() {
+    const tr = map.transform, want = active && revealed ? fade : null, c = tr.cameraToCenterDistance;
+    farElev = tr.elevation;
+    if (!tr.autoCalculateNearFarZ) tr.clearNearFarZOverride();
+    if (!want) { delete map.railIslandDistanceFade; return; }
+    const s = Math.max(c / 2, c + tr.elevation * tr.pixelsPerMeter / Math.cos(tr.pitchInRadians)), ramp = (a, b) => Math.max(0, Math.min(1, (tr.pitch - a) / (b - a)));
+    map.railIslandDistanceFade = { from: want.from * s, to: want.to * s, strength: ramp(60, 70) };
+    const w = ramp(70, 73), auto = tr.farZ, far = Math.min(auto, auto + (want.to * s - auto) * w);
+    if (w > 0 && far < auto) tr.overrideNearFarZ(tr.nearZ, far);
+  }
+  map.on('move', applyFar);
+  map.on('resize', applyFar);
+  // 地形把畫面中心的高程換掉時（MapLibre 在畫這一格時才更新），下一格照新的高程重算
+  map.on('render', () => { if (active && revealed && map.transform.elevation !== farElev) { applyFar(); map.triggerRepaint(); } });
+
   // 底圖圖層藏起來／放回來（記住原本的 visibility，放回時照原樣）
   const hidden = new Map(); let sig = '';
   const shouldHide = id => { const l = map.getLayer(id); if (!l || id === LAYER_ID) return false; if (HIDE_CUSTOM.has(id) || l.type === 'background') return true; return l.type !== 'custom' && BASEMAP_SOURCES.has(l.source); };
@@ -215,8 +309,9 @@ export function attach(map, { tilesBase, hour, date, params: extra = {}, onFail,
       const v = map.getLayoutProperty(id, 'visibility') ?? 'visible';
       if (v !== 'none') { hidden.set(id, v); map.setLayoutProperty(id, 'visibility', 'none'); }
     }
+    applyFade();
   }
-  function restore() { for (const [id, v] of hidden) if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', v); hidden.clear(); }
+  function restore() { for (const [id, v] of hidden) if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', v); hidden.clear(); applyFade(); }
   function ensureLayer() {
     if (!active || map.isStyleLoaded?.() === undefined) return;
     try {
@@ -239,6 +334,9 @@ export function attach(map, { tilesBase, hour, date, params: extra = {}, onFail,
     get occluding() { return occ.on && active && revealed && !!map.getLayer(OCC_ID); },
     setOcclusion(on) { occ.on = !!on; map.triggerRepaint(); }, // 前後對照與閘門用
     get occluderMeshes() { return occ.drawn; },
+    get autoPr() { return autoPr; },   // 自動降畫質原型的狀態（沒開是 null）
+    get fade() { return fade; },
+    setFade(level) { fade = level in FADE ? FADE[level] : FADE[FADE_DEFAULT]; applyFade(); map.triggerRepaint(); }, // 前後對照與閘門用：'conservative'／'aggressive'／'off'
     get engineDate() { return params.get('date'); },   // 這一格 MapLibre 給 custom layer 的投影矩陣（閘門比對鏡頭用）
     get failed() { return failed; },
     loaded,
@@ -248,7 +346,7 @@ export function attach(map, { tilesBase, hour, date, params: extra = {}, onFail,
       active = on;
       canvas.style.display = on ? 'block' : 'none';
       if (on) { if (!revealed) activeSince = performance.now(); ensureLayer(); enforce(); sig = map.getLayersOrder().join(); loaded.then(() => map.triggerRepaint(), () => {}); }
-      else { if (map.getLayer(LAYER_ID)) map.removeLayer(LAYER_ID); if (map.getLayer(OCC_ID)) map.removeLayer(OCC_ID); restore(); }
+      else { if (map.getLayer(LAYER_ID)) map.removeLayer(LAYER_ID); if (map.getLayer(OCC_ID)) map.removeLayer(OCC_ID); restore(); syncGround(performance.now()); }
       map.triggerRepaint();
     },
     api: () => api,

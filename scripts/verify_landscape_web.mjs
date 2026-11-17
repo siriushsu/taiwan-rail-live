@@ -216,6 +216,53 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
       check(`${name} 旋轉零 pageerror`, errors.length === 0, errors.slice(0, 3).join(' | '));
       await p.close();
     }
+    // 8. 遠處淡出：傾斜看出去，地平線底下那一帶擠成一排的遠處路線要淡掉、不畫（立體線照鏡頭深度淡出＋地形霧＋拉近遠平面，見 landscape-web/site.js），
+    //    近處與俯視照舊；拿掉淡出這一條會紅。只量 MapLibre 那一層：地景畫布、站名畫布藏起來，跟三張畫布都藏起來的底色比；時鐘暫停。
+    {
+      // 無視窗瀏覽器幀距常超過 60 ms，網站會中途把立體列車降回平面（還跳提示），路線畫法跟著變：先標成「這個分頁已降過」，量的時候不會換
+      const { p, errors } = await open(browser, 'map=landscape&landscape=new&g=all&' + AT, { route: p => p.addInitScript(() => sessionStorage.setItem('trainmap-3d-autodegraded', '1')) });
+      await waitRevealed(p);
+      const box = await p.locator('#map').boundingBox();
+      const hide = (sel, on) => p.evaluate(([sel, on]) => { for (const e of document.querySelectorAll(sel)) e.style.visibility = on ? 'hidden' : ''; }, [sel, on]);
+      // 每一列跟底色差很多的像素數（MapLibre 畫上去的東西）
+      const rows = async () => {
+        await hide('.landscape-web-canvas, #overlay', true); await p.evaluate(() => M.raw.triggerRepaint()); await p.waitForTimeout(600);
+        const a = await p.screenshot({ clip: box });
+        await hide('canvas.maplibregl-canvas', true); await p.waitForTimeout(300);
+        const b = await p.screenshot({ clip: box });
+        await hide('.landscape-web-canvas, #overlay, canvas.maplibregl-canvas', false);
+        return p.evaluate(async ([a, b]) => {
+          const load = async s => { const im = new Image(); im.src = 'data:image/png;base64,' + s; await im.decode(); const c = new OffscreenCanvas(im.width, im.height), g = c.getContext('2d'); g.drawImage(im, 0, 0); return [g.getImageData(0, 0, im.width, im.height).data, im.width, im.height]; };
+          const [A, w, h] = await load(a), [B] = await load(b), out = new Array(h).fill(0);
+          for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = (y * w + x) * 4; if (Math.abs(A[i] - B[i]) + Math.abs(A[i + 1] - B[i + 1]) + Math.abs(A[i + 2] - B[i + 2]) > 60) out[y]++; }
+          return out;
+        }, [a.toString('base64'), b.toString('base64')]);
+      };
+      const sum = (r, y0, y1) => r.slice(Math.max(0, Math.round(y0)), Math.max(0, Math.round(y1))).reduce((s, v) => s + v, 0);
+      const both = async () => { const on = await rows(); await p.evaluate(() => railIslandLandscapeWeb.setFade('off')); const off = await rows(); await p.evaluate(() => railIslandLandscapeWeb.setFade()); return { on, off }; };
+      // 台北車站往西南看、俯角 75°（地平線在畫面裡）：遠帶＝真地平線往下 8% 畫面高（遠處的線擠成一排的地方；再往下是 1～2 km 內、本來就不淡的線），近帶＝畫面下半
+      await p.evaluate(() => { if (state.playing) togglePlay(); M.raw.jumpTo({ center: [121.5163, 25.0462], zoom: 15.7, pitch: 75, bearing: 205 }); }); await p.waitForTimeout(1500); await waitRevealed(p);
+      const st = await p.evaluate(() => { const tr = M.raw.transform; return { fade: railIslandLandscapeWeb.fade, fog: M.raw.getSky()?.['fog-ground-blend'], sky: M.raw.getSky()?.['sky-color'], lines: M.raw.railIslandDistanceFade?.strength, farOverride: !tr.autoCalculateNearFarZ, horizon: M.horizonTop(), h: tr.height }; });
+      check(`${name} 新地景開著遠處淡出（立體線淡出＋地形霧＋遠平面拉近，天空透明）`, !!st.fade && st.fog < 1 && st.lines === 1 && st.farOverride && st.sky === 'rgba(0,0,0,0)', JSON.stringify(st));
+      const tilt = await both(), y0 = st.horizon, y1 = st.horizon + st.h * .08;
+      const farOn = sum(tilt.on, y0, y1), farOff = sum(tilt.off, y0, y1), nearOn = sum(tilt.on, st.h * .5, st.h), nearOff = sum(tilt.off, st.h * .5, st.h);
+      check(`${name} 俯角 75° 地平線底下那一帶的路線淡掉（淡出開／關：< 關的 25%）`, farOff > 1500 && farOn < farOff * .25, `開 ${farOn}／關 ${farOff} px`);
+      check(`${name} 近處路線照舊（淡出開／關：畫面下半 ≥ 關的 97%）`, nearOff > 1500 && nearOn >= nearOff * .97, `開 ${nearOn}／關 ${nearOff} px`);
+      // 俯視拉遠看整個台北盆地：開／關要幾乎一樣，遠平面照 MapLibre 自己的
+      await p.evaluate(() => M.raw.jumpTo({ center: [121.53, 25.05], zoom: 11.2, pitch: 0, bearing: 0 })); await p.waitForTimeout(1500); await waitRevealed(p);
+      const top = await both(), tOn = sum(top.on, 0, top.on.length), tOff = sum(top.off, 0, top.off.length), topAuto = await p.evaluate(() => M.raw.transform.autoCalculateNearFarZ);
+      check(`${name} 俯視拉遠路線照舊（淡出開／關差 < 1%、遠平面不動）`, tOff > 1500 && Math.abs(tOn - tOff) < tOff * .01 && topAuto, `開 ${tOn}／關 ${tOff} px，auto ${topAuto}`);
+      // 網站日夜光影會定時 setSky：新地景接手時天空要維持透明（不蓋地景自己的天空與遠山）
+      const sun = await p.evaluate(async () => { const s = window.railIslandSunlight; if (!s) return 'no-sunlight'; s.setEnabled(true); s.update(true); await new Promise(r => setTimeout(r, 400)); const v = M.raw.getSky()?.['sky-color']; s.setEnabled(false); return v; });
+      check(`${name} 日夜光影開著時新地景的天空仍透明`, sun === 'rgba(0,0,0,0)', String(sun));
+      // 切回舊地景：霧拿掉、遠平面還給 MapLibre（舊地景的畫面不變）
+      await p.evaluate(() => M.raw.jumpTo({ pitch: 75 })); await p.waitForTimeout(300);
+      await p.evaluate(() => railIslandLandscapeWeb.setActive(false)); await p.waitForTimeout(500);
+      const back = await p.evaluate(() => ({ fog: M.raw.getSky()?.['fog-ground-blend'], auto: M.raw.transform.autoCalculateNearFarZ, lines: M.raw.railIslandDistanceFade ?? null }));
+      check(`${name} 切回舊地景後沒有霧、遠平面還給 MapLibre、立體線不淡`, (back.fog === undefined || back.fog === 1) && back.auto && back.lines === null, JSON.stringify(back));
+      check(`${name} 遠處淡出零 pageerror`, errors.length === 0, errors.slice(0, 3).join(' | '));
+      await p.close();
+    }
   } finally { await browser.close(); }
 }
 server.kill();

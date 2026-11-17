@@ -7488,7 +7488,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1115b：單線對向交會讓給對向車、對向車那邊卻排不出來時，改由本車在本站等（planPassStationMeets 第二輪）。
 // v1117a：地景地圖接上新的全台地景（landscape-web/，engine 取自地景工作區 4a51b7f）；預設仍是舊地景，網址帶 ?landscape=new 才用新的（LANDSCAPE_NEW_DEFAULT）。
 // v1117b：新地景 engine 的 .mjs 模組原本被 .assetsignore 的 *.mjs 排除、正式站 404（v1117a 帶 ?landscape=new 只會退回舊地景），放行 landscape-web/**/*.mjs。
-const BUILD = 'v1117b';
+// v1117c：地景地圖操作順暢：立體路線重建分段做、站點圓視距名單在鏡頭移動中節流（所有訪客，20732392f／8d0c26d68）；新地景接手時列車與軌道貼新地景的地形（2786b7766）、遠處路線淡出（保守檔，4622217c8）；自動降畫質原型預設關（?ls.auto=1，2e45cf034）。
+const BUILD = 'v1117c';
 // v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
@@ -14960,7 +14961,8 @@ function glTracksSync() {
 // 站點圓的視距上限（原生 StationDistanceClip 同一把尺＝detailOpacity 的 far）：俯角 >30° 時，離畫面中心 far 公尺以外的站
 // 不進 track-stations 的 filter。GL 會把遠平面以前所有圖磚裡的站圓都畫出來，遠端那些會在地平線擠成一排；canvas 的站名
 // 早就按 far 淡出了，站圓得用同一把尺。名單只在相機動到「有站進出半徑」時才改，setFilter 才不會每幀重排。
-const glStnClip = { view: undefined, keys: null, applied: '' };
+const glStnClip = { view: undefined, keys: null, applied: '', at: -Infinity };
+const STN_CLIP_MOVING_MS = 300;
 function glStationClipSync(force) {
   const raw = M.raw;
   if (!glTracks.stnBase || !raw.getLayer('track-stations')) return;
@@ -14981,6 +14983,11 @@ function glStationClipSync(force) {
   }
   const applied = glStnClip.keys ? glStnClip.keys.join('\n') : '';
   if (!force && applied === glStnClip.applied) return;
+  // 每改一次 filter，MapLibre 會把這個來源的圖磚整批重排（地形開著時還連帶重畫地形貼圖）。轉動、縮放時名單一秒變二十幾次：
+  // 鏡頭還在動就最多每 STN_CLIP_MOVING_MS 改一次，停下來那一格照常對齊（draw 每格都會再進來）。
+  const now = performance.now();
+  if (!force && raw.isMoving() && now - glStnClip.at < STN_CLIP_MOVING_MS) return;
+  glStnClip.at = now;
   glStnClip.applied = applied;
   raw.setFilter('track-stations', glStnClip.keys
     ? ['all', glTracks.stnBase, ['in', ['concat', ['get', 'lineKey'], '|', ['get', 'name']], ['literal', glStnClip.keys]]]
