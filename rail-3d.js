@@ -25,7 +25,8 @@
   // 網址參數(?scene=2d、?formation=…)仍然只是這一次的覆寫,照舊不落盤,分享連結才不會改到對方的設定。
   const read=(key,fallback)=>{try{return localStorage.getItem(key)||fallback;}catch{return fallback;}};
   let enabled=params.get('scene')!=='2d'&&read('ri-trains-enabled','1')!=='0',formationMode=params.get('formation')||read('ri-formation-mode','actual'),
-    groundMode=params.get('ground')||read('ri-ground-mode','flat'),trainSizeMode=params.get('trainSize')||read('ri-train-size-v21','q'),
+    // 列車大小沒選過的預設「容易辨認」（v1118b 起，原本是 Q 版）；選過的照 ri-train-size-v21 存的
+    groundMode=params.get('ground')||read('ri-ground-mode','flat'),trainSizeMode=params.get('trainSize')||read('ri-train-size-v21','readable'),
     modelMode=read('ri-model-mode','all'),ambientCamera=read('ri-ambient-camera','side'),transparent=read('ri-transparent','0')==='1',satelliteTransparent=read('ri-satellite-transparent','0')==='1';
   let landscapeGround=(params.get('ground')||read('ri-landscape-ground','terrain'))==='flat'?'flat':'terrain';
   // 新地景（landscape-web/）有自己的真實地形：列車一律跟起伏地面走，「平坦」只對舊地景有意義

@@ -5408,16 +5408,14 @@
   var HOME_OPENING_ON = false; // 預設開關；?opening=1 強制開、?opening=0 強制關
   var R = window.RI_HOME_OPENING = { eligible: false, run: false, done: false, q: [],
     after: function (fn) { if (R.run && !R.done) R.q.push(fn); else fn(); },
-    // name＝畫面上的地名；big＝大範圍鏡頭（挑音樂用）；cam＝影片的鏡頭軌跡（揭幕時地圖接在同一個鏡位）：
-    // [秒, 經度, 緯度, 鏡頭到畫面中心 m, 方位°, 俯角°]，每 2 秒一格（錄影時的鏡位，垂直視角 42°）
+    // name＝畫面上的地名；big＝大範圍鏡頭（挑音樂用）。實景各段都從網站本身的新地景錄：列車是網站的立體列車、跑錄影當時刻的時刻表位置
     scenes: [
-      { id: 'taipei-day', name: '臺北盆地上空', big: 1, cam: [[0,121.514304,25.051569,2400,114.6,24.1],[2,121.516307,25.050847,2400,114.3,23.9],[4,121.518417,25.050273,2400,113.5,23.6],[6,121.520585,25.049792,2400,112.3,23.2],[8,121.522765,25.049346,2400,111.1,22.7],[10,121.524916,25.048876,2400,110,22.2],[12,121.527003,25.048315,2400,109.2,21.9],[14,121.52896,25.047612,2400,108.9,21.8]] },
-      { id: 'coast-day', name: '花東海岸・多良', big: 1, cam: [[0,120.953677,22.489825,420,-12,17.2],[2,120.953802,22.490375,413,-10.3,17.2],[4,120.953964,22.490917,396,-12,16],[6,120.954154,22.491452,373,-16,15.5],[8,120.954367,22.49198,347,-21.2,14.3],[10,120.954572,22.49251,324,-28.1,13.8],[12,120.954776,22.49304,306,-32.7,12.6],[14,120.95498,22.493571,289,-37.2,11.5]] },
+      { id: 'taipei-day', name: '臺北盆地上空', big: 1 },
+      { id: 'lanyang-day', name: '蘭陽平原・龜山島', big: 1 },
       { id: 'garage-day', name: '車庫・阿里山林鐵', big: 0 },
-      { id: 'metro-day', name: '高架上的捷運・內湖', big: 0, cam: [[0,121.559068,25.085027,310,118,26.4],[2,121.55933,25.084975,306,134.6,25.8],[4,121.559574,25.084881,294,142.7,25.2],[6,121.559821,25.084824,278,138.7,24.1],[8,121.560069,25.084771,261,132.9,22.9],[10,121.560309,25.084691,246,132.4,21.8],[12,121.560549,25.084614,234,129.5,21.2],[14,121.56079,25.084536,223,126.6,20.6]] },
-      // 夜景從網站本身錄（新地景、日照開著）：錄影時就用 camSync 同一條換算擺地圖，cam 回放就是錄影當時的鏡位
-      { id: 'wenhu-night', name: '夜裡的文湖線・六張犁', big: 0, night: 1, cam: [[0,121.547468,25.026641,980,63,15],[2,121.54776,25.026491,969,62.1,15.2],[4,121.54837,25.026178,946,60.4,15.5],[6,121.549169,25.025767,916,57.9,16],[8,121.550031,25.025324,884,55.2,16.5],[10,121.550829,25.024915,853,52.5,17],[12,121.551434,25.024604,831,50.3,17.3],[14,121.55172,25.024457,820,49.3,17.5]] },
-      { id: 'tamsui-night', name: '夜裡的淡水信義線・圓山', big: 0, night: 1, cam: [[0,121.52372,25.081165,900,170,15],[2,121.523589,25.080862,891,169.3,15.2],[4,121.523316,25.080228,872,167.9,15.5],[6,121.522959,25.079397,848,166,16],[8,121.522573,25.078502,822,164,16.5],[10,121.522216,25.077673,797,162.1,17],[12,121.521945,25.077044,779,160.7,17.3],[14,121.521817,25.076747,770,160,17.5]] }] };
+      { id: 'metro-day', name: '高架上的捷運・內湖', big: 0 },
+      { id: 'wenhu-night', name: '夜裡的文湖線・六張犁', big: 0, night: 1 },
+      { id: 'tamsui-night', name: '夜裡的淡水信義線・圓山', big: 0, night: 1 }] };
   try {
     var qs = new URLSearchParams(location.search), ov = qs.get('opening');
     if (!(ov === '1' || (ov !== '0' && HOME_OPENING_ON))) return;
@@ -5446,6 +5444,12 @@
     var dk = document.documentElement.getAttribute('data-theme') === 'dark', sp = null;
     try { sp = localStorage.getItem('trainmap-sunlight-v2' + (dk ? '-dark' : '-light')); } catch (e) {}
     R.night = (h >= 18 || h < 6) && (sp === '1' || (sp !== '0' && dk));
+    // 揭幕後的地圖種類：第一次來才開影片錄的那種（各段都是新地景）；來過的照網站本來的規則（換過地圖的照 trainmap-basemap，沒換過的是一般地圖）。
+    // 來過＝留過任一個痕跡：trainmap-device-id 每次開機都會寫（userDataDeviceId），另加上次視野、首訪卡看過、換過地圖
+    try {
+      var ls = localStorage;
+      R.fresh = !['trainmap-device-id', 'trainmap-last-view', 'trainmap-howto-seen', 'trainmap-basemap'].some(function (k) { return ls.getItem(k) != null; });
+    } catch (e) { R.fresh = true; }
     R.pool = R.scenes.filter(function (s) { return !!s.night === R.night; });
     var last = localStorage.getItem('ri-home-opening-last');
     var pick = R.pool.filter(function (s) { return s.id !== last; });
@@ -6041,7 +6045,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/11/17</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/11/18</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -6049,6 +6053,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="trainsize1118"><span class="d">11/18</span><span>地圖上的立體列車預設改成「容易辨認」的正常大小；想看 Q 版可在「觀看」→「列車」→「列車大小」切換，之前選過的照舊</span></li>
         <li data-cl-of="landscapeweb1117"><span class="d">11/17</span><span>地景地圖的新版全台地景（3D 地形、建物與夜景）已放上網站做最後測試；這段期間畫面仍是原本的地景</span></li>
         <li data-cl-of="qnoyield1114"><span class="d">11/14</span><span>Q 版列車停在站裡時不再往旁邊滑開，一直貼著軌道線；疊在一起的兩列改由前後層次分開</span></li>
         <li data-cl-of="tymccrowd1113"><span class="d">11/13</span><span>桃園機場捷運的車站看板與跟車卡多了車廂擁擠度：四節車廂各一格、顏色表示鬆緊，資料取自桃園捷運官網的列車動態；對不上是哪一列車時留白</span></li>
@@ -6056,7 +6061,6 @@
         <li data-cl-of="trameetin1110"><span class="d">11/10</span><span>台鐵單線區段原本畫成在站間錯身的對向列車，改成先到的那班進站停車，等對向列車通過再開（例如 410 次在東竹等 417 次）；那一站沒有空股道時，退到前面有空股道的站等</span></li>
         <li data-cl-of="garagenewcars1109"><span class="d">11/09</span><span>車庫新增 12 款車：EMU200、DR2800、S400、EMU400、0 系新幹線、總統花車等，各用 150 島民點數兌換</span></li>
         <li data-cl-of="garageinfo1109"><span class="d">11/09</span><span>車庫場景與車款加上介紹，車款詳情多了「車款檔案」，列車卡 5 個車種各補一則小知識</span></li>
-        <li data-cl-of="garagefix1109"><span class="d">11/09</span><span>車庫場景頁換車改成下面一排車款鈕直接點；有月台的場景列車輪流進站、停站再開走；鐵軌、電線等細線遠看不再忽隱忽現</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -6090,6 +6094,7 @@
         <li data-cl="weatherapp1023"><span class="d">10/23</span><span>修正 App 颱風資訊整份重複顯示，改為各系統公告；補上新北環狀線、三鶯線 10/23 約 15 分鐘班距，淡海與安坑仍待確認</span></li>
         <li data-cl="weather1022"><span class="d">10/22</span><span>新增颱風期間全台鐵道營運提醒與官方來源，明確標示停駛、調整班距及待確認資訊；地圖有車不代表實際開行；開啟颱風公告時跟車卡暫時隱藏</span></li>
         <li class="grp">路網與車站</li>
+        <li data-cl="trainsize1118"><span class="d">11/18</span><span>地圖上的立體列車預設改成「容易辨認」的正常大小；想看 Q 版可在「觀看」→「列車」→「列車大小」切換，之前選過的照舊</span></li>
         <li data-cl="landscapeweb1117"><span class="d">11/17</span><span>地景地圖的新版全台地景（3D 地形、建物與夜景）已放上網站做最後測試；這段期間畫面仍是原本的地景</span></li>
         <li data-cl="tragpsrun1113"><span class="d">11/13</span><span>台鐵列車在兩站之間的位置，改照校正懸賞錄到的實際行駛曲線來推（目前 95 條站間曲線），起步、進站的快慢更接近真車；還沒有實測的站間照舊用公式推算（謝謝幫忙錄程的島民）</span></li>
         <li data-cl="trameetin1110"><span class="d">11/10</span><span>台鐵單線區段原本畫成在站間錯身的對向列車，改成先到的那班進站停車，等對向列車通過再開（例如 410 次在東竹等 417 次）；那一站沒有空股道時，退到前面有空股道的站等</span></li>
@@ -7629,11 +7634,14 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1117f：電腦首頁全畫面開場（序幕影片→出隧道揭幕→全畫面地圖，assets/opening）上線但開關維持關（HOME_OPENING_ON＝false），帶 ?opening=1 才播（ba2530258）。
 // v1117g：新地景（帶 ?landscape=new）接手後路線不再被地形裙邊往下拉成直條（e6b065b3e）；鏡頭沒動時新地景不重畫、停著看少用 GPU（63adf4bc1，?ls.rest=0 可關；跑不動的保底 ?ls.auto=1 維持關）；被山擋住的路線改成半透明透出、不再斷成一截一截（dab5b7a96）。
 // v1118a：電腦首頁開場改版——開場頁就出聲（被擋就給「開聲音」）、揭幕後進新地景且鏡頭接在影片那一格、跑不動的保底打開（等同 ?ls.auto=1）；夜景換成文湖線、淡水信義線兩段。開關仍關，只有 ?opening=1 才播。
-const BUILD = 'v1118a';
+// v1118b：電腦首頁開場各段改從網站本身錄（網站的立體列車、錄影當時刻的時刻表位置、非 Q 版）；多良換成蘭陽平原・龜山島；揭幕後落在臺北市區，沒記過地圖的開新地景、記過的照網站記的；「按任意鍵進入」不再等新地景的地形圖磚。網站列車大小預設改成「容易辨認」（選過的照舊）。開場開關仍關。
+const BUILD = 'v1118b';
 // v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
-// 有播電腦首頁開場的這一趟，揭幕後是新地景（開場影片就是新地景錄的）；只這一趟，不寫地景偏好
-const OPENING_LANDSCAPE = !!(window.RI_HOME_OPENING && window.RI_HOME_OPENING.run);
+// 有播電腦首頁開場、又是第一次來（RI_HOME_OPENING.fresh）：揭幕後開新地景（開場影片就是新地景錄的）；只這一趟，不寫地景偏好
+const OPENING_LANDSCAPE = !!(window.RI_HOME_OPENING && window.RI_HOME_OPENING.run && window.RI_HOME_OPENING.fresh);
+// 有播開場、網站又沒記過位置（上次視野、預設啟動地點）：揭幕後落在臺北市區這個鏡位（MapLibre zoom）
+const OPENING_VIEW = { center: [121.5170, 25.0478], zoom: 15.2, pitch: 60, bearing: 20 };
 const GARAGE_QUERY = new URLSearchParams(location.search).get('garage');
 // 輕量多語 runtime：繁中原文同時是安全 fallback，外語字典只存差異字串。
 // 所有插值一律先當純文字處理；需要 HTML 的呼叫端仍須用 escHtml() 包住結果。
@@ -8776,7 +8784,8 @@ function syncMap3dUi() {
 function setMap3d(on) {
   if (!M) return;
   state.map3d = !!on;
-  try { localStorage.setItem(MAP3D_PREF_KEY, state.map3d ? '1' : '0'); } catch (e) {}
+  // 開場那一趟地景是開場替他開的（rail-3d 見到地景會打開 3D 建物），不記成他的偏好
+  if (!(window.RI_HOME_OPENING && RI_HOME_OPENING.run && !RI_HOME_OPENING.done)) { try { localStorage.setItem(MAP3D_PREF_KEY, state.map3d ? '1' : '0'); } catch (e) {} }
   installBuilding3d();
   if (M.raw.getLayer('building-3d')) M.raw.setLayoutProperty('building-3d', 'visibility', state.map3d ? 'visible' : 'none');
   syncMap3dUi();
@@ -8795,6 +8804,7 @@ function setupMapOrientation() {
   M.raw.on('pitchend', () => {
     if (window.railIslandIntegration?.renderer?.transitioning) return;
     state.mapPitch = M.getPitch();
+    if (window.RI_HOME_OPENING && RI_HOME_OPENING.run && !RI_HOME_OPENING.done) return; // 開場幕後擺的鏡頭（OPENING_VIEW）不是他挑的傾斜角
     try { localStorage.setItem('trainmap-map-pitch', String(state.mapPitch)); } catch (e) {}
   });
   btn.onclick = () => setMap3d(!state.map3d);
@@ -42837,6 +42847,8 @@ async function boot() {
       state._geoLanded = true;
     } else if (lastView) {
       M.setView([lastView.lat, lastView.lon], lastView.z, { animate: false }); // 回到上次離開的位置(群組已於上面一併還原)
+    } else if (window.RI_HOME_OPENING && RI_HOME_OPENING.run) {
+      M.raw.jumpTo(OPENING_VIEW); // 電腦首頁開場：開機就擺到揭幕後的鏡位，序幕期間圖磚先載
     }
   }
   M.on('moveend', saveLastView); // 記住使用者最後看的畫面;守門條件都在 saveLastView 內(巡航/跟車皆不寫)
@@ -42887,7 +42899,7 @@ function saveLastView() {
   // 小工具蓋章把畫面切到全台的那一段(見 widgetCheckinStart)：那是為了讓人看到蓋章結果,不是他挑的分頁,
   // 記下來的話下次開 App 會落在全台、地圖中心也變成蓋章那一刻的位置。旗會在人自己換群組時放掉(selectGroup)。
   if (state._lastViewHold) return;
-  if (window.RI_HOME_OPENING && window.RI_HOME_OPENING.run && !window.RI_HOME_OPENING.done) return; // 開場幕後跟著影片擺的鏡頭不是他挑的
+  if (window.RI_HOME_OPENING && window.RI_HOME_OPENING.run && !window.RI_HOME_OPENING.done) return; // 開場幕後擺的鏡頭不是他挑的
   const g = GROUPS.find(x => x.id === state.group);
   if (!g) return;
   const sel = g.mode === 'freq' ? state.freqSel : g.mode === 'sched' ? state.schedSel : null;
@@ -44194,13 +44206,9 @@ window.addEventListener('load', boot);
   sound(false);
 
   // 每段播完換一段（不連續重複）；下一段在快播完時才開始載
-  let plan = null; // 下一段可以先決定（車庫段時地圖先擺到下一段的鏡位）
-  const pickNext = () => {
-    if (!plan) { const cands = R.pool.filter(s => s.id !== cur.id); plan = cands[Math.floor(Math.random() * cands.length)]; }
-    return plan;
-  };
   const prepNext = () => {
-    nextSc = pickNext(); plan = null;
+    const cands = R.pool.filter(s => s.id !== cur.id);
+    nextSc = cands[Math.floor(Math.random() * cands.length)];
     nextEl = R.video(nextSc);
     nextEl.querySelector('video').autoplay = false;
     st.insertBefore(nextEl, scrim);
@@ -44221,52 +44229,13 @@ window.addEventListener('load', boot);
     if (R.pool.length < 2) return;
     const v = sc.querySelector('video');
     v.addEventListener('timeupdate', () => { if (!nextEl && !leaving && v.duration && v.currentTime > v.duration - 4) prepNext(); });
-    // 新地景還沒接手就先不換段、這段重播：換段＝地圖換地方、圖磚從頭載，揭幕時又會是舊地景
-    const onEnd = () => {
-      if (!leaving && !landOk()) {
-        try { v.currentTime = 0; const p = v.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {}
-        v.addEventListener('ended', onEnd, { once: true }); return;
-      }
-      swap();
-    };
-    v.addEventListener('ended', onEnd, { once: true });
+    v.addEventListener('ended', swap, { once: true });
   };
   wire(curEl);
 
-  // 地圖鏡頭跟著影片：這一趟揭幕後是新地景，幕後先把地圖擺到這段影片中間的鏡位、讓圖磚先載，揭幕那一下才對準當下那一格。
-  // 幕後每換一段只擺一次：每秒跟著挪的話鏡頭一直在動，新地景的圖磚永遠「沒到齊」，揭幕時還是舊地景。
-  // 影片鏡位是垂直視角 42° 錄的、畫面鋪滿（object-fit: cover）；地圖換算成同樣框到的範圍。車庫那段不是實景，地圖留在原本的全台。
-  const camAt = (sc, t) => {
-    const c = sc && sc.cam; if (!c) return null;
-    let i = 0; while (i < c.length - 2 && t > c[i + 1][0]) i++;
-    const a = c[i], b = c[i + 1], u = Math.max(0, Math.min(1, (t - a[0]) / (b[0] - a[0])));
-    return a.map((x, k) => x + (b[k] - x) * u);
-  };
-  let camFor = null;
-  const camSync = exact => {
-    try {
-      if (!M || !M.raw || !state.ready) return;
-      const sc = exact || cur.cam || R.pool.length < 2 ? cur : pickNext(); // 車庫段不是實景：地圖先擺到下一段，換過去時圖磚已經到齊
-      if (!exact && camFor === sc) return;
-      camFor = sc;
-      const v = curEl.querySelector('video'), r = camAt(sc, exact ? (v ? v.currentTime || 0 : 0) : 7);
-      if (!r) return;
-      const [, lng, lat, dist, az, elev] = r, W = M.raw.transform.width, H = M.raw.transform.height;
-      const fv = Math.min(1, (H / W) * (16 / 9)); // 畫面比 16:9 寬時影片上下被裁，看到的高度只剩這個比例
-      const zoom = Math.log2(2 * Math.PI * 6371008.8 * Math.cos(lat * Math.PI / 180) * H / (1024 * dist * Math.tan(21 * Math.PI / 180) * fv));
-      M.raw.jumpTo({ center: [lng, lat], zoom, bearing: az, pitch: Math.min(75, 90 - elev) });
-    } catch (e) {}
-  };
-  let camIv = 0;
-  const landOk = () => { // 新地景接手了（或開不起來、已退回舊地景）
-    try {
-      if (typeof landscapeWebWanted !== 'function' || !landscapeWebWanted()) return true;
-      const lw = window.railIslandLandscapeWeb; return !!(lw && (lw.revealed || lw.failed));
-    } catch (e) { return true; }
-  };
-
-  // 地圖在後面載：state.ready → 圖磚 → 3D 列車（新地景那一趟再加地景接手）；金線跟著走。
-  // ready 之後最多再等 8 秒（新地景 20 秒：臺北市區那幾個鏡位圖磚要 11～17 秒才到齊），整體 30 秒一定放行
+  // 地圖在後面載：state.ready → 圖磚 → 3D 列車；金線跟著走。地圖的鏡位開機時就擺好（OPENING_VIEW），不跟影片。
+  // 不等新地景接手：沒接手前網站本來就先顯示舊地景、到了自己換上（臺北市區的圖磚要十幾秒）。
+  // ready 之後最多再等 8 秒，整體 30 秒一定放行
   const enterFs = () => { // 揭幕前先排成現行網站的全畫面地圖；只用 CSS 版，不叫瀏覽器真全螢幕
     fsDone = true;
     if (!state._setFs || document.body.classList.contains('fs')) return;
@@ -44278,14 +44247,17 @@ window.addEventListener('load', boot);
     let target = document.readyState === 'complete' ? 0.35 : 0.22;
     if (state.ready) {
       if (!fsDone) enterFs();
-      if (!readyAt) { readyAt = performance.now(); camSync(false); camIv = setInterval(() => camSync(false), 1000); }
+      if (!readyAt) readyAt = performance.now();
       let tiles = false;
-      try { tiles = !!(M.raw && M.raw.isStyleLoaded() && M.raw.areTilesLoaded()); } catch (e) {}
+      // 新地景底下 terrain 來源的圖磚會一直停在 reloading，不等它；isStyleLoaded／areTilesLoaded 都會把它算進去，所以逐一看其他來源
+      try {
+        const m = M.raw, st = m && m.style, sc = st && st._loaded && (st.tileManagers || st.sourceCaches);
+        tiles = !!(sc ? Object.entries(sc).every(([id, c]) => id === 'terrain' || !c.loaded || c.loaded()) : (m && m.isStyleLoaded() && m.areTilesLoaded()));
+      } catch (e) {}
       const ri = window.railIslandIntegration;
       const trains = !ri || ri.active || ri.deferred || (ri.errors && ri.errors.length > 0);
-      const land = landOk(), landWanted = typeof landscapeWebWanted === 'function' && landscapeWebWanted();
-      target = 0.6 + (tiles ? 0.15 : 0) + (trains ? 0.1 : 0) + (land ? 0.1 : 0);
-      if ((tiles && trains && land) || performance.now() - readyAt > (landWanted ? 20000 : 8000)) ready = true;
+      target = 0.6 + (tiles ? 0.2 : 0) + (trains ? 0.15 : 0);
+      if ((tiles && trains) || performance.now() - readyAt > 8000) ready = true;
     }
     if (performance.now() - t0 > 30000) ready = true;
     progF = ready ? 1 : Math.max(progF, progF + (target - progF) * 0.25);
@@ -44315,7 +44287,6 @@ window.addEventListener('load', boot);
     if (leaving) return;
     leaving = true;
     if (!fsDone && state.ready) enterFs();
-    clearInterval(camIv); camSync(true); // 揭幕那一下對準影片這一格
     removeEventListener('keydown', onKey, true);
     root.classList.add('leaving', 'iris');
     if (plate) {

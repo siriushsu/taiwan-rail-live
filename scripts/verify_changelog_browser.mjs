@@ -177,7 +177,7 @@ const widths = [360, 375, 414, 768];
 // 11/13: v1113a TRA station-to-station GPS run curves add 1 (597 -> 598).
 // 11/13: v1113b Airport MRT car crowding adds 1 (598 -> 599).
 // 11/14: v1114b Q trains no longer slide aside when stopped adds 1 (599 -> 600).
-const expectedHistoryCount = 600;
+const expectedHistoryCount = 602;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
