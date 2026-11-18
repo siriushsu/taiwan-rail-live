@@ -110,6 +110,7 @@ export function buildDetailed({ buildings, roads, groundAt, chunkSize, mode = 0,
       const light = rgb(b.color).reduce((s, v) => s + v, 0) / 3 > 0.5;
       return { color: b.color, win: civic.win, finish: civic.finish, frame: "#ffffff", cage: null, bands: !!civic.band, ac: b.mark !== "hospital", parapet: 0, deck: pick(DECKS, r("deck")), civic };
     }
+    if (b.mark === "mall") return { color: b.color, win: 11, win2: 10, finish: 0, frame: "#78898a", cage: null, bands: true, ac: false, parapet: 0, deck: b.sceneRoof || "#b4b6b0" };
     if (b.type === "school") return { color: b.color, win: 11, finish: r("finish") < 0.5 ? 0 : 2, frame: pick(["#ffffff", "#6f8f78", "#d2d6d4"], r("frame")), cage: null, bands: true, ac: false, parapet: 0, deck: pick(DECKS, r("deck")), school: true };
     if (b.type === "temple") return { color: b.color, win: -1, finish: 2, frame: "#ffffff", cage: null, bands: false, ac: false, parapet: 0, deck: "#a7a9a4", temple: true };
     const finish = hall ? r("finish") < 0.6 ? 3 : 0 : slot === 0 && b.finish !== null ? b.finish : fitFinish(wpick(S.finish, r("finish")), b.type, b.floors);
@@ -321,7 +322,7 @@ export function buildDetailed({ buildings, roads, groundAt, chunkSize, mode = 0,
       }
       return yes;
     };
-    const deckZ = pitched || metal ? z : top, deckColor = rgb(metal ? b.style.roofMetal ? pick(b.style.roofMetal, hash(b.key, "roof")) : sheetRoofOf(b.key) : H(0).deck);
+    const deckZ = pitched || metal ? z : top, deckColor = rgb(metal ? b.style.roofMetal ? pick(b.style.roofMetal, hash(b.key, "roof")) : sheetRoofOf(b.key) : b.sceneRoof || H(0).deck);
     if (!pitched || !obb) {
       const pts = ring.map((p) => new THREE.Vector2(p[0], p[1])), holes = b.rings.slice(1).map((h) => h.map((p) => new THREE.Vector2(p[0], p[1]))), all = [...ring, ...b.rings.slice(1).flat()];
       const r3 = fx3 & 1 && !metal && obb ? { code: b.type === "townhouse" ? 1 : b.type === "apartment" ? b.floors <= 5 ? 2 : b.floors <= 11 ? 3 : 4 : b.type === "hall" || b.type === "factory" ? 5 : b.type === "school" || b.type === "civic" || b.mark ? 6 : 7, ang: Math.round((Math.atan2(obb.u[1], obb.u[0]) + Math.PI) / (2 * Math.PI) * 65535), sd: rnd(b.id, 7116) } : null;
@@ -359,7 +360,7 @@ export function buildDetailed({ buildings, roads, groundAt, chunkSize, mode = 0,
       }
       prism(at(0, 0), 0.3, zr + rise + 0.35, zr + rise + 1.1, P_PLAIN, rgb("#d9b44a"), 6);
     } else if (pitched) {
-      const L = obb.length / 2 - 0.05, W = obb.width / 2 - 0.05, isMetal = b.roof === "metal", rise = Math.min(isMetal ? 2.4 : 3, obb.width * (isMetal ? 0.18 : 0.28)), color = rgb(isMetal ? b.style.roofMetal ? pick(b.style.roofMetal, hash(b.key, "roof")) : sheetRoofOf(b.key) : pick(b.style.roofTile || ROOF_TILE, hash(b.key, "roof"))), part = isMetal ? P_METAL : P_TILE, uv = [[0, 0], [obb.length / 6, 0], [obb.length / 6, isMetal ? 0.5 : W / 1.2], [0, isMetal ? 0.5 : W / 1.2]];
+      const L = obb.length / 2 - 0.05, W = obb.width / 2 - 0.05, isMetal = b.roof === "metal", rise = Math.min(isMetal ? 2.4 : 3, obb.width * (isMetal ? 0.18 : 0.28)), color = rgb(b.sceneRoof || (isMetal ? b.style.roofMetal ? pick(b.style.roofMetal, hash(b.key, "roof")) : sheetRoofOf(b.key) : pick(b.style.roofTile || ROOF_TILE, hash(b.key, "roof")))), part = isMetal ? P_METAL : P_TILE, uv = [[0, 0], [obb.length / 6, 0], [obb.length / 6, isMetal ? 0.5 : W / 1.2], [0, isMetal ? 0.5 : W / 1.2]];
       quad([e(-L - 0.3, -W - 0.35, z - 0.12), e(L + 0.3, -W - 0.35, z - 0.12), e(L + 0.3, 0, z + rise), e(-L - 0.3, 0, z + rise)], part, color, uv, 7);
       quad([e(L + 0.3, W + 0.35, z - 0.12), e(-L - 0.3, W + 0.35, z - 0.12), e(-L - 0.3, 0, z + rise), e(L + 0.3, 0, z + rise)], part, color, uv, 7);
       const gable = metal ? rgb(b.color) : wallColorOf;
@@ -424,7 +425,7 @@ export function buildDetailed({ buildings, roads, groundAt, chunkSize, mode = 0,
     }
     if (only && !only(cx, cy)) continue;
     const sfe = shopfronts ? shopfronts.b[src.id] : void 0, sf = !shopfronts ? void 0 : sfe && sfe.r === ring.length ? new Map(sfe.e.map(([ei, bays, vk, cv]) => [ei, { bays: new Set(bays), vk, cg: cv?.length ? new Map(cv.flatMap(([brand, j0, n], gi) => Array.from({ length: n }, (_, d) => [j0 + d, { gi, code: cvsCode(brand, j0, n) }]))) : null }])) : null;
-    const b = { sf, quiet: !!(shopfronts && shopfronts.x[src.id]), key: src.id, id: seed(src.id), type: src.type || "townhouse", floors: Math.max(1, src.floors || 1), h: Math.max(3, src.h || 6), color: src.wall || "#d0cfca", roof: src.roof || "flat", finish: src.finish, addon: Number(src.addon) || 0.3, style: STYLES[src.style] || HILL_STYLES[src.style] || STYLES.town, styleKey: src.style, mark: src.mark, markName: src.markName, rings: src.rings, ground: gmin, cols: src.canopy?.cols, facility: src.facility };
+    const b = { sf, quiet: !!(shopfronts && shopfronts.x[src.id]), key: src.id, id: seed(src.id), type: src.type || "townhouse", floors: Math.max(1, src.floors || 1), h: Math.max(3, src.h || 6), color: src.wall || "#d0cfca", roof: src.roof || "flat", finish: src.finish, addon: Number(src.addon) || 0.3, style: STYLES[src.style] || HILL_STYLES[src.style] || STYLES.town, styleKey: src.style, mark: src.mark, markName: src.markName, sceneRoof: src.sceneRoof, rings: src.rings, ground: gmin, cols: src.canopy?.cols, facility: src.facility };
     const key = Math.floor(cx / chunkSize) + "," + Math.floor(cy / chunkSize);
     let c = chunks.get(key);
     if (!c) chunks.set(key, c = { data: [], index: [], n: 0, count: 0 });

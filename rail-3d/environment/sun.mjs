@@ -112,7 +112,7 @@ const PAVED_NIGHT = .72;
 // 名單刻意寫死而不在執行期依圖層順序推導:執行期那段還夾著本專案自己加的軌道與車輛圖層,
 // 依順序取會把軌道也一起壓暗。漏掉新圖層由 verify_sun.mjs 對照樣式檔擋下。
 export const PAVED_LAYERS = [
-  ['building', 'fill-color'],
+  ['building', 'fill-color'], ['place-grounds', 'line-color'],
   ['tunnel_motorway_casing', 'line-color'], ['tunnel_motorway_inner', 'line-color'],
   ['aeroway-taxiway', 'line-color'], ['aeroway-runway-casing', 'line-color'],
   ['aeroway-area', 'fill-color'], ['aeroway-runway', 'line-color'],
@@ -149,11 +149,15 @@ export function parseColor(value) {
   return [[channel(h + 1 / 3), channel(h), channel(h - 1 / 3)], alpha];
 }
 
-/** 把一個色彩字串往夜色靠 alpha 這麼多；認不得的寫法原樣回傳。 */
+/** 運算式裡至少有一個色彩字面值（例：依種類分色的 match）。 */
+export const hasColor = value => Array.isArray(value) ? value.slice(1).some(hasColor) : !!parseColor(value);
+
+/** 把一個色彩字串往夜色靠 alpha 這麼多；運算式只改裡面的色彩字面值，其餘原樣回傳。 */
 export function shadeColor(value, ink, alpha) {
   // 白天（alpha 0）原樣退回，不做「解析再重組」——那會把 hsl()／rgba() 悄悄改寫成等值的
   // #rrggbb。畫面一樣，但樣式值不再等於樣式檔那份，之後任何逐字比對都會看到假差異。
   if (!(alpha > 0)) return value;
+  if (Array.isArray(value)) return value.map((v, i) => i === 0 ? v : shadeColor(v, ink, alpha));
   const parsed = parseColor(value);
   if (!parsed) return value;
   const [rgb, a] = parsed, out = rgb.map((v, i) => Math.round(mix(v, ink[i], alpha)));
@@ -247,7 +251,7 @@ export function createSunlight({ engine, context, enabled = true }) {
       if (!pavedOriginal) pavedOriginal = PAVED_LAYERS
         .filter(([id]) => map.getLayer(id))
         .map(([id, prop]) => [id, prop, map.getPaintProperty(id, prop)])
-        .filter(([, , value]) => parseColor(value));
+        .filter(([, , value]) => hasColor(value));
       // 濃度沒變就不重寫:setPaintProperty 每次都會觸發重繪與 sourcedata,而地景林冠是掛在
       // sourcedata 上重掃的。白天整天 0、深夜整晚 0.72,真正要寫的只有晨昏那兩段。
       if (pavedAlpha === null || Math.abs(current.paved.alpha - pavedAlpha) > .002) {

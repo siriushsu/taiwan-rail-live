@@ -27,6 +27,21 @@
         26.383474
       ],
       "attribution": "© <a href=\"https://esa-worldcover.org/en/data-access\" target=\"_blank\">ESA WorldCover 2021</a>"
+    },
+    "taiwan-places": {
+      "type": "vector",
+      "tiles": [
+        "ri-places://tiles/{z}/{x}/{y}"
+      ],
+      "minzoom": 12,
+      "maxzoom": 12,
+      "bounds": [
+        118.15,
+        21.89,
+        122.09,
+        26.39
+      ],
+      "attribution": "校界 © <a href=\"https://data.gov.tw/dataset/174606\">內政部國土測繪中心</a> · 場館 © <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap 貢獻者</a> · 寺廟：<a href=\"https://data.gov.tw/dataset/6246\">文資局</a>、<a href=\"https://data.gov.tw/dataset/8203\">內政部</a>"
     }
   },
   "sprite": "https://tiles.openfreemap.org/sprites/ofm_f384/ofm",
@@ -585,6 +600,52 @@
       }
     },
     {
+      "id": "place-grounds",
+      "type": "line",
+      "source": "taiwan-places",
+      "source-layer": "grounds",
+      "minzoom": 14,
+      "paint": {
+        "line-color": [
+          "match",
+          [
+            "get",
+            "k"
+          ],
+          [
+            "mall",
+            "department"
+          ],
+          "#a48668",
+          "library",
+          "#698887",
+          "theme_park",
+          "#a77355",
+          "playground",
+          "#95a478",
+          "museum",
+          "#9b8a7a",
+          "stadium",
+          "#859775",
+          "#879b87"
+        ],
+        "line-opacity": 0.55,
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          14,
+          0.65,
+          18,
+          1.5
+        ]
+      }
+    },
+    {
       "id": "tunnel_motorway_casing",
       "type": "line",
       "source": "openmaptiles",
@@ -593,35 +654,46 @@
       "filter": [
         "all",
         [
-          "match",
-          [
-            "geometry-type"
-          ],
-          [
-            "LineString",
-            "MultiLineString"
-          ],
-          true,
-          false
-        ],
-        [
           "all",
           [
-            "==",
+            "match",
             [
-              "get",
-              "brunnel"
+              "geometry-type"
             ],
-            "tunnel"
+            [
+              "LineString",
+              "MultiLineString"
+            ],
+            true,
+            false
           ],
           [
-            "==",
+            "all",
             [
-              "get",
-              "class"
+              "==",
+              [
+                "get",
+                "brunnel"
+              ],
+              "tunnel"
             ],
-            "motorway"
+            [
+              "==",
+              [
+                "get",
+                "class"
+              ],
+              "motorway"
+            ]
           ]
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
         ]
       ],
       "layout": {
@@ -658,35 +730,46 @@
       "filter": [
         "all",
         [
-          "match",
-          [
-            "geometry-type"
-          ],
-          [
-            "LineString",
-            "MultiLineString"
-          ],
-          true,
-          false
-        ],
-        [
           "all",
           [
-            "==",
+            "match",
             [
-              "get",
-              "brunnel"
+              "geometry-type"
             ],
-            "tunnel"
+            [
+              "LineString",
+              "MultiLineString"
+            ],
+            true,
+            false
           ],
           [
-            "==",
+            "all",
             [
-              "get",
-              "class"
+              "==",
+              [
+                "get",
+                "brunnel"
+              ],
+              "tunnel"
             ],
-            "motorway"
+            [
+              "==",
+              [
+                "get",
+                "class"
+              ],
+              "motorway"
+            ]
           ]
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
         ]
       ],
       "layout": {
@@ -910,24 +993,35 @@
       "filter": [
         "all",
         [
-          "match",
+          "all",
           [
-            "geometry-type"
+            "match",
+            [
+              "geometry-type"
+            ],
+            [
+              "MultiPolygon",
+              "Polygon"
+            ],
+            true,
+            false
           ],
           [
-            "MultiPolygon",
-            "Polygon"
-          ],
-          true,
-          false
+            "==",
+            [
+              "get",
+              "class"
+            ],
+            "pier"
+          ]
         ],
         [
-          "==",
+          "!=",
           [
             "get",
-            "class"
+            "brunnel"
           ],
-          "pier"
+          "tunnel"
         ]
       ],
       "paint": {
@@ -943,28 +1037,39 @@
       "filter": [
         "all",
         [
-          "match",
+          "all",
           [
-            "geometry-type"
+            "match",
+            [
+              "geometry-type"
+            ],
+            [
+              "LineString",
+              "MultiLineString"
+            ],
+            true,
+            false
           ],
           [
-            "LineString",
-            "MultiLineString"
-          ],
-          true,
-          false
+            "match",
+            [
+              "get",
+              "class"
+            ],
+            [
+              "pier"
+            ],
+            true,
+            false
+          ]
         ],
         [
-          "match",
+          "!=",
           [
             "get",
-            "class"
+            "brunnel"
           ],
-          [
-            "pier"
-          ],
-          true,
-          false
+          "tunnel"
         ]
       ],
       "layout": {
@@ -997,24 +1102,35 @@
       "filter": [
         "all",
         [
-          "match",
+          "all",
           [
-            "geometry-type"
+            "match",
+            [
+              "geometry-type"
+            ],
+            [
+              "LineString",
+              "MultiLineString"
+            ],
+            true,
+            false
           ],
           [
-            "LineString",
-            "MultiLineString"
-          ],
-          true,
-          false
+            "==",
+            [
+              "get",
+              "class"
+            ],
+            "path"
+          ]
         ],
         [
-          "==",
+          "!=",
           [
             "get",
-            "class"
+            "brunnel"
           ],
-          "path"
+          "tunnel"
         ]
       ],
       "layout": {
@@ -1049,30 +1165,41 @@
       "filter": [
         "all",
         [
-          "match",
+          "all",
           [
-            "geometry-type"
+            "match",
+            [
+              "geometry-type"
+            ],
+            [
+              "LineString",
+              "MultiLineString"
+            ],
+            true,
+            false
           ],
           [
-            "LineString",
-            "MultiLineString"
-          ],
-          true,
-          false
+            "match",
+            [
+              "get",
+              "class"
+            ],
+            [
+              "minor",
+              "service",
+              "track"
+            ],
+            true,
+            false
+          ]
         ],
         [
-          "match",
+          "!=",
           [
             "get",
-            "class"
+            "brunnel"
           ],
-          [
-            "minor",
-            "service",
-            "track"
-          ],
-          true,
-          false
+          "tunnel"
         ]
       ],
       "layout": {
@@ -1107,31 +1234,42 @@
       "filter": [
         "all",
         [
-          "match",
+          "all",
           [
-            "geometry-type"
+            "match",
+            [
+              "geometry-type"
+            ],
+            [
+              "LineString",
+              "MultiLineString"
+            ],
+            true,
+            false
           ],
           [
-            "LineString",
-            "MultiLineString"
-          ],
-          true,
-          false
+            "match",
+            [
+              "get",
+              "class"
+            ],
+            [
+              "primary",
+              "secondary",
+              "tertiary",
+              "trunk"
+            ],
+            true,
+            false
+          ]
         ],
         [
-          "match",
+          "!=",
           [
             "get",
-            "class"
+            "brunnel"
           ],
-          [
-            "primary",
-            "secondary",
-            "tertiary",
-            "trunk"
-          ],
-          true,
-          false
+          "tunnel"
         ]
       ],
       "layout": {
@@ -1169,31 +1307,42 @@
       "filter": [
         "all",
         [
-          "match",
+          "all",
           [
-            "geometry-type"
+            "match",
+            [
+              "geometry-type"
+            ],
+            [
+              "LineString",
+              "MultiLineString"
+            ],
+            true,
+            false
           ],
           [
-            "LineString",
-            "MultiLineString"
-          ],
-          true,
-          false
+            "match",
+            [
+              "get",
+              "class"
+            ],
+            [
+              "primary",
+              "secondary",
+              "tertiary",
+              "trunk"
+            ],
+            true,
+            false
+          ]
         ],
         [
-          "match",
+          "!=",
           [
             "get",
-            "class"
+            "brunnel"
           ],
-          [
-            "primary",
-            "secondary",
-            "tertiary",
-            "trunk"
-          ],
-          true,
-          false
+          "tunnel"
         ]
       ],
       "layout": {
@@ -1227,31 +1376,42 @@
       "filter": [
         "all",
         [
-          "match",
+          "all",
           [
-            "geometry-type"
+            "match",
+            [
+              "geometry-type"
+            ],
+            [
+              "LineString",
+              "MultiLineString"
+            ],
+            true,
+            false
           ],
           [
-            "LineString",
-            "MultiLineString"
-          ],
-          true,
-          false
+            "match",
+            [
+              "get",
+              "class"
+            ],
+            [
+              "primary",
+              "secondary",
+              "tertiary",
+              "trunk"
+            ],
+            true,
+            false
+          ]
         ],
         [
-          "match",
+          "!=",
           [
             "get",
-            "class"
+            "brunnel"
           ],
-          [
-            "primary",
-            "secondary",
-            "tertiary",
-            "trunk"
-          ],
-          true,
-          false
+          "tunnel"
         ]
       ],
       "layout": {
@@ -1272,40 +1432,51 @@
       "filter": [
         "all",
         [
-          "match",
-          [
-            "geometry-type"
-          ],
-          [
-            "LineString",
-            "MultiLineString"
-          ],
-          true,
-          false
-        ],
-        [
           "all",
           [
             "match",
             [
-              "get",
-              "brunnel"
+              "geometry-type"
             ],
             [
-              "bridge",
-              "tunnel"
+              "LineString",
+              "MultiLineString"
             ],
-            false,
-            true
+            true,
+            false
           ],
           [
-            "==",
+            "all",
             [
-              "get",
-              "class"
+              "match",
+              [
+                "get",
+                "brunnel"
+              ],
+              [
+                "bridge",
+                "tunnel"
+              ],
+              false,
+              true
             ],
-            "motorway"
+            [
+              "==",
+              [
+                "get",
+                "class"
+              ],
+              "motorway"
+            ]
           ]
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
         ]
       ],
       "layout": {
@@ -1346,40 +1517,51 @@
       "filter": [
         "all",
         [
-          "match",
-          [
-            "geometry-type"
-          ],
-          [
-            "LineString",
-            "MultiLineString"
-          ],
-          true,
-          false
-        ],
-        [
           "all",
           [
             "match",
             [
-              "get",
-              "brunnel"
+              "geometry-type"
             ],
             [
-              "bridge",
-              "tunnel"
+              "LineString",
+              "MultiLineString"
             ],
-            false,
-            true
+            true,
+            false
           ],
           [
-            "==",
+            "all",
             [
-              "get",
-              "class"
+              "match",
+              [
+                "get",
+                "brunnel"
+              ],
+              [
+                "bridge",
+                "tunnel"
+              ],
+              false,
+              true
             ],
-            "motorway"
+            [
+              "==",
+              [
+                "get",
+                "class"
+              ],
+              "motorway"
+            ]
           ]
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
         ]
       ],
       "layout": {
@@ -1415,24 +1597,35 @@
       "filter": [
         "all",
         [
-          "match",
+          "all",
           [
-            "geometry-type"
+            "match",
+            [
+              "geometry-type"
+            ],
+            [
+              "LineString",
+              "MultiLineString"
+            ],
+            true,
+            false
           ],
           [
-            "LineString",
-            "MultiLineString"
-          ],
-          true,
-          false
+            "==",
+            [
+              "get",
+              "class"
+            ],
+            "motorway"
+          ]
         ],
         [
-          "==",
+          "!=",
           [
             "get",
-            "class"
+            "brunnel"
           ],
-          "motorway"
+          "tunnel"
         ]
       ],
       "layout": {
@@ -1466,39 +1659,50 @@
       "filter": [
         "all",
         [
-          "match",
-          [
-            "geometry-type"
-          ],
-          [
-            "LineString",
-            "MultiLineString"
-          ],
-          true,
-          false
-        ],
-        [
           "all",
-          [
-            "==",
-            [
-              "get",
-              "class"
-            ],
-            "transit"
-          ],
           [
             "match",
             [
-              "get",
-              "brunnel"
+              "geometry-type"
             ],
             [
-              "tunnel"
+              "LineString",
+              "MultiLineString"
             ],
-            false,
-            true
+            true,
+            false
+          ],
+          [
+            "all",
+            [
+              "==",
+              [
+                "get",
+                "class"
+              ],
+              "transit"
+            ],
+            [
+              "match",
+              [
+                "get",
+                "brunnel"
+              ],
+              [
+                "tunnel"
+              ],
+              false,
+              true
+            ]
           ]
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
         ]
       ],
       "layout": {
@@ -1518,39 +1722,50 @@
       "filter": [
         "all",
         [
-          "match",
-          [
-            "geometry-type"
-          ],
-          [
-            "LineString",
-            "MultiLineString"
-          ],
-          true,
-          false
-        ],
-        [
           "all",
-          [
-            "==",
-            [
-              "get",
-              "class"
-            ],
-            "transit"
-          ],
           [
             "match",
             [
-              "get",
-              "brunnel"
+              "geometry-type"
             ],
             [
-              "tunnel"
+              "LineString",
+              "MultiLineString"
             ],
-            false,
-            true
+            true,
+            false
+          ],
+          [
+            "all",
+            [
+              "==",
+              [
+                "get",
+                "class"
+              ],
+              "transit"
+            ],
+            [
+              "match",
+              [
+                "get",
+                "brunnel"
+              ],
+              [
+                "tunnel"
+              ],
+              false,
+              true
+            ]
           ]
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
         ]
       ],
       "layout": {
@@ -1831,35 +2046,46 @@
       "filter": [
         "all",
         [
-          "match",
-          [
-            "geometry-type"
-          ],
-          [
-            "LineString",
-            "MultiLineString"
-          ],
-          true,
-          false
-        ],
-        [
           "all",
           [
-            "==",
+            "match",
             [
-              "get",
-              "brunnel"
+              "geometry-type"
             ],
-            "bridge"
+            [
+              "LineString",
+              "MultiLineString"
+            ],
+            true,
+            false
           ],
           [
-            "==",
+            "all",
             [
-              "get",
-              "class"
+              "==",
+              [
+                "get",
+                "brunnel"
+              ],
+              "bridge"
             ],
-            "motorway"
+            [
+              "==",
+              [
+                "get",
+                "class"
+              ],
+              "motorway"
+            ]
           ]
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
         ]
       ],
       "layout": {
@@ -1900,35 +2126,46 @@
       "filter": [
         "all",
         [
-          "match",
-          [
-            "geometry-type"
-          ],
-          [
-            "LineString",
-            "MultiLineString"
-          ],
-          true,
-          false
-        ],
-        [
           "all",
           [
-            "==",
+            "match",
             [
-              "get",
-              "brunnel"
+              "geometry-type"
             ],
-            "bridge"
+            [
+              "LineString",
+              "MultiLineString"
+            ],
+            true,
+            false
           ],
           [
-            "==",
+            "all",
             [
-              "get",
-              "class"
+              "==",
+              [
+                "get",
+                "brunnel"
+              ],
+              "bridge"
             ],
-            "motorway"
+            [
+              "==",
+              [
+                "get",
+                "class"
+              ],
+              "motorway"
+            ]
           ]
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
         ]
       ],
       "layout": {
@@ -3029,6 +3266,566 @@
       }
     },
     {
+      "id": "place-fields-regional",
+      "type": "fill",
+      "source": "taiwan-places",
+      "source-layer": "fields",
+      "minzoom": 14,
+      "filter": [
+        "==",
+        [
+          "get",
+          "near"
+        ],
+        0
+      ],
+      "paint": {
+        "fill-color": [
+          "match",
+          [
+            "get",
+            "k"
+          ],
+          "track",
+          "#b1725f",
+          "track-blue",
+          "#3886bf",
+          "basketball",
+          "#b88470",
+          "tennis",
+          "#699784",
+          "volleyball",
+          "#af9579",
+          "soccer",
+          "#859f74",
+          "baseball",
+          "#a0a87a",
+          "sand",
+          "#c1ae87",
+          "asphalt",
+          "#88918d",
+          "clay",
+          "#ad765b",
+          "playground",
+          "#b5a285",
+          "#92a285"
+        ]
+      }
+    },
+    {
+      "id": "place-lines-regional",
+      "type": "line",
+      "source": "taiwan-places",
+      "source-layer": "lines",
+      "minzoom": 16,
+      "filter": [
+        "==",
+        [
+          "get",
+          "near"
+        ],
+        0
+      ],
+      "paint": {
+        "line-color": "#f4ece0",
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          16,
+          0.45,
+          19,
+          1.2
+        ]
+      }
+    },
+    {
+      "id": "place-buildings-regional",
+      "type": "fill-extrusion",
+      "source": "taiwan-places",
+      "source-layer": "buildings",
+      "minzoom": 15,
+      "filter": [
+        "==",
+        [
+          "get",
+          "near"
+        ],
+        0
+      ],
+      "paint": {
+        "fill-extrusion-color": [
+          "coalesce",
+          [
+            "get",
+            "wall"
+          ],
+          [
+            "match",
+            [
+              "get",
+              "k"
+            ],
+            [
+              "mall",
+              "department"
+            ],
+            "#c6bbaa",
+            "library",
+            "#b8c7c1",
+            "museum",
+            "#c6beb2",
+            "#c9c5ae"
+          ]
+        ],
+        "fill-extrusion-height": [
+          "get",
+          "h"
+        ],
+        "fill-extrusion-vertical-gradient": true
+      }
+    },
+    {
+      "id": "place-fields-detail",
+      "type": "fill",
+      "source": "taiwan-places",
+      "source-layer": "fields",
+      "minzoom": 14,
+      "filter": [
+        "==",
+        [
+          "get",
+          "near"
+        ],
+        1
+      ],
+      "paint": {
+        "fill-color": [
+          "match",
+          [
+            "get",
+            "k"
+          ],
+          "track",
+          "#b1725f",
+          "track-blue",
+          "#3886bf",
+          "basketball",
+          "#b88470",
+          "tennis",
+          "#699784",
+          "volleyball",
+          "#af9579",
+          "soccer",
+          "#859f74",
+          "baseball",
+          "#a0a87a",
+          "sand",
+          "#c1ae87",
+          "asphalt",
+          "#88918d",
+          "clay",
+          "#ad765b",
+          "playground",
+          "#b5a285",
+          "#92a285"
+        ]
+      }
+    },
+    {
+      "id": "place-lines-detail",
+      "type": "line",
+      "source": "taiwan-places",
+      "source-layer": "lines",
+      "minzoom": 16,
+      "filter": [
+        "==",
+        [
+          "get",
+          "near"
+        ],
+        1
+      ],
+      "paint": {
+        "line-color": "#f4ece0",
+        "line-width": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          16,
+          0.45,
+          19,
+          1.2
+        ]
+      }
+    },
+    {
+      "id": "place-buildings-detail",
+      "type": "fill-extrusion",
+      "source": "taiwan-places",
+      "source-layer": "buildings",
+      "minzoom": 15,
+      "filter": [
+        "==",
+        [
+          "get",
+          "near"
+        ],
+        1
+      ],
+      "paint": {
+        "fill-extrusion-color": [
+          "coalesce",
+          [
+            "get",
+            "wall"
+          ],
+          [
+            "match",
+            [
+              "get",
+              "k"
+            ],
+            [
+              "mall",
+              "department"
+            ],
+            "#c6bbaa",
+            "library",
+            "#b8c7c1",
+            "museum",
+            "#c6beb2",
+            "#c9c5ae"
+          ]
+        ],
+        "fill-extrusion-height": [
+          "get",
+          "h"
+        ],
+        "fill-extrusion-vertical-gradient": true
+      }
+    },
+    {
+      "id": "place-architecture-regional",
+      "type": "fill-extrusion",
+      "source": "taiwan-places",
+      "source-layer": "architecture",
+      "minzoom": 14,
+      "filter": [
+        "==",
+        [
+          "get",
+          "bespoke"
+        ],
+        0
+      ],
+      "paint": {
+        "fill-extrusion-color": [
+          "get",
+          "color"
+        ],
+        "fill-extrusion-base": [
+          "get",
+          "base"
+        ],
+        "fill-extrusion-height": [
+          "get",
+          "top"
+        ],
+        "fill-extrusion-vertical-gradient": false
+      }
+    },
+    {
+      "id": "place-architecture-detail",
+      "type": "fill-extrusion",
+      "source": "taiwan-places",
+      "source-layer": "architecture",
+      "minzoom": 14,
+      "filter": [
+        "==",
+        [
+          "get",
+          "bespoke"
+        ],
+        1
+      ],
+      "paint": {
+        "fill-extrusion-color": [
+          "get",
+          "color"
+        ],
+        "fill-extrusion-base": [
+          "get",
+          "base"
+        ],
+        "fill-extrusion-height": [
+          "get",
+          "top"
+        ],
+        "fill-extrusion-vertical-gradient": false
+      }
+    },
+    {
+      "id": "place-temple-regional",
+      "type": "fill-extrusion",
+      "source": "taiwan-places",
+      "source-layer": "temple",
+      "minzoom": 15,
+      "filter": [
+        "==",
+        [
+          "get",
+          "near"
+        ],
+        0
+      ],
+      "paint": {
+        "fill-extrusion-color": [
+          "get",
+          "color"
+        ],
+        "fill-extrusion-base": [
+          "get",
+          "base"
+        ],
+        "fill-extrusion-height": [
+          "get",
+          "top"
+        ],
+        "fill-extrusion-vertical-gradient": false
+      }
+    },
+    {
+      "id": "place-temple-detail",
+      "type": "fill-extrusion",
+      "source": "taiwan-places",
+      "source-layer": "temple",
+      "minzoom": 15,
+      "filter": [
+        "==",
+        [
+          "get",
+          "near"
+        ],
+        1
+      ],
+      "paint": {
+        "fill-extrusion-color": [
+          "get",
+          "color"
+        ],
+        "fill-extrusion-base": [
+          "get",
+          "base"
+        ],
+        "fill-extrusion-height": [
+          "get",
+          "top"
+        ],
+        "fill-extrusion-vertical-gradient": false
+      }
+    },
+    {
+      "id": "place-names",
+      "type": "symbol",
+      "source": "taiwan-places",
+      "source-layer": "names",
+      "minzoom": 14,
+      "filter": [
+        "all",
+        [
+          "!=",
+          [
+            "get",
+            "major"
+          ],
+          1
+        ],
+        [
+          "step",
+          [
+            "zoom"
+          ],
+          [
+            "in",
+            [
+              "get",
+              "k"
+            ],
+            [
+              "literal",
+              [
+                "mall",
+                "department",
+                "university",
+                "theme_park",
+                "library",
+                "stadium"
+              ]
+            ]
+          ],
+          15,
+          true
+        ]
+      ],
+      "layout": {
+        "text-field": [
+          "get",
+          "name"
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-size": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          14,
+          12,
+          18,
+          14
+        ],
+        "text-max-width": 12,
+        "text-variable-anchor": [
+          "center",
+          "top",
+          "bottom"
+        ],
+        "text-radial-offset": 0.6,
+        "text-padding": 7,
+        "symbol-sort-key": [
+          "case",
+          [
+            "==",
+            [
+              "get",
+              "priority"
+            ],
+            1
+          ],
+          -2,
+          [
+            "match",
+            [
+              "get",
+              "k"
+            ],
+            [
+              "mall",
+              "department",
+              "university",
+              "theme_park"
+            ],
+            0,
+            "library",
+            1,
+            "kindergarten",
+            4,
+            2
+          ]
+        ]
+      },
+      "paint": {
+        "text-color": "#30423c",
+        "text-halo-color": "#fff9ea",
+        "text-halo-width": 1.8
+      }
+    },
+    {
+      "id": "place-names-major",
+      "type": "symbol",
+      "source": "taiwan-places",
+      "source-layer": "names",
+      "minzoom": 14,
+      "filter": [
+        "==",
+        [
+          "get",
+          "major"
+        ],
+        1
+      ],
+      "layout": {
+        "text-field": [
+          "get",
+          "name"
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-size": [
+          "interpolate",
+          [
+            "linear"
+          ],
+          [
+            "zoom"
+          ],
+          14,
+          12,
+          18,
+          14
+        ],
+        "text-max-width": 12,
+        "text-variable-anchor": [
+          "center",
+          "top",
+          "bottom"
+        ],
+        "text-radial-offset": 0.6,
+        "text-padding": 7,
+        "symbol-sort-key": [
+          "case",
+          [
+            "==",
+            [
+              "get",
+              "priority"
+            ],
+            1
+          ],
+          -2,
+          [
+            "match",
+            [
+              "get",
+              "k"
+            ],
+            [
+              "mall",
+              "department",
+              "university",
+              "theme_park"
+            ],
+            0,
+            "library",
+            1,
+            "kindergarten",
+            4,
+            2
+          ]
+        ],
+        "text-allow-overlap": true
+      },
+      "paint": {
+        "text-color": "#30423c",
+        "text-halo-color": "#fff9ea",
+        "text-halo-width": 1.8
+      }
+    },
+    {
       "id": "landscape-road-signs",
       "type": "symbol",
       "source": "openmaptiles",
@@ -3036,6 +3833,65 @@
       "minzoom": 17,
       "filter": [
         "all",
+        [
+          "all",
+          [
+            "==",
+            [
+              "index-of",
+              "隧道",
+              [
+                "coalesce",
+                [
+                  "get",
+                  "name:zh-Hant"
+                ],
+                [
+                  "get",
+                  "name:zh"
+                ],
+                [
+                  "get",
+                  "name"
+                ],
+                ""
+              ]
+            ],
+            -1
+          ],
+          [
+            "==",
+            [
+              "index-of",
+              "車行地下道",
+              [
+                "coalesce",
+                [
+                  "get",
+                  "name:zh-Hant"
+                ],
+                [
+                  "get",
+                  "name:zh"
+                ],
+                [
+                  "get",
+                  "name"
+                ],
+                ""
+              ]
+            ],
+            -1
+          ]
+        ],
+        [
+          "!=",
+          [
+            "get",
+            "brunnel"
+          ],
+          "tunnel"
+        ],
         [
           "in",
           [
@@ -3236,5 +4092,40 @@
       }
     }
   ],
-  "name": "軌島・地景"
+  "name": "軌島・地景",
+  "metadata": {
+    "railisland:contextTiles": [
+      "13576/7044",
+      "13581/7040",
+      "13581/7042",
+      "13633/7087",
+      "13633/7088",
+      "13634/7087",
+      "13660/7115",
+      "13661/7084",
+      "13662/7116",
+      "13666/7131",
+      "13667/7087",
+      "13667/7135",
+      "13672/7084",
+      "13673/7063",
+      "13675/7121",
+      "13677/7062",
+      "13678/7062",
+      "13678/7064",
+      "13679/7070",
+      "13681/7071",
+      "13682/7067",
+      "13691/7050",
+      "13692/7032",
+      "13700/7024",
+      "13712/7015",
+      "13719/7011",
+      "13719/7015",
+      "13721/7013",
+      "13721/7014",
+      "13722/7009",
+      "13722/7013"
+    ]
+  }
 }

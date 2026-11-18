@@ -1,3 +1,7 @@
+import { shadeRainGround, shadeRainRail, shadeRainSky, shareMist, weatherBudget } from "../follow-rain.mjs";
+import { patchNightTexture } from "../night-tunnels.mjs";
+import { tunnelDetail } from "../places.mjs";
+import { surfaceRoads, withTunnelTrees } from "../tunnel-roads.mjs";
 import * as THREE from "./vendor/three.module.js";
 import { createFacade } from "./tw-facade.js";
 import { createRailStructures } from "./integration/rail-structures.js";
@@ -91,7 +95,8 @@ const vstat = {}, bin = async (u, spec, n = 0) => {
 };
 const loader = new THREE.TextureLoader(), tex = (u, srgb, mip = true, spec, n = 0) => bin(u, spec, n).then((b) => new Promise((ok, no) => {
   const src = URL.createObjectURL(new Blob([b], { type: u.endsWith(".jpg") ? "image/jpeg" : "image/png" }));
-  loader.load(src, (t) => {
+  loader.load(src, async (t) => {
+    await patchNightTexture(t,u,b);
     URL.revokeObjectURL(src);
     if (srgb) t.colorSpace = THREE.SRGBColorSpace;
     t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
@@ -229,6 +234,7 @@ const skyMat = new THREE.ShaderMaterial({
 }`
 });
 if (FX2.grade) skyMat.uniforms.uGr2 = { value: FX2U.gr };
+shadeRainSky(skyMat);
 const skyDayFS = skyMat.fragmentShader, skyNightFS = NSKY ? skyDayFS.replace(NIGHT_SKY_GLSL, NIGHT_SKY_GLOW_GLSL) : skyDayFS;
 let skyNightProg = false;
 const sky = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 24), skyMat);
@@ -446,6 +452,7 @@ vec2 gRot(vec2 p, float a){ float c = cos(a), s = sin(a); return vec2(c * p.x - 
     if (FX3.ground) fx3GroundPatch(sh, FX3);
     if (HS2) shadePatch(sh, HS2, FX2.T.hd);
     aeroGroundPatch(sh);
+    shadeRainGround(sh);
     if (FS.on) sh.fragmentShader = fxRep(sh.fragmentShader, "    wc = mix(wc, sat * 2.2, .22);", "    wc = mix(wc, sat * 2.2, .22 * (1. - uFsSea * smoothstep(40., 150., sd)));");
   };
   m.customProgramCacheKey = () => "land-ground-2" + AERO_KEY + FXKEY + P24KEY + (NC.glow ? "-n64" + (NC.far ? "f" : "") : "") + (FX2.ground || FX2.ao || HS2 ? FX2.key : "") + (FX3.ground || FX3.land ? FX3.key : "");
@@ -544,9 +551,11 @@ float rN(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); re
   rc = mix(rc, vec3(.58, .58, .57), steel);
   float rRough = mix(.95, .32, steel), rMetal = steel * .85;
   diffuseColor.rgb = rc;`).replace("#include <roughnessmap_fragment>", "float roughnessFactor = rRough;").replace("#include <metalnessmap_fragment>", "float metalnessFactor = rMetal;");
+  shadeRainRail(sh);
 };
 const RHL = createRailHl({ params, DATA, index, TILE_M, scene, origin, shared, jv: SV.tile });
 if (RHL?.band) RHL.band.patch(railMat);
+const fieldMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.97, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
 const roadMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88, metalness: 0, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -6 });
 const simpleMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 });
 const roadFlatMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88, metalness: 0, side: THREE.DoubleSide, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -3 });
@@ -815,13 +824,15 @@ const stageMesh = (m, alive) => stageQ.push({ alive, run: () => {
   m.userData.up = true;
   return Math.max(1, geomBytes(m.geometry) / 1024);
 } });
+let lastUploadStep = -Infinity;
 function drainStage() {
   while (unculled.length) unculled.pop().frustumCulled = true;
   const still = LIMIT.still > 0 && performance.now() >= movingUntil;
-  if (!still && LIMIT.late > 0 && lastDt > 20) {
+  if (!still && LIMIT.late > 0 && lastDt > 20 && performance.now() - lastUploadStep < 50) {
     prof.cur.stageSkip = 1;
     return 0;
   }
+  lastUploadStep = performance.now();
   let kb = 0;
   while (stageQ.length) {
     const s = stageQ.shift();
@@ -970,9 +981,9 @@ async function loadTile(id, ti, tj, n = 0) {
     t.stations.push({ id: s.id, name: s.name, far: g, near: s.lods.far && !P24.stnFar ? s.lods.near : null, at: s.at });
   }
   if (lampRoads) {
-    const rd = await lampRoads;
+    const [rd, tunnels] = await Promise.all([lampRoads,tunnelDetail(url)]);
     if (rd) tm("tile.lamps", () => {
-      const p = lampPoints(lampPositions(rd.roads, local, { deckAt: lampDeck(local), mix: NC.lmix }), lampMat);
+      const p = lampPoints(lampPositions(surfaceRoads(rd.roads,tunnels), local, { deckAt: lampDeck(local), mix: NC.lmix }), lampMat);
       if (p) {
         t.group.add(p);
         t.lamps = p.geometry.attributes.position.count;
@@ -1000,6 +1011,7 @@ async function loadTile(id, ti, tj, n = 0) {
     setLod(t, 1);
     if (stageOn()) {
       hold(t.group);
+      if (rectDist(view.e, view.n, e0, n0, TILE_M) === 0) t.terrain[1].layers.set(0);
       const alive = () => tiles.get(id) === t;
       for (const x of t.textures) stageTex(x, alive);
       stageQ.push({ alive, run: () => {
@@ -1037,6 +1049,19 @@ async function loadNear(t, rn = 0) {
       if (AO2) m.layers.enable(AO2.LAYER);
       bytes += geomBytes(m.geometry);
     }
+    for(const hall of r.heritage||[]){
+      const mesh=addMesh(g,geom(hall),fieldMaterial,{cast:true});
+      mesh.name="heritage-"+hall.id;
+      bytes+=geomBytes(mesh.geometry);
+    }
+    if (r.temples?.n) {
+    const m = addMesh(g,geom(r.temples),fieldMaterial,{cast:true}); m.name="temple-halls";bytes+=geomBytes(m.geometry);
+  }
+  if (r.fields?.n) {
+      const m = addMesh(g, geom(r.fields), fieldMaterial, { cast: false });
+      m.name = "campus-sports";
+      bytes += geomBytes(m.geometry);
+    }
     if (r.roads.n && P28.rd) {
       const m = addMesh(g, geom(r.roads), roadMat, { cast: false });
       bytes += geomBytes(m.geometry);
@@ -1055,7 +1080,7 @@ async function loadNear(t, rn = 0) {
       roadRange(m);
     }
   });
-  const T = new DataView(treeBuf), n = Math.floor(treeBuf.byteLength / 10 * LIMIT.trees);
+  const T = withTunnelTrees(treeBuf, r.trees, LIMIT.trees), n = T.byteLength / 10;
   let treeMesh = null;
   if (n) tm("near.trees", () => {
     const mesh = treeMesh = new THREE.InstancedMesh(treeLo, treeMat, n), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), col = new THREE.Color(), lin = (v) => Math.pow(v / 255, 2.2), tone = (v) => v * 3.1 / (1 + v * 2.3);
@@ -2056,15 +2081,7 @@ const drawFrame = () => {
 window.__n64 = { NC, draw: drawFrame, bloom: !!bloom };
 const fx2Size = new THREE.Vector2();
 window.__fx2 = { FX2, AO2, HS2 };
-const rest = { on: params.get("rest") !== "0", until: 0, at: 0, hour: NaN, drawn: 0, skipped: 0, why: [0, 0, 0, 0, 0, 0, 0, 0] };
-const restGap = () => {
-  const tanHalf = 1 / camera.projectionMatrix.elements[5];
-  if (stars && stars.points.visible && view.pitch - Math.atan(tanHalf) < 0.12) return 0;
-  renderer.getDrawingBufferSize(fx2Size);
-  return Math.max(33, Math.min(250, 385 * 2 * view.dist * tanHalf / fx2Size.y));
-};
-window.__rest = rest;
-function frame(now, still = false) {
+function frame(now) {
   const dt = now - lastT;
   lastT = now;
   frameT0 = performance.now();
@@ -2075,7 +2092,6 @@ function frame(now, still = false) {
   if (sample) sample(dt, now, rec);
   adaptFrame(dt, now);
   shared.uTime.value = now / 1e3;
-  const renders0 = renderer.info.render.frame, busy0 = stageQ.length > 0 || unculled.length > 0 || envDirty || shadowDirty;
   if (ride.on) rideStep(dt);
   rideUg.update(ride);
   trains.update(now);
@@ -2118,17 +2134,7 @@ function frame(now, still = false) {
       }
     }
     if (RHL) RHL.update(renderer, camera, view, night);
-    const why = !rest.on ? 1 : !still ? 2 : busy0 ? 3 : hour !== rest.hour ? 4 : renderer.shadowMap.needsUpdate ? 5 : renderer.info.render.frame !== renders0 ? 6 : pending() > 0 ? 7 : 0;
-    if (why) {
-      rest.why[why]++;
-      rest.until = now + 150;
-      rest.hour = hour;
-    }
-    if (now < rest.until || now - rest.at >= restGap()) {
-      rest.at = now;
-      rest.drawn++;
-      tm("render", drawFrame);
-    } else rest.skipped++;
+    tm("render", () => H.drawWeather(drawFrame));
     if (mem.geometries > g0) prof.cur.upGeo = mem.geometries - g0;
     if (mem.textures > x0) prof.cur.upTex = mem.textures - x0;
     const p1 = renderer.info.programs?.length || 0;
@@ -2160,7 +2166,10 @@ function frame(now, still = false) {
     } else slow = 0;
   }
 }
-H.ready({ frame, view, applyView, schedule, setTime, groundAt, origin, camera, renderer, scene, pending, tiles, fars, index, TILE_M, hsCasters, hsKey, get pixelRatio() {
+shareMist([treeMat, simpleMat, roadMat, roadFlatMat, facadeMat, facadeFarMat, stationSolid, stationGlass, wallMat]);
+H.ready({ weatherBudget: weatherBudget(LIMIT), get night() {
+  return night;
+}, frame, view, applyView, schedule, setTime, groundAt, origin, camera, renderer, scene, pending, tiles, fars, index, TILE_M, hsCasters, hsKey, get pixelRatio() {
   return pixelRatio;
 } });
 const BENCH = {

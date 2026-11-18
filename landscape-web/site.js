@@ -7,6 +7,7 @@
 //   深度：鏡頭的 x、y、w 三列跟 MapLibre 逐位相同（畫面位置一致），z 那一列換成地景自己的近遠平面（遠景塊要畫到幾十公里外）。
 //
 // 已知限制：兩張畫布不共用深度，MapLibre 的列車一律蓋在地景上面（建物擋不住列車）。
+import { createFollowRain } from './follow-rain.mjs';
 import { toTM2, fromTM2 } from './engine/proj/tm2.mjs';
 
 const LAYER_ID = 'landscape-web', OCC_ID = 'landscape-web-occluder', OCC_AFTER = 'live-vehicles-3d';
@@ -16,7 +17,7 @@ const mercY = lat => (180 - (180 / Math.PI) * Math.log(Math.tan(Math.PI / 4 + la
 // 底圖：這些來源的圖層在新地景底下全部藏起來（OFM 地景樣式、離線陸地、舊地景的山影與 3D 建物）
 const BASEMAP_SOURCES = new Set(['openmaptiles', 'ne2_shaded', 'taiwan-worldcover', 'offline-land', 'terrain']);
 // 網站自己加的 3D 圖層裡，新地景已經有的東西（站房與車站周邊建物、隧道口、樹）：藏起來，不然會疊兩份
-const HIDE_CUSTOM = new Set(['station-building-context', 'island-stations', 'live-tunnel-apertures', 'landscape-trees']);
+const HIDE_CUSTOM = new Set(['station-building-context', 'island-stations', 'live-tunnel-apertures', 'landscape-trees', 'place-fields-detail', 'place-lines-detail', 'place-buildings-detail', 'place-architecture-detail', 'place-temple-detail']);
 // 遠處淡出：傾斜看出去時，MapLibre 會把遠平面以前的路線都畫出來，遠處的線全擠在地平線底下那一排、疊在遠山與天空交界。
 // 距離一律用「鏡頭沿視線到畫面中心（再到海平面）的距離 s」的倍數（跟 MapLibre 算霧同一式），跟縮放、畫面大小無關；
 // 鏡頭深度 from·s 開始淡、to·s 淡完：
@@ -38,7 +39,7 @@ function mul(a, b) {
 }
 const row = (m, r) => [m[r], m[4 + r], m[8 + r], m[12 + r]];
 
-export function attach(map, { tilesBase, hour, date, params: extra = {}, onFail, onSlow, onState } = {}) {
+export function attach(map, { tilesBase, hour, date, weather, params: extra = {}, onFail, onSlow, onState } = {}) {
   const container = map.getContainer();
   const canvas = document.createElement('canvas');
   canvas.className = 'landscape-web-canvas';
@@ -103,6 +104,7 @@ export function attach(map, { tilesBase, hour, date, params: extra = {}, onFail,
     camera.projectionMatrix.fromArray(P); camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
   }
 
+  let rain;
   const els = new Map();
   const params = new URLSearchParams({ fixed: '1', adapt: '0', ...extra });
   globalThis.__LANDSCAPE_HOST__ = {
@@ -112,7 +114,14 @@ export function attach(map, { tilesBase, hour, date, params: extra = {}, onFail,
     w: () => size.w, h: () => size.h,
     onResize: fn => { resizeFns.push(fn); fn(); }, // engine 讀尺寸到掛上這個之間要等網路，那段時間容器變過大小（例如切全畫面）也要跟上
     camera: setCamera,
-    ready: a => { api = a; },
+    ready: a => {
+      api = a;
+      const adaptive=matchMedia('(pointer: coarse)').matches && !extra.pr && extra.adapt !== '1';
+      rain=createFollowRain(a,weather,adaptive,()=>queueMicrotask(()=>{
+        if(active && revealed && extra.auto!=='0')onSlow?.();
+      }));
+    },
+    drawWeather: fn => rain.draw(fn),
   };
 
   // 開頁那一刻的視角先給 engine（它一載入就照這個排圖磚，不會先去載預設的八斗子）
@@ -201,6 +210,7 @@ export function attach(map, { tilesBase, hour, date, params: extra = {}, onFail,
     for (let i = 0; still && i < 16; i++) still = mainMatrix[i] === drawnMatrix[i];
     drawnMatrix = mainMatrix; drawnW = cv.width; drawnH = cv.height;
     const t0 = performance.now(), probing = probe?.state === 'run';
+    rain.update(t0, api.night);
     api.frame(t0, still && !probing);
     state.frames++;
     const now = performance.now();
@@ -329,7 +339,27 @@ export function attach(map, { tilesBase, hour, date, params: extra = {}, onFail,
     const wanted = show ? 'visible' : 'none';
     if (map.getLayoutProperty(signLayer, 'visibility') !== wanted) map.setLayoutProperty(signLayer, 'visibility', wanted);
   }
-  const shouldHide = id => { const l = map.getLayer(id); if (!l || id === LAYER_ID || id === signLayer) return false; if (HIDE_CUSTOM.has(id) || l.type === 'background') return true; return l.type !== 'custom' && BASEMAP_SOURCES.has(l.source); };
+  let regionalContext = false, regionalLand = false, previousCell = '';
+  function syncRegion() {
+    if (!api?.index?.tiles) return;
+    const c = map.getCenter(), key = c.lng + ',' + c.lat + ',' + (map.getZoom() >= 14);
+    if (key === previousCell) return;
+    previousCell = key;
+    const [e,n] = toTM2(c.lng,c.lat), t = api.TILE_M;
+    const block=api.index.farM;
+    regionalLand=map.getZoom()>=14 && !api.index.far?.['F'+Math.floor(e/block)+'_'+Math.floor(n/block)];
+    regionalContext = map.getZoom() >= 14 && !api.index.tiles['E'+Math.floor(e/t)+'_N'+Math.floor(n/t)];
+  }
+  const contextLayers = new Set(['building','park','water','waterway','transportation','aeroway']);
+  const shouldHide = id => {
+    const l = map.getLayer(id);
+    if (!l || id === LAYER_ID || id === signLayer) return false;
+    if(regionalLand && (l.source==='offline-land' || l.source==='taiwan-worldcover' || l.type==='background' ||
+       l.source==='openmaptiles' && ['landcover','landuse'].includes(l.sourceLayer)))return false;
+    if (regionalContext && l.source === 'openmaptiles' && l.type !== 'symbol' && contextLayers.has(l.sourceLayer)) return false;
+    if (HIDE_CUSTOM.has(id) || l.type === 'background') return true;
+    return l.type !== 'custom' && BASEMAP_SOURCES.has(l.source);
+  };
   // MapLibre 的地形網格每一格外圍有一圈往下垂的裙邊（terrain.getMeshFrameDelta，約地球周長／2^zoom／5 公尺，補相鄰圖磚的接縫），
   // 貼的是那一格貼圖邊緣的顏色。底圖不透明時裙邊被鄰格的地面蓋住；新地景把底圖藏掉後地形貼圖整片透明，貼在地形上的線
   // （跟車路線、GL 路線）跨過圖磚邊界的那一點就被裙邊往下拉成一條直條，沿著邊界走的線會拉成一整片。接手期間裙邊高度設 0
@@ -338,6 +368,11 @@ export function attach(map, { tilesBase, hour, date, params: extra = {}, onFail,
   function enforce() {
     if (!active || !revealed) return;
     syncSigns();
+    const wasRegional = regionalContext,wasLand=regionalLand;
+    syncRegion();
+    if ((!wasRegional && regionalContext)||(!wasLand && regionalLand)) for (const [id,visibility] of hidden) {
+      if (map.getLayer(id) && !shouldHide(id)) { hidden.delete(id); map.setLayoutProperty(id,'visibility',visibility); }
+    }
     for (const id of map.getLayersOrder()) {
       if (!shouldHide(id)) continue;
       const v = map.getLayoutProperty(id, 'visibility') ?? 'visible';
@@ -369,6 +404,7 @@ export function attach(map, { tilesBase, hour, date, params: extra = {}, onFail,
   return {
     state, canvas,
     get active() { return active; },
+    get weather() { return rain?.info; },
     get revealed() { return revealed; },
     get mainMatrix() { return mainMatrix; },
     get occluding() { return occ.on && active && revealed && !!map.getLayer(OCC_ID); },
@@ -386,7 +422,7 @@ export function attach(map, { tilesBase, hour, date, params: extra = {}, onFail,
       active = on; drawnMatrix = null;
       canvas.style.display = on ? 'block' : 'none';
       if (on) { if (!revealed) activeSince = performance.now(); ensureLayer(); enforce(); sig = map.getLayersOrder().join(); loaded.then(() => map.triggerRepaint(), () => {}); }
-      else { if (map.getLayer(LAYER_ID)) map.removeLayer(LAYER_ID); if (map.getLayer(OCC_ID)) map.removeLayer(OCC_ID); restore(); syncGround(performance.now()); }
+      else { rain?.reset(); if (map.getLayer(LAYER_ID)) map.removeLayer(LAYER_ID); if (map.getLayer(OCC_ID)) map.removeLayer(OCC_ID); restore(); syncGround(performance.now()); }
       map.triggerRepaint();
     },
     api: () => api,

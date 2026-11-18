@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {sunPosition, solarTimeMs, toMapLibreSunPosition, sunlightAt, PAVED_LAYERS, parseColor, shadeColor} from '../rail-3d/environment/sun.mjs';
+import {sunPosition, solarTimeMs, toMapLibreSunPosition, sunlightAt, PAVED_LAYERS, parseColor, shadeColor, hasColor} from '../rail-3d/environment/sun.mjs';
 
 // 獨立數值：NREL/TP-560-34302，A.5，表 A5.1。
 // https://docs.nlr.gov/docs/fy08osti/34302.pdf （2003-10-17 12:30:30，UTC−7）
@@ -58,14 +58,14 @@ assert.ok(fs.readFileSync('rail-3d/integration/map3d.js', 'utf8').includes("'lan
 const expected = ids.slice(ids.indexOf('building'), ids.indexOf('boundary_3'));
 assert.deepEqual(PAVED_LAYERS.map(([id]) => id), expected,
   '樣式檔在 hillshade 與行政界線之間的圖層與 PAVED_LAYERS 不一致（少一條＝那條入夜後還是淺色）');
-assert.equal(PAVED_LAYERS.length, 25, '鋪面名單長度變了，請確認是樣式真的增減圖層');
+assert.equal(PAVED_LAYERS.length, 26, '鋪面名單長度變了，請確認是樣式真的增減圖層');
 // 每一條都真的能解析出顏色：解析不出來的會被原樣跳過，等於這條沒被壓暗而且不會有錯誤訊息。
 for (const [id, prop] of PAVED_LAYERS) {
   const layer = style.layers.find(l => l.id === id);
   assert.ok(layer, `${id} 不在樣式檔裡`);
-  assert.ok(parseColor(layer.paint?.[prop]), `${id} 的 ${prop} 解析不出純色：${JSON.stringify(layer.paint?.[prop])}`);
+  assert.ok(hasColor(layer.paint?.[prop]), `${id} 的 ${prop} 解析不出任何色彩：${JSON.stringify(layer.paint?.[prop])}`);
 }
-console.log(`PASS 夜間鋪面名單涵蓋 hillshade 之上、界線之下的 ${PAVED_LAYERS.length} 個圖層，且都解析得出純色`);
+console.log(`PASS 夜間鋪面名單涵蓋 hillshade 之上、界線之下的 ${PAVED_LAYERS.length} 個圖層，且都解析得出色彩`);
 
 // 三種寫法都要認得；認不得的（資料驅動 expression）必須原樣不動，不可換成一個死色。
 assert.deepEqual(parseColor('#f7efd9'), [[247, 239, 217], 1]);
@@ -74,8 +74,15 @@ assert.deepEqual(parseColor('rgba(255, 255, 255, 1)'), [[255, 255, 255], 1]);
 assert.deepEqual(parseColor('hsl(0,0%,88%)')[0].map(Math.round), [224, 224, 224]);
 assert.equal(parseColor(['match', ['get', 'class'], 'a', '#fff', '#000']), null);
 assert.deepEqual(shadeColor(['get', 'color'], [23, 38, 59], .72), ['get', 'color']);
+// 依種類分色的 match：只壓暗輸出的色彩，取值與比對標籤原樣保留，仍是資料驅動。
+const byKind = ['match', ['get', 'k'], ['mall', 'library'], '#a48668', '#879b87'];
+assert.deepEqual(shadeColor(byKind, [23, 38, 59], 0), byKind);
+const shaded = shadeColor(byKind, [23, 38, 59], .72);
+assert.deepEqual(shaded.slice(0, 3), byKind.slice(0, 3));
+assert.ok(shaded[3] !== '#a48668' && shaded[4] !== '#879b87' && parseColor(shaded[3]) && parseColor(shaded[4]));
+assert.ok(hasColor(byKind) && !hasColor(['get', 'color']));
 assert.equal(shadeColor('rgba(255, 255, 255, .5)', [23, 38, 59], .5), 'rgba(139,147,157,0.5)');
-console.log('PASS 色彩解析涵蓋 #hex／rgba()／hsl()，expression 原樣跳過');
+console.log('PASS 色彩解析涵蓋 #hex／rgba()／hsl()，expression 只改色彩字面值');
 
 const noon = at(12), midnight = at(0);
 assert.equal(noon.paved.alpha, 0, '白天不准動道路配色');

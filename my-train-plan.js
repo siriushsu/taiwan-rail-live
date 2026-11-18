@@ -945,7 +945,7 @@
     }
     return { at, radar, stations };
   }
-  function weatherAt(frame, lon, lat) {
+  function weatherAt(frame, lon, lat, visual = false) {
     const r = frame.radar;
     let dbz = 0;
     if (r) {
@@ -960,7 +960,9 @@
     const near = frame.stations.map(s => ({ w: 1 / (((s.lon - lon) * kx) ** 2 + ((s.lat - lat) * 110.57) ** 2 + 1), fog: s.fog }))
       .filter(s => 1 / s.w - 1 <= 625).sort((a, b) => b.w - a.w).slice(0, 4);
     const sum = near.reduce((n, s) => n + s.w, 0);
-    return { rain: dbz >= 20, fog: sum ? near.reduce((n, s) => n + s.w * s.fog, 0) / sum : 0 };
+    const rain = dbz >= 20;
+    const amount = rain ? .3 + .7 * Math.min(1, (dbz - 20) / 25) : 0;
+    return { rain, ...(visual ? { amount } : {}), fog: sum ? near.reduce((n, s) => n + s.w * s.fog, 0) / sum : 0 };
   }
   // 一天裡每一列在線上的時段，過午夜的切成兩段。
   function fleetSpans(trains, nowMs) {

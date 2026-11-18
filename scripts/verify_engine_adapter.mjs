@@ -272,6 +272,7 @@ try {
         M.setStyleKind('dark'); await loaded; await new Promise(resolve => setTimeout(resolve, 50));
         M.setStyleKind('foo'); const kindNoop = M.getStyleKind();
         M.setAttribution(['甲署名', '', '乙署名']);
+        await new Promise(resolve => setTimeout(resolve, 0)); // 替換延到 microtask（避開 sourcedata 派送途中換控件）
         const box = document.querySelector('.maplibregl-ctrl-bottom-right');
         const kids = [...box.children].map(el => el.className);
         const coreKids = kids.filter(className => !/follow-lock-ctl/.test(className));

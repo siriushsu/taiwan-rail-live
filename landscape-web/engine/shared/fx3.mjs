@@ -302,9 +302,7 @@ vec3 lCol(float c, float s, float ang, float rn, vec2 P, float px, vec3 satL, ve
     else { vec2 q = fract(Q / 4.) - .5; float tr = 1. - smoothstep(.3, .36 + px / 4., length(q)); g = mix(g * vec3(1.1, 1., .85), vec3(.025, .05, .018), tr * (1. - smoothstep(.6, 2.5, px))); }
     return g; }
   if (c > ${LC.aquaculture} - .5 && c < ${LC.aquaculture} + .5) { vec3 g = mix(vec3(.02, .045, .04), satL * .7, .3) * (uLandV > 1.5 ? mix(vec3(.8, .9, .85), vec3(1.15, 1.12, 1.), rn) : vec3(1.)); return mix(g, lTint(vec3(.12, .1, .07), satL, .3), 1. - smoothstep(1.5 - px, 1.5 + px, s)); }
-  if (c > ${LC.cemetery} - .5 && c < ${LC.cemetery} + .5) {
-    vec2 cell = floor(Q / vec2(2.4, 3.2)), q = fract(Q / vec2(2.4, 3.2)); float tomb = step(.3, gH(cell)) * (1. - smoothstep(.36, .42, max(abs(q.x - .5), abs(q.y - .5) * .9)));
-    return mix(lTint(vec3(.075, .085, .055), satL, .4), vec3(.22, .215, .2) * (.85 + .3 * gH(cell + 7.)), tomb * (1. - smoothstep(.5, 2., px)) + .25 * smoothstep(.5, 2., px)); }
+  if (c > ${LC.cemetery} - .5 && c < ${LC.cemetery} + .5) return land;
   if (c > ${LC.barren} - .5 && c < ${LC.barren} + .5) {   // 裸地（河床、崩塌地、ESA 的裸露地）：留一半影像（山坡崩塌地、河床的深淺），亮度壓到裸土的範圍
     vec3 g = lTint(vec3(.14, .125, .1), satL, .75) * (1. + .3 * ((gN(P / .4).x - .5) * fdF + (n2 - .5) * .7)); float lg = lLum(g);
     return mix(g, land * clamp(lg * 1.3 / max(lLum(land), 1e-3), .5, 1.1), .5); }

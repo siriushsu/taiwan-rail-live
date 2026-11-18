@@ -44,7 +44,7 @@ const PATCHES = [
   ['camera.far = fsF ? Math.max(120000, fsReach() * 1.3) : 120000; camera.updateProjectionMatrix();', 'camera.far = fsF ? Math.max(120000, fsReach() * 1.3) : 120000; camera.updateProjectionMatrix(); H.camera(camera, origin);'],
   ["addEventListener('resize', () => {", 'H.onResize(() => {'],
   ['  requestAnimationFrame(frame);\n}\nrequestAnimationFrame(frame);',
-    '}\nH.ready({ frame, view, applyView, schedule, setTime, groundAt, origin, camera, renderer, scene, pending, tiles, fars, index, TILE_M, hsCasters, hsKey, get pixelRatio() { return pixelRatio; } });'],
+    '}\nshareMist([treeMat, simpleMat, roadMat, roadFlatMat, facadeMat, facadeFarMat, stationSolid, stationGlass, wallMat]);\nH.ready({ weatherBudget: weatherBudget(LIMIT), get night() { return night; }, frame, view, applyView, schedule, setTime, groundAt, origin, camera, renderer, scene, pending, tiles, fars, index, TILE_M, hsCasters, hsKey, get pixelRatio() { return pixelRatio; } });'],
 ];
 // 全檔取代：視窗大小改成畫布大小（原型的畫布佔滿視窗；嵌進網站後是地圖容器的大小）
 const REPLACE_ALL = [[/\binnerWidth\b/g, 'H.w()', 6], [/\binnerHeight\b/g, 'H.h()', 7]];
@@ -82,6 +82,59 @@ function patchRoads(src) {
   }, withoutRibbons);
 }
 
+// 近景場地與校舍外觀在網站的 places.mjs，之後重新同步 engine 仍走同一條路。
+function patchPlaces(src, pairs) {
+  for (const [a, b] of pairs) {
+    if (src.split(a).length !== 2) throw Error('地景場館入口對不到：' + a);
+    src = src.replace(a, () => b);
+  }
+  return src;
+}
+const placesMain = [
+  // 手機的跟車鏡頭會一直移動。即使每格都超時，也要持續上傳，並先顯示列車所在的地形。
+  ['function drainStage() {', 'let lastUploadStep = -Infinity;\nfunction drainStage() {'],
+  ['LIMIT.late > 0 && lastDt > 20)', 'LIMIT.late > 0 && lastDt > 20 && performance.now() - lastUploadStep < 50)'],
+  ['let kb = 0; while (stageQ.length)', 'lastUploadStep = performance.now(); let kb = 0; while (stageQ.length)'],
+  ['hold(t.group); const alive', 'hold(t.group); if (rectDist(view.e, view.n, e0, n0, TILE_M) === 0) t.terrain[1].layers.set(0); const alive'],
+  ['const skyDayFS =', 'shadeRainSky(skyMat);\nconst skyDayFS ='],
+  ['aeroGroundPatch(sh);', 'aeroGroundPatch(sh); shadeRainGround(sh);'],
+  ['};\nconst RHL = createRailHl', '  shadeRainRail(sh);\n};\nconst RHL = createRailHl'],
+  ["tm('render', drawFrame);", "tm('render', () => H.drawWeather(drawFrame));"],
+  ["loader.load(src, t => {","loader.load(src, async t => { await patchNightTexture(t,u,b);"],
+  ['new DataView(treeBuf), n = Math.floor(treeBuf.byteLength / 10 * LIMIT.trees)', 'withTunnelTrees(treeBuf, r.trees, LIMIT.trees), n = T.byteLength / 10'],
+  ["const rd = await lampRoads;", "const [rd,tunnels] = await Promise.all([lampRoads,tunnelDetail(url)]);"],
+  ["lampPositions(rd.roads, local", "lampPositions(surfaceRoads(rd.roads,tunnels), local"],
+  ['if (r.roads.n && P28.rd)', "if (r.temples?.n) { const m = addMesh(g,geom(r.temples),fieldMaterial,{cast:true}); m.name='temple-halls';bytes+=geomBytes(m.geometry); }\n  if (r.fields?.n) { const m = addMesh(g, geom(r.fields), fieldMaterial, { cast: false }); m.name = 'campus-sports'; bytes += geomBytes(m.geometry); }\n  if (r.roads.n && P28.rd)"],
+  ['const roadMat =', 'const fieldMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .97, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });\nconst roadMat ='],
+];
+const placesWorker = [
+  ["import { roadRibbons }", "import { placeDetail, applyPlaceBuildings, fieldMesh, templeMesh } from '../places.mjs';\nimport { surfaceRoads } from '../tunnel-roads.mjs';\nimport { roadRibbons }"],
+  ['[tb, bj, sf] =', '[tb, bj, sf, detail] ='],
+  ['t.roads = roads.context;', 'roads.roads = surfaceRoads(roads.roads,t.detail?.tunnels); t.roads = roads.context;'],
+  ['t = { terrain: new Uint8Array(tb)', 't = { detail, terrain: new Uint8Array(tb)'],
+  ['fixLandmarks(bj); await aeroDropBuildings', 'applyPlaceBuildings(bj, detail); fixLandmarks(bj); await aeroDropBuildings'],
+  ["const built = T('build'", "const fields = fieldMesh(t.detail, groundAt), temples=templeMesh(t.detail,groundAt); const built = T('build'"],
+];
+// near 的兩種路面模式都要帶回運動場。
+const placeJob = src => {
+  if (src.split('return { buildings: built, roads:').length !== 3) throw Error('近景建物出口變更');
+  const shop = src.includes('shopfrontsOf(url, vf)])') ? 'shopfrontsOf(url, vf)' : 'shopfrontsOf(url)';
+  src = patchPlaces(src, [[shop+'])',shop+', placeDetail(url)])']]);
+  return patchPlaces(src, placesWorker).replaceAll('return { buildings: built, roads:', 'return { buildings: built, fields, temples, trees:t.detail?.tunnels?.trees, roads:');
+};
+const placesFacades = [
+  ['color = rgb(isMetal ? (b.style.roofMetal','color = rgb(b.sceneRoof || (isMetal ? (b.style.roofMetal'],
+  ["pick(b.style.roofTile || ROOF_TILE, hash(b.key, 'roof'))), part =", "pick(b.style.roofTile || ROOF_TILE, hash(b.key, 'roof')))), part ="],
+  ["if (b.type === 'school') return", "if (b.mark === 'mall') return { color: b.color, win: 11, win2: 10, finish: 0, frame: '#78898a', cage: null, bands: true, ac: false, parapet: 0, deck: b.sceneRoof || '#b4b6b0' };\n    if (b.type === 'school') return"],
+  ['markName: src.markName, rings:', 'markName: src.markName, sceneRoof: src.sceneRoof, rings:'],
+  [': H(0).deck);', ': b.sceneRoof || H(0).deck);'],
+];
+
+function patchLand(src) {
+  const start = src.indexOf('  if (c > ${LC.cemetery}'), end = src.indexOf(' }',src.indexOf('    return ',start));
+  if (start<0 || end<start || !src.slice(start,end).includes('float tomb =')) throw Error('墓地地表著色器已變更');
+  return src.slice(0,start) + '  if (c > ${LC.cemetery} - .5 && c < ${LC.cemetery} + .5) return land;' + src.slice(end+2);
+}
 // 地標輪廓修正（landmark-fix.mjs）：tileData 讀完建物先改型別，buildOne 遇到這些型別交給網站畫
 function hook(src, file, pairs) {
   return pairs.reduce((text, [old, replacement]) => {
@@ -99,9 +152,10 @@ const patchLandmarksBuildings = src => hook(src, 'buildings.worker.js', [
 ]);
 
 const patched = new Map([
-  ['main.js', patchMain(show(WEB + '/main.js').toString('utf8'))],
-  ['tile.worker.js', patchLandmarksTile(patchRoads(show(WEB + '/tile.worker.js').toString('utf8')))],
-  ['buildings.worker.js', patchLandmarksBuildings(show(WEB + '/buildings.worker.js').toString('utf8'))],
+  ['shared/fx3.mjs',patchLand(show(WEB+'/shared/fx3.mjs').toString('utf8'))],
+  ['buildings.worker.js', patchLandmarksBuildings(patchPlaces(show(WEB + '/buildings.worker.js').toString('utf8'), placesFacades))],
+  ['main.js', "import { shadeRainGround, shadeRainRail, shadeRainSky, shareMist, weatherBudget } from '../follow-rain.mjs';\nimport { patchNightTexture } from '../night-tunnels.mjs';\nimport { tunnelDetail } from '../places.mjs';\nimport { surfaceRoads, withTunnelTrees } from '../tunnel-roads.mjs';\n" + patchPlaces(patchMain(show(WEB + '/main.js').toString('utf8')), placesMain)],
+  ['tile.worker.js', placeJob(patchLandmarksTile(patchRoads(show(WEB + '/tile.worker.js').toString('utf8'))))],
 ]);
 if (existsSync(OUT)) rmSync(OUT, { recursive: true });
 let bytesIn = 0, bytesOut = 0;

@@ -6,6 +6,8 @@ import { orientedBox, hash, wpick } from "./kit-building-appearance.js";
 import { aeroDropBuildings } from "./integration/airports-worker.js";
 import { seed, rnd } from "./kit-city-atlas.js";
 import { VSHA, fetchV, jget } from "./shared/fetch-v.mjs";
+import { placeDetail, applyPlaceBuildings, fieldMesh, templeMesh, reviewedTempleMeshes } from "../places.mjs";
+import { surfaceRoads } from "../tunnel-roads.mjs";
 import { roadRibbons } from "../road-ribbons.mjs";
 import { fixLandmarks } from "../landmark-fix.mjs";
 const cache = /* @__PURE__ */ new Map(), KEEP = 24;
@@ -30,9 +32,10 @@ async function tileData(url, ph = null, vf = {}, rn = 0) {
     cache.set(key, t);
     return t;
   }
-  const f0 = performance.now(), [tb, bj, sf] = await Promise.all([fetchV(url + "terrain.bin", vf["terrain.bin"], rn, ph), jget(url + "buildings.json", vf.j).then((r) => r.json()), shopfrontsOf(url, vf)]);
+  const f0 = performance.now(), [tb, bj, sf, detail] = await Promise.all([fetchV(url + "terrain.bin", vf["terrain.bin"], rn, ph), jget(url + "buildings.json", vf.j).then((r) => r.json()), shopfrontsOf(url, vf), placeDetail(url)]);
   if (ph) ph.fetch = (ph.fetch || 0) + performance.now() - f0;
-  t = { terrain: new Uint8Array(tb), buildings: bj, shopfronts: sf && sf.fp === shopFp(bj) && sf.b && sf.x ? sf : null };
+  t = { detail, terrain: new Uint8Array(tb), buildings: bj, shopfronts: sf && sf.fp === shopFp(bj) && sf.b && sf.x ? sf : null };
+  applyPlaceBuildings(bj, detail);
   fixLandmarks(bj);
   await aeroDropBuildings(url, bj, vf);
   cache.set(key, t);
@@ -321,13 +324,15 @@ const jobs = {
     const t0 = performance.now(), t = await tileData(url, ph, vf, rn), f0 = performance.now(), roads = await jget(url + "roads.json", vf.j).then((r) => r.json());
     ph.fetch = (ph.fetch || 0) + performance.now() - f0;
     const grid = T("grid", () => buildGrid(decodeTerrain(t.terrain))), groundAt = (x, y) => gridAt(grid, x, y);
+    roads.roads = surfaceRoads(roads.roads,t.detail?.tunnels);
     t.roads = roads.context;
+    const fields = fieldMesh(t.detail, groundAt), temples = templeMesh(t.detail, groundAt), heritage = reviewedTempleMeshes(t.detail,groundAt);
     const built = T("build", () => buildDetailed({ buildings: keepStyles(t.buildings, skip), roads: roads.context, groundAt, chunkSize: TILE_M / Math.max(1, chunk || 2), mode: 1, inner, shopfronts: t.shopfronts, fx3 }));
     if (rdMode > 0) {
       const up = (r) => r.pts.some((p) => p[2] > 0.3), flatRoads = roads.roads.filter((r) => !up(r));
-      return { buildings: built, roads: T("roads", () => roadRibbons(roads.roads.filter(up), groundAt, lines, farStep, roads.piers || [], deck, pier, side, 0, roads.roads)), flat: T("roads", () => roadRibbons(flatRoads, groundAt, lines, 0, [], rdMode === 3 ? 1 : 0, 0, 0, rdMode, roads.roads)), h: grid.h, ms: performance.now() - t0, ph };
+      return { buildings: built, fields, temples, heritage, trees: t.detail?.tunnels?.trees, roads: T("roads", () => roadRibbons(roads.roads.filter(up), groundAt, lines, farStep, roads.piers || [], deck, pier, side, 0, roads.roads)), flat: T("roads", () => roadRibbons(flatRoads, groundAt, lines, 0, [], rdMode === 3 ? 1 : 0, 0, 0, rdMode, roads.roads)), h: grid.h, ms: performance.now() - t0, ph };
     }
-    return { buildings: built, roads: T("roads", () => roadRibbons(roads.roads, groundAt, lines, farStep, roads.piers || [], deck, pier, side)), h: grid.h, ms: performance.now() - t0, ph };
+    return { buildings: built, fields, temples, heritage, trees: t.detail?.tunnels?.trees, roads: T("roads", () => roadRibbons(roads.roads, groundAt, lines, farStep, roads.piers || [], deck, pier, side)), h: grid.h, ms: performance.now() - t0, ph };
   },
   async extras({ url, cx, cy, r, chunk = 2, skip = "", vf }) {
     const t = await tileData(url, null, vf);
