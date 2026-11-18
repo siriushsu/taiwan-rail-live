@@ -5405,7 +5405,7 @@
 /* 電腦首頁開場・序幕：首繪就鋪上海報與影片，地圖在後面載入。文字、音樂、揭幕交給檔尾 homeOpeningMain。
    只在電腦（與網頁 2.0 全螢幕鈕同一條 MQ）、直接打開首頁時播；分享連結、減少動態、3D 跑不動就直接進地圖。 */
 (function () {
-  var HOME_OPENING_ON = false; // 預設開關；?opening=1 強制開、?opening=0 強制關
+  var HOME_OPENING_ON = true; // 預設開關；?opening=1 強制開、?opening=0 強制關
   var R = window.RI_HOME_OPENING = { eligible: false, run: false, done: false, q: [],
     after: function (fn) { if (R.run && !R.done) R.q.push(fn); else fn(); },
     // name＝畫面上的地名；big＝大範圍鏡頭（挑音樂用）。實景各段都從網站本身的新地景錄：列車是網站的立體列車、跑錄影當時刻的時刻表位置
@@ -5419,6 +5419,7 @@
   try {
     var qs = new URLSearchParams(location.search), ov = qs.get('opening');
     if (!(ov === '1' || (ov !== '0' && HOME_OPENING_ON))) return;
+    if (ov !== '1' && navigator.webdriver) return; // 自動化瀏覽器（閘門、截圖）不播，要測開場帶 ?opening=1
     if (!matchMedia('(min-width: 700px) and (any-pointer: fine)').matches) return;
     var nativeApp = typeof window.RAIL_ONLINE_BASEMAPS_AVAILABLE !== 'undefined'
       || Object.keys(window).some(function (k) { return /^RAIL_NATIVE_/.test(k) && !!window[k]; });
@@ -6053,13 +6054,13 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="homeopening1118"><span class="d">11/18</span><span>電腦直接打開首頁時，會先播一段全畫面開場（網站錄下的各地鐵道與列車，配上音樂），按任意鍵進入地圖；從分享連結進來直接看地圖。不想看可在「觀看」→「畫面」關掉「開場畫面」</span></li>
         <li data-cl-of="landscapeformal1118"><span class="d">11/18</span><span>電腦上的地景地圖改用新版全台地景（3D 地形、建物與夜景），不再標 Beta；跑不動的電腦會自動切回原本的地景。手機與平板暫時維持原本的地景</span></li>
         <li data-cl-of="trainsize1118"><span class="d">11/18</span><span>地圖上的立體列車預設改成「容易辨認」的正常大小；想看 Q 版可在「觀看」→「列車」→「列車大小」切換，之前選過的照舊</span></li>
         <li data-cl-of="landscapeweb1117"><span class="d">11/17</span><span>地景地圖的新版全台地景（3D 地形、建物與夜景）已放上網站做最後測試；這段期間畫面仍是原本的地景</span></li>
         <li data-cl-of="qnoyield1114"><span class="d">11/14</span><span>Q 版列車停在站裡時不再往旁邊滑開，一直貼著軌道線；疊在一起的兩列改由前後層次分開</span></li>
         <li data-cl-of="tymccrowd1113"><span class="d">11/13</span><span>桃園機場捷運的車站看板與跟車卡多了車廂擁擠度：四節車廂各一格、顏色表示鬆緊，資料取自桃園捷運官網的列車動態；對不上是哪一列車時留白</span></li>
         <li data-cl-of="tragpsrun1113"><span class="d">11/13</span><span>台鐵列車在兩站之間的位置，改照校正懸賞錄到的實際行駛曲線來推（目前 95 條站間曲線），起步、進站的快慢更接近真車；還沒有實測的站間照舊用公式推算（謝謝幫忙錄程的島民）</span></li>
-        <li data-cl-of="trameetin1110"><span class="d">11/10</span><span>台鐵單線區段原本畫成在站間錯身的對向列車，改成先到的那班進站停車，等對向列車通過再開（例如 410 次在東竹等 417 次）；那一站沒有空股道時，退到前面有空股道的站等</span></li>
         <li data-cl-of="garagenewcars1109"><span class="d">11/09</span><span>車庫新增 12 款車：EMU200、DR2800、S400、EMU400、0 系新幹線、總統花車等，各用 150 島民點數兌換</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
@@ -6573,6 +6574,7 @@
         <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，面板都住進底部；新增「捷」分頁，北中高捷運一張圖同框</span></li>
         <li><span class="d">7/13</span><span>新增「省電」模式（手機預設開啟）：降到 30fps；手機一次只開一個面板</span></li>
         <li class="grp">外觀與品牌</li>
+        <li data-cl="homeopening1118"><span class="d">11/18</span><span>電腦直接打開首頁時，會先播一段全畫面開場（網站錄下的各地鐵道與列車，配上音樂），按任意鍵進入地圖；從分享連結進來直接看地圖。不想看可在「觀看」→「畫面」關掉「開場畫面」</span></li>
         <li data-cl="buildinglook1031"><span class="d">10/31</span><span>3D 建築改成實心並加上光影與牆腳陰影；列車開到大樓後面時，樓上會開一扇窗讓你看到車，想看穿建築仍可打開「透視顯示」</span></li>
         <li data-cl="pendingstation0930"><span class="d">10/1</span><span>車站時刻表頁：中壢、埔心之間的平鎮臨時站要等官方公布英文站名後才會有頁面；在那之前每週更新班表時先略過它，其他車站照常更新</span></li>
         <li data-cl="stations0930b"><span class="d">9/30</span><span>車站時刻表頁擴大到兩週內有列車停靠的全部 239 個台鐵車站（新增 221 站，中文）：依方向列出每一班的開車時刻、終點與行駛日；瑞芳、十分、菁桐、礁溪、福隆、集集、知本另有英日文頁；車站索引依縣市列出全部台鐵車站</span></li>
@@ -7637,7 +7639,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1118a：電腦首頁開場改版——開場頁就出聲（被擋就給「開聲音」）、揭幕後進新地景且鏡頭接在影片那一格、跑不動的保底打開（等同 ?ls.auto=1）；夜景換成文湖線、淡水信義線兩段。開關仍關，只有 ?opening=1 才播。
 // v1118b：電腦首頁開場各段改從網站本身錄（網站的立體列車、錄影當時刻的時刻表位置、非 Q 版）；多良換成蘭陽平原・龜山島；揭幕後落在臺北市區，沒記過地圖的開新地景、記過的照網站記的；「按任意鍵進入」不再等新地景的地形圖磚。網站列車大小預設改成「容易辨認」（選過的照舊）。開場開關仍關。
 // v1118c：電腦（跟首頁開場同一條 MQ）選「地景」改開新地景、地景鈕不標 Beta、跑不動的保底打開（等同 ?ls.auto=1；保底不再降像素比，用原本的像素比量、太慢就這次退回舊地景）；手機與平板照舊（舊地景、標 Beta，?landscape=new 才開新的）。
-const BUILD = 'v1118c';
+// v1118d：電腦首頁開場打開給所有電腦訪客（HOME_OPENING_ON＝true）；其他條件不變（電腦 MQ、非 App、沒有深連結、尊重減少動態、設定關掉的不播）；自動化瀏覽器不帶 ?opening=1 不播。
+const BUILD = 'v1118d';
 // v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 // 有播電腦首頁開場、又是第一次來（RI_HOME_OPENING.fresh）：揭幕後開新地景（開場影片就是新地景錄的）；只這一趟，不寫地景偏好

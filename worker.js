@@ -6050,13 +6050,43 @@ function busN1Rows(body) {
   return body && Array.isArray(body.EstimatedTimeOfArrivals) ? body.EstimatedTimeOfArrivals : [];
 }
 
+// 🔴 TDX 金鑰每秒 10 次（銀級，全站共用一把）。App 的行程規劃一次查詢會在同一秒內對幾個車站各打 N1、
+// 再對每條候選路線打 StopOfRoute（一次十幾發）。2026-11-18 18:09:12／18:11:20 實測（BUS_USAGE）：
+// 同一秒 S2 回 429 共 10 發、N1 回 2 發，/api/bus-route-stops 因此回 502，公車方案缺一塊。
+// 每秒上限是按秒重算的，晚一兩秒重打就會過：只對 429 重試，間隔帶亂數把同一波打散到後面幾秒。
+// 有 Retry-After 就照它（上限 BUS_TDX_429_MAX_WAIT_MS）。總等待約 4 秒內，留在 BUS_INFLIGHT_WAIT_MAX_MS 之內。
+// 每一發 429 照樣記進 BUS_USAGE。守門人：scripts/verify_bus_tdx_429_retry.mjs。
+const BUS_TDX_429_RETRIES = 2;
+const BUS_TDX_429_MAX_WAIT_MS = 3000;
+function busTdx429Delay(response, attempt) {
+  const after = Number(response.headers.get('retry-after'));
+  if (Number.isFinite(after) && after > 0) return Math.min(after * 1000, BUS_TDX_429_MAX_WAIT_MS);
+  return 1000 * attempt + Math.floor(Math.random() * 1000);
+}
+function busTdxSleep(ms, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(new Error('aborted'));
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener('abort', () => { clearTimeout(timer); reject(new Error('aborted')); }, { once: true });
+  });
+}
+async function busTdxFetch(env, url, token, signal, kind, scope) {
+  for (let attempt = 1; ; attempt++) {
+    const response = await fetch(url, {
+      headers: { authorization: 'Bearer ' + token, accept: 'application/json' },
+      redirect: 'manual',
+      signal,
+    });
+    if (response.status !== 429 || attempt > BUS_TDX_429_RETRIES) return response;
+    recordBusTdxUsage(env, kind, scope, 429, 0, 0);
+    try { await response.body?.cancel(); } catch (e) {}
+    await busTdxSleep(busTdx429Delay(response, attempt), signal);
+  }
+}
+
 async function fetchBusN1(env, scopeData, token, signal) {
   const stopUids = (scopeData.stops || []).map(stop => stop.stopUid);
-  const response = await fetch(busN1Url(env, scopeData.scope, stopUids), {
-    headers: { authorization: 'Bearer ' + token, accept: 'application/json' },
-    redirect: 'manual',
-    signal,
-  });
+  const response = await busTdxFetch(env, busN1Url(env, scopeData.scope, stopUids), token, signal, 'N1', scopeData.scope);
   if (!response.ok) {
     const contentLength = Number(response.headers.get('content-length'));
     recordBusTdxUsage(env, 'N1', scopeData.scope, response.status, Number.isFinite(contentLength) ? contentLength : 0, 0);
@@ -6233,11 +6263,7 @@ function busRouteStopsUrl(env, arrival) {
 }
 
 async function fetchBusRouteStops(env, arrival, token, signal) {
-  const response = await fetch(busRouteStopsUrl(env, arrival), {
-    headers: { authorization: 'Bearer ' + token, accept: 'application/json' },
-    redirect: 'manual',
-    signal,
-  });
+  const response = await busTdxFetch(env, busRouteStopsUrl(env, arrival), token, signal, 'S2', arrival.scope);
   if (!response.ok) {
     const contentLength = Number(response.headers.get('content-length'));
     recordBusTdxUsage(env, 'S2', arrival.scope, response.status, Number.isFinite(contentLength) ? contentLength : 0, 0);

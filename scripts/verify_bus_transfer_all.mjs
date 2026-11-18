@@ -11,6 +11,8 @@ const scripts = [
   'verify_bus_transfer_index.mjs',
   'verify_bus_transfer_ui.mjs',
   'verify_bus_transfer_worker.mjs',
+  // 2026-11-18：行程規劃式連發撞到 TDX 每秒上限時，N1／StopOfRoute 要延後重打，不得回 502。
+  'verify_bus_tdx_429_retry.mjs',
   'verify_journey_share_worker.mjs',
   'verify_bus_transfer_gate.mjs',
   // 2026-09-19：英日文三階段＋展開掃中文殘留（自起 fixture server，PORT=0）。
