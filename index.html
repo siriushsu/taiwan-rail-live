@@ -6053,6 +6053,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="landscapeformal1118"><span class="d">11/18</span><span>電腦上的地景地圖改用新版全台地景（3D 地形、建物與夜景），不再標 Beta；跑不動的電腦會自動切回原本的地景。手機與平板暫時維持原本的地景</span></li>
         <li data-cl-of="trainsize1118"><span class="d">11/18</span><span>地圖上的立體列車預設改成「容易辨認」的正常大小；想看 Q 版可在「觀看」→「列車」→「列車大小」切換，之前選過的照舊</span></li>
         <li data-cl-of="landscapeweb1117"><span class="d">11/17</span><span>地景地圖的新版全台地景（3D 地形、建物與夜景）已放上網站做最後測試；這段期間畫面仍是原本的地景</span></li>
         <li data-cl-of="qnoyield1114"><span class="d">11/14</span><span>Q 版列車停在站裡時不再往旁邊滑開，一直貼著軌道線；疊在一起的兩列改由前後層次分開</span></li>
@@ -6060,7 +6061,6 @@
         <li data-cl-of="tragpsrun1113"><span class="d">11/13</span><span>台鐵列車在兩站之間的位置，改照校正懸賞錄到的實際行駛曲線來推（目前 95 條站間曲線），起步、進站的快慢更接近真車；還沒有實測的站間照舊用公式推算（謝謝幫忙錄程的島民）</span></li>
         <li data-cl-of="trameetin1110"><span class="d">11/10</span><span>台鐵單線區段原本畫成在站間錯身的對向列車，改成先到的那班進站停車，等對向列車通過再開（例如 410 次在東竹等 417 次）；那一站沒有空股道時，退到前面有空股道的站等</span></li>
         <li data-cl-of="garagenewcars1109"><span class="d">11/09</span><span>車庫新增 12 款車：EMU200、DR2800、S400、EMU400、0 系新幹線、總統花車等，各用 150 島民點數兌換</span></li>
-        <li data-cl-of="garageinfo1109"><span class="d">11/09</span><span>車庫場景與車款加上介紹，車款詳情多了「車款檔案」，列車卡 5 個車種各補一則小知識</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -6094,6 +6094,7 @@
         <li data-cl="weatherapp1023"><span class="d">10/23</span><span>修正 App 颱風資訊整份重複顯示，改為各系統公告；補上新北環狀線、三鶯線 10/23 約 15 分鐘班距，淡海與安坑仍待確認</span></li>
         <li data-cl="weather1022"><span class="d">10/22</span><span>新增颱風期間全台鐵道營運提醒與官方來源，明確標示停駛、調整班距及待確認資訊；地圖有車不代表實際開行；開啟颱風公告時跟車卡暫時隱藏</span></li>
         <li class="grp">路網與車站</li>
+        <li data-cl="landscapeformal1118"><span class="d">11/18</span><span>電腦上的地景地圖改用新版全台地景（3D 地形、建物與夜景），不再標 Beta；跑不動的電腦會自動切回原本的地景。手機與平板暫時維持原本的地景</span></li>
         <li data-cl="trainsize1118"><span class="d">11/18</span><span>地圖上的立體列車預設改成「容易辨認」的正常大小；想看 Q 版可在「觀看」→「列車」→「列車大小」切換，之前選過的照舊</span></li>
         <li data-cl="landscapeweb1117"><span class="d">11/17</span><span>地景地圖的新版全台地景（3D 地形、建物與夜景）已放上網站做最後測試；這段期間畫面仍是原本的地景</span></li>
         <li data-cl="tragpsrun1113"><span class="d">11/13</span><span>台鐵列車在兩站之間的位置，改照校正懸賞錄到的實際行駛曲線來推（目前 95 條站間曲線），起步、進站的快慢更接近真車；還沒有實測的站間照舊用公式推算（謝謝幫忙錄程的島民）</span></li>
@@ -7635,7 +7636,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1117g：新地景（帶 ?landscape=new）接手後路線不再被地形裙邊往下拉成直條（e6b065b3e）；鏡頭沒動時新地景不重畫、停著看少用 GPU（63adf4bc1，?ls.rest=0 可關；跑不動的保底 ?ls.auto=1 維持關）；被山擋住的路線改成半透明透出、不再斷成一截一截（dab5b7a96）。
 // v1118a：電腦首頁開場改版——開場頁就出聲（被擋就給「開聲音」）、揭幕後進新地景且鏡頭接在影片那一格、跑不動的保底打開（等同 ?ls.auto=1）；夜景換成文湖線、淡水信義線兩段。開關仍關，只有 ?opening=1 才播。
 // v1118b：電腦首頁開場各段改從網站本身錄（網站的立體列車、錄影當時刻的時刻表位置、非 Q 版）；多良換成蘭陽平原・龜山島；揭幕後落在臺北市區，沒記過地圖的開新地景、記過的照網站記的；「按任意鍵進入」不再等新地景的地形圖磚。網站列車大小預設改成「容易辨認」（選過的照舊）。開場開關仍關。
-const BUILD = 'v1118b';
+// v1118c：電腦（跟首頁開場同一條 MQ）選「地景」改開新地景、地景鈕不標 Beta、跑不動的保底打開（等同 ?ls.auto=1；保底不再降像素比，用原本的像素比量、太慢就這次退回舊地景）；手機與平板照舊（舊地景、標 Beta，?landscape=new 才開新的）。
+const BUILD = 'v1118c';
 // v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 // 有播電腦首頁開場、又是第一次來（RI_HOME_OPENING.fresh）：揭幕後開新地景（開場影片就是新地景錄的）；只這一趟，不寫地景偏好
@@ -39723,11 +39725,14 @@ function ofmFallToRaster(why) {
 // 底圖就是 style 本身:light/dark 用內建 OFM,衛星用 satGlStyle(M1a);離線陸地與署名在 style.load 重掛。
 // ==== 地景地圖（新）：全台地景圖磚（landscape-web/） ====
 // 全台地景圖磚：three.js 畫在 MapLibre 畫布底下，MapLibre 這邊藏掉底圖、列車與路線照舊畫在上面（landscape-web/site.js）。
-// 目前預設仍是舊的地景圖層（OFM 地景樣式＋DEM 山影＋3D 建物），網址帶 ?landscape=new 才用新地景（同一個分頁記住）；?landscape=old 一律舊的。
-// 要讓新地景成為預設：把 LANDSCAPE_NEW_DEFAULT 改成 true（verify_landscape_web 會照這個值驗預設）。
+// 電腦（LANDSCAPE_DESKTOP_MQ，跟首頁開場同一條）選「地景」就是新地景、不標 Beta、跑不動的保底打開（等同 ?ls.auto=1）。
+// 手機與平板（觸控、沒有滑鼠或觸控板）維持舊的地景圖層（OFM 地景樣式＋DEM 山影＋3D 建物）並標 Beta；網址帶 ?landscape=new 才用新地景（同一個分頁記住）。?landscape=old 一律舊的。
+// verify_landscape_web 照 LANDSCAPE_DESKTOP_MQ 驗電腦與手機的預設。
 // 新地景載入失敗（圖磚倉連不上等）這次自動退回舊的。
 // 圖磚：正式站直連 tiles.railisland.tw（R2 CORS 只放行正式站來源）；本機開發伺服器同源轉手（scripts/dev_server.mjs 的 /__landscape_tiles/）；?landscapeTiles=<網址> 可指定別處。
-const LANDSCAPE_NEW_DEFAULT = false;
+const LANDSCAPE_DESKTOP_MQ = '(min-width: 700px) and (any-pointer: fine)';
+const LANDSCAPE_NEW_DEFAULT = !!(window.matchMedia && matchMedia(LANDSCAPE_DESKTOP_MQ).matches);
+if (LANDSCAPE_NEW_DEFAULT) document.querySelectorAll('#msBasemapSeg .ri-beta').forEach(e => e.remove());
 const LANDSCAPE_Q = new URLSearchParams(location.search);
 // 自動化瀏覽器（navigator.webdriver）不論預設都走舊地景：既有的地景閘門量的是舊圖層（山影、worldcover、3D 建物、隧道口）；新地景由 verify_landscape_web 帶 ?landscape=new 驗。
 // ?landscape=new／old 記在這個分頁（sessionStorage）：開頁後網址會被改寫掉查詢字串（跟車、clearFollow），重新整理或手機瀏覽器自己重載時要照樣是同一個
@@ -39747,14 +39752,14 @@ function syncLandscapeWeb() {
   if (!want && !landscapeWeb) return;
   if (!landscapeWeb) {
     const extra = {}; for (const [k, v] of LANDSCAPE_Q) if (k.startsWith('ls.')) extra[k.slice(3)] = v; // ?ls.<參數>＝原樣交給地景 engine（量測、對照用）
-    if (OPENING_LANDSCAPE && !('auto' in extra)) extra.auto = '1'; // 開場進新地景的這一趟：跑不動的保底打開（等同 ?ls.auto=1）
+    if ((OPENING_LANDSCAPE || LANDSCAPE_NEW_DEFAULT) && !('auto' in extra)) extra.auto = '1'; // 電腦與開場進新地景的這一趟：跑不動的保底打開（等同 ?ls.auto=1）
     landscapeWeb = import('./landscape-web/site.js').then(m => m.attach(M.raw, {
       tilesBase: landscapeWebTiles(), params: extra,
       // 「日夜光影」關＝固定午後光線（跟舊地景均勻照明同義、列車也不開夜燈），開＝跟地圖時刻；日期跟網站日夜光影同一天（sunlightContextNow）
       hour: () => (sunlightEnabled ? (state.simSec || 0) / 3600 : 15.2),
       date: () => window.__sunTestCtx?.date || todayStr('Asia/Taipei'),
       onFail: () => { landscapeWebFailed = true; syncLandscapeWeb(); setBasemap(); },
-      // 保底（?ls.auto=1 才會量）：像素比降到底每格還是太久，這次退回舊地景
+      // 保底（?ls.auto=1 才會量）：用原本的像素比量，每格還是太久就這次退回舊地景（不降像素比）
       onSlow: () => { landscapeWebFailed = true; syncLandscapeWeb(); setBasemap(); showToast(t('這台裝置跑新地景比較吃力，已切回原本的地景'), { wrap: true }); },
     })).catch(e => { console.warn('[地景] 新地景程式載入失敗', e); landscapeWebFailed = true; return null; });
   }
@@ -40412,7 +40417,7 @@ const HELP_GROUPS = [
       try: 'garage' },
     { key: 'sat', ic: '圖', nm: '地圖風格：明、暗、衛星、地景',
       one: '同一張地圖可以換底：亮色或暗色的一般地圖、衛星照片，或帶地形與建築的「地景」。',
-      steps: ['手機按地圖右上的「觀看」、桌面用地圖右側的直欄，點「地圖」，找到「地圖風格」', '四選一：「明」「暗」「衛星」「地景」（地景標著 Beta）', '選「地景」會自動把地圖傾斜、打開 3D 建築，地形預設是起伏；要把地圖放平，到「視角」分頁把「地圖視角」選「俯視」', '同一頁的「地形」選「起伏試驗」，地表會跟著山勢起伏（只是地表顯示，不是實測的軌道高度）；「透視顯示」選「透視」，建築與地下的列車會半透明，選「實體」就都不透明；「日夜光影」打開後，光線跟著畫面上的時間走，傾斜地圖時看得到天空'],
+      steps: ['手機按地圖右上的「觀看」、桌面用地圖右側的直欄，點「地圖」，找到「地圖風格」', '四選一：「明」「暗」「衛星」「地景」（手機與平板上的地景標著 Beta）', '選「地景」會自動把地圖傾斜、打開 3D 建築，地形預設是起伏；要把地圖放平，到「視角」分頁把「地圖視角」選「俯視」', '同一頁的「地形」選「起伏試驗」，地表會跟著山勢起伏（只是地表顯示，不是實測的軌道高度）；「透視顯示」選「透視」，建築與地下的列車會半透明，選「實體」就都不透明；「日夜光影」打開後，光線跟著畫面上的時間走，傾斜地圖時看得到天空'],
       tip: '衛星圖資載不進來時，「衛星」選不到；拉太近時衛星影像可能沒有那麼清晰的圖資。地景的「地形」與「透視顯示」、衛星的「透視顯示」，都和一般地圖分開記住。', try: 'sat' },
     { key: 'orientation', avail: () => !!M, ic: '3D', nm: '旋轉、傾斜與 3D 建築', tg: 'map3dBtn',
       one: '地圖可以轉向與傾斜，拉近時也能開啟立體建築。',

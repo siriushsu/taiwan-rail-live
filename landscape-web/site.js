@@ -164,31 +164,11 @@ export function attach(map, { tilesBase, hour, date, params: extra = {}, onFail,
     if (sig !== groundSig) { groundSig = sig; ground.rev++; }
   }
 
-  // 自動降畫質原型（預設關，網址帶 ?ls.auto=1 才開）。engine 自己的 adapt 看「兩格間隔 > 20 ms」，嵌進網站後停著時
-  // 列車每 30 ms 才重畫一格，會被當成太慢一路降到底；這裡只在地圖操作中（isMoving）量間隔，停著與剛開始動的那一格不算。
-  // 操作中每秒超過 20 ms 的格數過兩成、連兩秒 → engine 像素比降 0.25（最低 1）；操作中連 4 秒都順（< 5%）→ 升回 0.25。
-  // 只動 engine 的畫布；時間若花在主執行緒（列車、路線），降像素比幫不上忙，所以先不預設開。
-  const autoPr = extra.auto === '1' ? { last: 0, t0: 0, n: 0, slow: 0, bad: 0, good: 0, top: 0, log: [] } : null;
-  function autoFrame(now) {
-    const dt = now - autoPr.last; autoPr.last = now;
-    if (!map.isMoving() || dt > 250) { autoPr.t0 = autoPr.n = autoPr.slow = 0; return; }
-    if (!autoPr.top) autoPr.top = api.renderer.getPixelRatio();
-    if (!autoPr.t0) { autoPr.t0 = now; return; }
-    autoPr.n++; if (dt > 20) autoPr.slow++;
-    if (now - autoPr.t0 < 1000) return;
-    const share = autoPr.slow / autoPr.n, pr = api.renderer.getPixelRatio(); autoPr.t0 = now; autoPr.n = autoPr.slow = 0;
-    let next = pr;
-    if (share > .2) { autoPr.good = 0; if (++autoPr.bad >= 2) { autoPr.bad = 0; next = Math.max(1, pr - .25); } }
-    else if (share < .05) { autoPr.bad = 0; if (++autoPr.good >= 4) { autoPr.good = 0; next = Math.min(autoPr.top, pr + .25); } }
-    else autoPr.bad = autoPr.good = 0;
-    if (next !== pr) { api.renderer.setPixelRatio(next); if (autoPr.log.length < 100) autoPr.log.push([Math.round(now), next, +share.toFixed(2)]); }
-  }
-
-  // 保底（同一個開關 ?ls.auto=1，預設關）：這個視角的圖磚到齊、靜下來 1 秒後量 8 格 engine 的每格時間（畫完讀回一個像素，等 GPU 真的畫完才算）。
-  // 中位數超過 20 ms → engine 像素比降一級（2 → 1.5 → 1）再量一次；降到 1 還超過 33 ms → onSlow（網站這次退回舊地景並告訴使用者）。
-  // 門檻只看每格時間，不看顯卡型號；?ls.autoMs=<降級>,<退回> 可改（驗收用）。
-  const [PROBE_SLOW_MS, PROBE_GIVEUP_MS] = (extra.autoMs || '20,33').split(',').map(Number);
-  const probe = autoPr ? { state: 'wait', quietAt: 0, ms: [], log: [], px: new Uint8Array(4) } : null;
+  // 保底（?ls.auto=1 才開；網站在電腦與開場那一趟替它打開）：這個視角的圖磚到齊、靜下來 1 秒後，用原本的像素比量 8 格 engine 的每格時間
+  // （畫完讀回一個像素，等 GPU 真的畫完才算）。中位數超過 33 ms → onSlow（網站這次退回舊地景並告訴使用者）；不降像素比、不降解析度。
+  // 門檻只看每格時間，不看顯卡型號；?ls.autoMs=<退回> 可改（驗收用）。要降像素比的手動對照用 engine 自己的 ?ls.adapt=1 或 ?ls.pr=。
+  const PROBE_GIVEUP_MS = Number(String(extra.autoMs || '33').split(',').pop());
+  const probe = extra.auto === '1' ? { state: 'wait', quietAt: 0, ms: [], log: [], px: new Uint8Array(4) } : null;
   function probeFrame(t0, now) {
     if (probe.state === 'wait') {
       if (!revealed || api.pending() > 0 || map.isMoving()) probe.quietAt = 0;
@@ -201,14 +181,12 @@ export function attach(map, { tilesBase, hour, date, params: extra = {}, onFail,
     if (probe.ms.length < 9) { map.triggerRepaint(); return; }
     const ms = probe.ms.slice(1).sort((a, b) => a - b)[4], pr = api.renderer.getPixelRatio();   // 第一格可能帶陰影重畫與上傳，不算
     probe.log.push([pr, +ms.toFixed(1)]);
-    if (ms > PROBE_SLOW_MS && pr > 1) { api.renderer.setPixelRatio(pr > 1.5 ? 1.5 : 1); probe.ms = []; map.triggerRepaint(); }
-    else if (ms > PROBE_GIVEUP_MS) { probe.state = 'slow'; queueMicrotask(() => onSlow?.({ ms, log: probe.log })); }
+    if (ms > PROBE_GIVEUP_MS) { probe.state = 'slow'; queueMicrotask(() => onSlow?.({ ms, log: probe.log })); }
     else probe.state = 'done';
   }
   let drawnMatrix = null, drawnW = 0, drawnH = 0;
   function draw() {
     if (!api || !active || !mainMatrix) return;
-    if (autoPr) autoFrame(performance.now());
     // 網站時刻／日期 → engine 的太陽、月亮與夜景（engine 每次 setTime 都重讀 params 的 date）
     const d = date?.(); if (d && d !== params.get('date')) { params.set('date', d); lastHour = -Infinity; }
     const h = hour(); if (!(Math.abs(h - lastHour) <= 1 / 60)) { lastHour = h; api.setTime(h); }
@@ -377,7 +355,6 @@ export function attach(map, { tilesBase, hour, date, params: extra = {}, onFail,
     get occluding() { return occ.on && active && revealed && !!map.getLayer(OCC_ID); },
     setOcclusion(on) { occ.on = !!on; map.triggerRepaint(); }, // 前後對照與閘門用
     get occluderMeshes() { return occ.drawn; },
-    get autoPr() { return autoPr; },   // 自動降畫質原型的狀態（沒開是 null）
     get probe() { return probe; },     // 保底開頁量測的狀態（沒開是 null）
     get fade() { return fade; },
     setFade(level) { fade = level in FADE ? FADE[level] : FADE[FADE_DEFAULT]; applyFade(); map.triggerRepaint(); }, // 前後對照與閘門用：'conservative'／'aggressive'／'off'

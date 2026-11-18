@@ -2,7 +2,7 @@
 //   npm run check-landscape-web
 // 自己起一個 scripts/dev_server.mjs（PORT=0，從它印的那一行拿埠）：新地景的圖磚要經它同源轉手圖磚倉，要能連網。
 // 其他地景閘門在自動化瀏覽器裡一律量舊地景（index.html 的 LANDSCAPE_OLD）；這支量新地景時一律帶 ?landscape=new。
-// 一般使用者不帶參數時用哪一個，照 index.html 的 LANDSCAPE_NEW_DEFAULT（第 4 段驗）。
+// 一般使用者不帶參數時用哪一個，照 index.html 的 LANDSCAPE_DESKTOP_MQ：電腦新地景、手機舊地景（第 4 段驗）。
 import { chromium, webkit } from 'playwright';
 import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
@@ -32,8 +32,8 @@ const AT = 'at=25.0478,121.5170&z=16&t=14:00&lang=zh-TW';
 const HIDDEN = ['background', 'building-3d', 'station-building-context', 'landscape-hillshade', 'water'];
 const KEPT = ['track-line-0', 'live-vehicles-3d'];
 
-async function open(browser, query, { route } = {}) {
-  const p = await browser.newPage({ viewport: { width: 1200, height: 800 }, locale: 'zh-TW', timezoneId: 'Asia/Taipei' });
+async function open(browser, query, { route, ctx } = {}) {
+  const p = await browser.newPage({ viewport: { width: 1200, height: 800 }, locale: 'zh-TW', timezoneId: 'Asia/Taipei', ...ctx });
   const errors = []; p.on('pageerror', e => errors.push(e.message));
   await p.addInitScript(() => localStorage.setItem('trainmap-howto-seen', '1'));
   await p.route('**/api/**', r => r.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
@@ -144,16 +144,30 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
       check(`${name} ?landscape=old 用舊地景`, !r.lw && !r.layer && r.bg === 'visible', JSON.stringify(r));
       await p.close();
     }
-    // 一般使用者（非自動化瀏覽器）不帶 landscape 參數：照 index.html 的 LANDSCAPE_NEW_DEFAULT（false＝舊地景，true＝新地景）。
-    // navigator.webdriver 改成 false 才量得到這條（自動化瀏覽器一律舊地景）；wd 不是 false 就算紅，免得空過
+    // 一般使用者（非自動化瀏覽器）不帶 landscape 參數：電腦（符合 index.html 的 LANDSCAPE_DESKTOP_MQ）開新地景、地景鈕不標 Beta、保底打開；
+    // 手機（375×812＋觸控）開舊地景、標 Beta。navigator.webdriver 改成 false 才量得到這條（自動化瀏覽器一律舊地景）；wd 不是 false 就算紅，免得空過
     {
-      const newDefault = /const LANDSCAPE_NEW_DEFAULT = (true|false);/.exec(readFileSync(path.join(ROOT, 'index.html'), 'utf8'))?.[1];
-      const { p } = await open(browser, 'map=landscape&g=all&' + AT, { route: p => p.addInitScript(() => Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false })) });
-      if (newDefault === 'true') await p.waitForFunction(() => window.railIslandLandscapeWeb?.active, null, { timeout: 60000 }).catch(() => {});
-      else await p.waitForTimeout(3000);
-      const r = await p.evaluate(() => ({ wd: navigator.webdriver, lw: !!window.railIslandLandscapeWeb?.active, layer: !!M.raw.getLayer('landscape-web'), kind: M.getStyleKind() }));
-      const ok = r.wd === false && r.kind === 'landscape' && (newDefault === 'true' ? r.lw && r.layer : newDefault === 'false' && !r.lw && !r.layer);
-      check(`${name} 一般使用者不帶參數照 LANDSCAPE_NEW_DEFAULT（${newDefault}）`, ok, JSON.stringify(r));
+      const mq = /const LANDSCAPE_DESKTOP_MQ = '([^']+)';/.exec(readFileSync(path.join(ROOT, 'index.html'), 'utf8'))?.[1];
+      for (const [label, ctx, wantNew] of [['電腦', {}, true], ['手機', { viewport: { width: 375, height: 812 }, isMobile: true, hasTouch: true }, false]]) {
+        const { p } = await open(browser, 'map=landscape&g=all&' + AT, { ctx, route: p => p.addInitScript(() => Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false })) });
+        if (wantNew) await p.waitForFunction(() => window.railIslandLandscapeWeb?.active, null, { timeout: 60000 }).catch(() => {});
+        else await p.waitForTimeout(3000);
+        const r = await p.evaluate(mq => ({ wd: navigator.webdriver, mq: !!mq && matchMedia(mq).matches, lw: !!window.railIslandLandscapeWeb?.active, layer: !!M.raw.getLayer('landscape-web'), kind: M.getStyleKind(),
+          beta: !!document.querySelector('#msBasemapSeg [data-map="landscape"] .ri-beta'), auto: !!window.railIslandLandscapeWeb?.probe }), mq);
+        const ok = r.wd === false && r.kind === 'landscape' && r.mq === wantNew && (wantNew ? r.lw && r.layer && !r.beta && r.auto : !r.lw && !r.layer && r.beta);
+        check(`${name} ${label}一般使用者不帶參數開${wantNew ? '新地景、不標 Beta、保底打開' : '舊地景、標 Beta'}`, ok, JSON.stringify(r));
+        await p.close();
+      }
+    }
+    // 保底不降解析度：像素比 2 的電腦、門檻壓到 0.01 ms 假裝跑不動 ⇒ 只用原本的像素比量一次就退回舊地景並跳提示，中間不降像素比
+    {
+      const { p } = await open(browser, 'map=landscape&g=all&ls.autoMs=0.01&' + AT, { ctx: { deviceScaleFactor: 2 }, route: p => p.addInitScript(() => Object.defineProperty(Navigator.prototype, 'webdriver', { get: () => false })) });
+      await p.waitForFunction(() => window.railIslandLandscapeWeb?.probe?.state === 'slow', null, { timeout: 90000 }).catch(() => {});
+      await p.waitForTimeout(1500);
+      const r = await p.evaluate(() => ({ state: railIslandLandscapeWeb.probe?.state, log: railIslandLandscapeWeb.probe?.log, pr: railIslandLandscapeWeb.api()?.renderer.getPixelRatio(), active: railIslandLandscapeWeb.active,
+        kind: M.getStyleKind(), bg: M.raw.getLayoutProperty('background', 'visibility') ?? 'visible', toast: [...document.querySelectorAll('.toast, #toast, [class*="toast"]')].some(e => /吃力/.test(e.textContent)) }));
+      const ok = r.state === 'slow' && r.log?.length === 1 && r.log[0][0] === 2 && r.pr === 2 && !r.active && r.kind === 'landscape' && r.bg === 'visible' && r.toast;
+      check(`${name} 保底跑不動：用原本像素比（2）量一次就退回舊地景並提示、不降像素比`, ok, JSON.stringify(r));
       await p.close();
     }
     {
