@@ -16,7 +16,7 @@ import { createRideUg } from "../host-stubs.js";
 import { createTrainsLayer } from "../host-stubs.js";
 import { nightFlags, lampPositions, createLampMaterial, lampPoints, nightGroundPatch, nightRoadPatch, nightMidPatch, FAR_NIGHT, farNightK } from "./shared/night-city.mjs";
 import { createRailHl } from "./shared/rail-hl.mjs";
-import { VSHA, JSON_INIT, fspec, fetchV, hex16 } from "./shared/fetch-v.mjs";
+import { VSHA, fspec, fetchV, fetchI, jget, hex16 } from "./shared/fetch-v.mjs";
 const H = globalThis.__LANDSCAPE_HOST__, coarse = matchMedia("(pointer:coarse)").matches, params = H.params;
 const $ = (id) => H.el(id), status = (t) => {
   $("status").textContent = t;
@@ -76,8 +76,8 @@ const net = { n: 0, ms: 0, last: 0 }, netDone = (s) => {
   net.ms += performance.now() - s;
   net.last = performance.now();
 };
-const json = async (u, raw) => {
-  const t = performance.now(), r = await fetch(u, JSON_INIT);
+const json = async (u, raw, v) => {
+  const t = performance.now(), r = await jget(u, v);
   if (!r.ok) throw Error(u + " " + r.status);
   const s = await r.text();
   netDone(t);
@@ -141,7 +141,14 @@ const BO = {
 const blackTex = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1);
 blackTex.needsUpdate = true;
 status("讀索引…");
-const ixRaw = {}, index = await json(DATA + "index.json", ixRaw);
+const store = await jget(DATA + "store.json").then((r) => r.ok ? r.json() : null).catch(() => null);
+const SV = {
+  root: (name) => store?.root?.find((r) => r[0] === name)?.[2]?.slice(0, 16),
+  tile: (id) => (store?.tiles?.[id] || store?.ride?.[id])?.[0],
+  far: (dir, id) => (dir ? store?.farLod?.[dir]?.blocks?.[id] : store?.far?.[id])?.[0]
+};
+const ROOTV = { "shopfronts-index.json": SV.root("shopfronts-index.json"), "aero-index.json": SV.root("aero-index.json") };
+const ixRaw = {}, index = await json(DATA + "index.json", ixRaw, SV.root("index.json"));
 const VER = await hex16(ixRaw.text), vspec = (files, name) => fspec(files, name) || { v: VER };
 ixRaw.text = null;
 if (params.get("vsha") === "0") VSHA.on = false;
@@ -159,7 +166,7 @@ function landPixels(tx) {
   return tx.userData.px = x.getImageData(0, 0, 512, 512).data;
 }
 let landV = 1, landVer = VER;
-const landSet = FX3.land ? await fetch(DATA + "land-index.json", JSON_INIT).then((r) => r.ok ? r.text() : null).then(async (s) => {
+const landSet = FX3.land ? await jget(DATA + "land-index.json", SV.root("land-index.json")).then((r) => r.ok ? r.text() : null).then(async (s) => {
   const j = s && JSON.parse(s);
   if (s) landVer = await hex16(s);
   landV = +j?.v || 1;
@@ -168,7 +175,7 @@ const landSet = FX3.land ? await fetch(DATA + "land-index.json", JSON_INIT).then
 const tileId = (i, j) => `E${i}_N${j}`, farId = (i, j) => `F${i}_${j}`;
 const origin = { e: 0, n: 0 };
 const view = { e: 0, n: 0, dist: 520, az: 2.2, pitch: 0.5 };
-const aeroSet = await aeroIndex(DATA);
+const aeroSet = await aeroIndex(DATA, ROOTV["aero-index.json"]);
 const worker = new Worker(new URL("./tile.worker.js", import.meta.url), { type: "module" }), waiting = /* @__PURE__ */ new Map();
 let jobId = 0;
 const jobStat = {}, wNow = () => performance.timeOrigin + performance.now();
@@ -538,7 +545,7 @@ float rN(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); re
   float rRough = mix(.95, .32, steel), rMetal = steel * .85;
   diffuseColor.rgb = rc;`).replace("#include <roughnessmap_fragment>", "float roughnessFactor = rRough;").replace("#include <metalnessmap_fragment>", "float metalnessFactor = rMetal;");
 };
-const RHL = createRailHl({ params, DATA, index, TILE_M, scene, origin, shared });
+const RHL = createRailHl({ params, DATA, index, TILE_M, scene, origin, shared, jv: SV.tile });
 if (RHL?.band) RHL.band.patch(railMat);
 const roadMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88, metalness: 0, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -6 });
 const simpleMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 });
@@ -829,11 +836,11 @@ function drainStage() {
 async function loadTile(id, ti, tj, n = 0) {
   const url = DATA + id + "/", e0 = ti * TILE_M, n0 = tj * TILE_M, t = { id, ti, tj, e0, n0, lod: 1, state: "loading", near: null, group: new THREE.Group(), bytes: 0, geomBytes: 0, texBytes: 0, calls: 0 };
   tiles.set(id, t);
-  const lampRoads = lampMat ? json(url + "roads.json").catch(() => null) : null;
-  const t0 = performance.now(), [meta, rails, stations] = await Promise.all([json(url + "tile.json"), json(url + "rails.json"), json(url + "stations.json")]), V = (name) => vspec(meta.files, name);
-  t.vf = { "terrain.bin": V("terrain.bin"), "rtin.bin": V("rtin.bin") };
+  const jv = SV.tile(id), lampRoads = lampMat ? json(url + "roads.json", null, jv).catch(() => null) : null;
+  const t0 = performance.now(), [meta, rails, stations] = await Promise.all([json(url + "tile.json", null, jv), json(url + "rails.json", null, jv), json(url + "stations.json", null, jv)]), V = (name) => vspec(meta.files, name);
+  t.vf = { "terrain.bin": V("terrain.bin"), "rtin.bin": V("rtin.bin"), j: jv, ri: ROOTV };
   const [base, tSat, tMask] = await Promise.all([job("base", { url, lo: LIMIT.lo, skip: SKIP, mid: P24.rtin === "mid", rtin: P24.rtin !== "calc" && (index.tiles[id]?.version || 0) >= 9, ...FX3.far ? { far: FX3.farW } : {}, vf: t.vf, rn: n }), tex(url + "sat.jpg", true, true, V("sat.jpg"), n), tex(url + "mask.png", false, false, V("mask.png"), n)]);
-  const tHarbor = meta.hasHarbor ? await tex(url + "harbor.png", false, false, V("harbor.png"), n) : blackTex, tFarm = FX.farm && meta.hasFarm ? await tex(url + "farm.png", false, false, V("farm.png"), n) : blackTex, tLand = landSet?.has(id) ? await tex(url + "land.png", false, false, { v: landVer }, n) : blackTex, aero = aeroSet.has(id) ? await loadAero(url, (u, s, m) => tex(u, s, m, { v: aeroSet.v || VER }, n)).catch(() => null) : null;
+  const tHarbor = meta.hasHarbor ? await tex(url + "harbor.png", false, false, V("harbor.png"), n) : blackTex, tFarm = FX.farm && meta.hasFarm ? await tex(url + "farm.png", false, false, V("farm.png"), n) : blackTex, tLand = landSet?.has(id) ? await tex(url + "land.png", false, false, { v: landVer }, n) : blackTex, aero = aeroSet.has(id) ? await loadAero(url, (u, s, m) => tex(u, s, m, { v: aeroSet.v || VER }, n), jv).catch(() => null) : null;
   if (!tiles.has(id)) return;
   t.meta = meta;
   t.tLand = tLand;
@@ -1234,7 +1241,7 @@ function hideUnderFar(t, on) {
 async function loadFar(id, fi, fj, lv = 1, rn = 0) {
   const L = lv > 1 ? FSL[lv] : null, M = L ? L.blockM : FAR_M, url = DATA + (L ? L.dir + "/" + id.slice(3) : "far/" + id) + "/", e0 = fi * M, n0 = fj * M, f = { id, fi, fj, e0, n0, lv, M, state: "loading", hide: new Array(16).fill(0) };
   fars.set(id, f);
-  const fjs = await json(url + "far.json"), V = (name) => vspec(fjs.files, name);
+  const fjs = await json(url + "far.json", null, L ? SV.far(L.dir, id.slice(3)) : SV.far("", id)), V = (name) => vspec(fjs.files, name);
   const [r, tSat, tMask] = await Promise.all([job("far", { ...L ? { url, n: 129, step: L.stepM, tol: 2.5 * L.stepM / 40, skirt: 120 * L.stepM / 40, cells: 1 } : { url, n: 129, step: 40 }, vf: { "terrain.bin": V("terrain.bin") }, rn }), tex(url + "sat.jpg", true, true, V("sat.jpg"), rn), tex(url + "mask.png", false, false, V("mask.png"), rn)]);
   if (!fars.has(id) || FS.on && fars.get(id) !== f) return;
   f.nU = NC.far ? { tNightR: { value: blackTex }, uNightRo: { value: new THREE.Vector3(0, 0, M) }, uNightK: { value: 0 } } : null;

@@ -9,6 +9,7 @@
 // 對工作區只讀：不寫檔、不改 git 狀態。
 import { mkdirSync, writeFileSync, rmSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { transform } from 'esbuild';
@@ -62,14 +63,53 @@ function patchMain(src) {
   return src;
 }
 
+// 網站道路使用 road-ribbons.mjs。上游修改道路時先比對兩邊，避免同步時覆寫新的畫法。
+function patchRoads(src) {
+  const from = src.indexOf('function roadRibbons('), to = src.indexOf('const buffers =', from);
+  if (from < 0 || to < from || createHash('sha256').update(src.slice(from, to)).digest('hex') !==
+      '679cec8389591fe6ae92f2b476202dae70de35c4006342df49e6f14921a09ec3') {
+    throw Error('上游道路網格已變動，請比對網站的 road-ribbons.mjs');
+  }
+  const withoutRibbons = src.slice(0, from) + src.slice(to);
+  const replacements = [
+    ["import { edgeRuns, edgeKeep, keepSpans } from './shared/deck-lines.mjs';", "import { roadRibbons } from '../road-ribbons.mjs';"],
+    ['deck, pier, side)), flat:', 'deck, pier, side, 0, roads.roads)), flat:'],
+    ['0, 0, rdMode))', '0, 0, rdMode, roads.roads))'],
+  ];
+  return replacements.reduce((text, [old, replacement]) => {
+    if (text.split(old).length !== 2) throw Error('tile.worker.js 道路入口對不到：' + old);
+    return text.replace(old, replacement);
+  }, withoutRibbons);
+}
+
+// 地標輪廓修正（landmark-fix.mjs）：tileData 讀完建物先改型別，buildOne 遇到這些型別交給網站畫
+function hook(src, file, pairs) {
+  return pairs.reduce((text, [old, replacement]) => {
+    if (text.split(old).length !== 2) throw Error(`${file} 地標入口對不到：${old}`);
+    return text.replace(old, () => replacement);
+  }, src);
+}
+const patchLandmarksTile = src => hook(src, 'tile.worker.js', [
+  ["import { roadRibbons } from '../road-ribbons.mjs';", "import { roadRibbons } from '../road-ribbons.mjs';\nimport { fixLandmarks } from '../landmark-fix.mjs';"],
+  ['await aeroDropBuildings(url, bj', 'fixLandmarks(bj); await aeroDropBuildings(url, bj'],
+]);
+const patchLandmarksBuildings = src => hook(src, 'buildings.worker.js', [
+  ["import { cvsCode } from './shared/cvs-look.mjs';", "import { cvsCode } from './shared/cvs-look.mjs';\nimport { LANDMARK_TYPES, buildLandmark } from '../landmark-fix.mjs';"],
+  ['function buildOne(b) {', 'function buildOne(b) {\n    if (LANDMARK_TYPES.has(b.type)) return buildLandmark(b, { quad, tri, box, vert, rgb, shade, THREE, Z4, WHITE, P_DECK, P_TILE, P_PLAIN });'],
+]);
+
+const patched = new Map([
+  ['main.js', patchMain(show(WEB + '/main.js').toString('utf8'))],
+  ['tile.worker.js', patchLandmarksTile(patchRoads(show(WEB + '/tile.worker.js').toString('utf8')))],
+  ['buildings.worker.js', patchLandmarksBuildings(show(WEB + '/buildings.worker.js').toString('utf8'))],
+]);
 if (existsSync(OUT)) rmSync(OUT, { recursive: true });
 let bytesIn = 0, bytesOut = 0;
 for (const [from, to] of FILES) {
   let buf = show(from); bytesIn += buf.length;
   const dest = path.join(OUT, to); mkdirSync(path.dirname(dest), { recursive: true });
   if (/\.(m?js)$/.test(to) && !to.startsWith('vendor/')) {
-    let src = buf.toString('utf8');
-    if (to === 'main.js') src = patchMain(src);
+    const src = patched.get(to) ?? buf.toString('utf8');
     const r = await transform(src, { loader: 'js', format: undefined, target: 'esnext', legalComments: 'none', charset: 'utf8' });
     buf = Buffer.from(r.code, 'utf8');
   }

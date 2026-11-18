@@ -1,11 +1,11 @@
 import * as THREE from "../vendor/three.module.js";
-import { JSON_INIT, hex16 } from "../shared/fetch-v.mjs";
+import { jget, hex16 } from "../shared/fetch-v.mjs";
 const black = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1);
 black.needsUpdate = true;
 export const AERO_KEY = "-aero2";
-export async function aeroIndex(DATA) {
+export async function aeroIndex(DATA, v) {
   try {
-    const r = await fetch(DATA + "aero-index.json", JSON_INIT);
+    const r = await jget(DATA + "aero-index.json", v);
     if (!r.ok) return /* @__PURE__ */ new Set();
     const s = await r.text(), j = JSON.parse(s), set = new Set(j.tiles || []);
     set.v = await hex16(s);
@@ -14,8 +14,8 @@ export async function aeroIndex(DATA) {
     return /* @__PURE__ */ new Set();
   }
 }
-export async function loadAero(url, tex) {
-  const [t, j] = await Promise.all([tex(url + "aero.png", false, false), fetch(url + "aero.json", JSON_INIT).then((r) => r.ok ? r.json() : null)]);
+export async function loadAero(url, tex, v) {
+  const [t, j] = await Promise.all([tex(url + "aero.png", false, false), jget(url + "aero.json", v).then((r) => r.ok ? r.json() : null)]);
   t.magFilter = t.minFilter = THREE.NearestFilter;
   t.generateMipmaps = false;
   return { tex: t, json: j, px: null };

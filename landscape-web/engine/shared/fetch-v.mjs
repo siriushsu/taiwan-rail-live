@@ -1,9 +1,41 @@
 export const VSHA = { on: true };
 export const JSON_INIT = { cache: "no-cache" };
+export const STALL = { ms: 2e4 };
+const NULL_BODY = /* @__PURE__ */ new Set([101, 204, 205, 304]);
+export async function fetchI(u, init) {
+  const ac = new AbortController();
+  let tm = 0;
+  const arm = () => {
+    clearTimeout(tm);
+    tm = setTimeout(() => ac.abort(Error(`${u} ${STALL.ms / 1e3} 秒沒有進度`)), STALL.ms);
+  };
+  arm();
+  try {
+    const r = await fetch(u, { ...init, signal: ac.signal }), rd = r.body?.getReader(), parts = [];
+    let n = 0;
+    if (rd) for (; ; ) {
+      arm();
+      const { done, value } = await rd.read();
+      if (done) break;
+      parts.push(value);
+      n += value.byteLength;
+    }
+    const buf = new Uint8Array(n);
+    let o = 0;
+    for (const p of parts) {
+      buf.set(p, o);
+      o += p.byteLength;
+    }
+    return new Response(NULL_BODY.has(r.status) ? null : buf, { status: r.status, statusText: r.statusText, headers: r.headers });
+  } finally {
+    clearTimeout(tm);
+  }
+}
 export const fspec = (files, name) => {
   const f = files?.[name];
   return f?.sha256 ? { v: f.sha256.slice(0, 16), bytes: f.bytes, sha: f.sha256 } : null;
 };
+export const jget = (u, v) => v ? fetchI(u + "?v=" + v) : fetchI(u, JSON_INIT);
 export const vurl = (u, spec, n = 0) => u + "?v=" + spec.v + (n > 0 ? "&r=" + n : "");
 export async function sha256hex(data) {
   const h = new Uint8Array(await crypto.subtle.digest("SHA-256", data));
@@ -46,7 +78,7 @@ export async function checkBuf(u, b, spec, st = null) {
   return b;
 }
 export async function fetchV(u, spec, n = 0, st = null) {
-  const r = await fetch(vurl(u, spec, n));
+  const r = await fetchI(vurl(u, spec, n));
   if (!r.ok) throw Error(u + " " + r.status);
   return checkBuf(u, await r.arrayBuffer(), spec, st);
 }

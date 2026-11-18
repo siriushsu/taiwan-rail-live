@@ -5,17 +5,18 @@ import { deckOf, sheetRoofOf, vhash } from "./shared/tw-variety.mjs";
 import { orientedBox, hash, wpick } from "./kit-building-appearance.js";
 import { aeroDropBuildings } from "./integration/airports-worker.js";
 import { seed, rnd } from "./kit-city-atlas.js";
-import { VSHA, JSON_INIT, fetchV } from "./shared/fetch-v.mjs";
-import { edgeRuns, edgeKeep, keepSpans } from "./shared/deck-lines.mjs";
+import { VSHA, fetchV, jget } from "./shared/fetch-v.mjs";
+import { roadRibbons } from "../road-ribbons.mjs";
+import { fixLandmarks } from "../landmark-fix.mjs";
 const cache = /* @__PURE__ */ new Map(), KEEP = 24;
 let shopIndex;
-const shopIndexOf = (url) => shopIndex ??= fetch(url.replace(/[^/]+\/$/, "") + "shopfronts-index.json", JSON_INIT).then((r) => r.ok ? r.json() : null).then((j) => j?.tiles ? new Set(j.tiles) : null).catch(() => null);
+const shopIndexOf = (url, v) => shopIndex ??= jget(url.replace(/[^/]+\/$/, "") + "shopfronts-index.json", v).then((r) => r.ok ? r.json() : null).then((j) => j?.tiles ? new Set(j.tiles) : null).catch(() => null);
 const shopFp = (bj) => `${bj.length}:${bj.reduce((s, b) => s + (b.rings?.[0]?.length || 0), 0)}:${bj[0]?.id || ""}:${bj[bj.length - 1]?.id || ""}`;
-async function shopfrontsOf(url) {
-  const idx = await shopIndexOf(url), id = url.match(/([^/]+)\/$/)?.[1];
+async function shopfrontsOf(url, vf = {}) {
+  const idx = await shopIndexOf(url, vf.ri?.["shopfronts-index.json"]), id = url.match(/([^/]+)\/$/)?.[1];
   if (!idx || !idx.has(id)) return null;
   try {
-    const r = await fetch(url + "shopfronts.json", JSON_INIT);
+    const r = await jget(url + "shopfronts.json", vf.j);
     return r.ok ? await r.json() : null;
   } catch {
     return null;
@@ -29,10 +30,11 @@ async function tileData(url, ph = null, vf = {}, rn = 0) {
     cache.set(key, t);
     return t;
   }
-  const f0 = performance.now(), [tb, bj, sf] = await Promise.all([fetchV(url + "terrain.bin", vf["terrain.bin"], rn, ph), fetch(url + "buildings.json", JSON_INIT).then((r) => r.json()), shopfrontsOf(url)]);
+  const f0 = performance.now(), [tb, bj, sf] = await Promise.all([fetchV(url + "terrain.bin", vf["terrain.bin"], rn, ph), jget(url + "buildings.json", vf.j).then((r) => r.json()), shopfrontsOf(url, vf)]);
   if (ph) ph.fetch = (ph.fetch || 0) + performance.now() - f0;
   t = { terrain: new Uint8Array(tb), buildings: bj, shopfronts: sf && sf.fp === shopFp(bj) && sf.b && sf.x ? sf : null };
-  await aeroDropBuildings(url, bj);
+  fixLandmarks(bj);
+  await aeroDropBuildings(url, bj, vf);
   cache.set(key, t);
   if (cache.size > KEEP) cache.delete(cache.keys().next().value);
   return t;
@@ -284,150 +286,6 @@ function farBuilding(b, ring, g, putX, idx, cur, far) {
   }
   for (const [i, j, k] of THREE.ShapeUtils.triangulateShape(ring.map((p) => new THREE.Vector2(p[0], p[1])), [])) idx.push(first + i, first + j, first + k);
 }
-function roadRibbons(roads, groundAt, lines = 1, farStep = 0, piers = [], deck = 1, pier = 1, sides = 1, flat = 0) {
-  const pos = [], nor = [], col = [], idx = [], fidx = [];
-  let n = 0;
-  const normalAt = (x, y, d = 6) => {
-    const hx = (groundAt(x + d, y) - groundAt(x - d, y)) / (2 * d), hy = (groundAt(x, y + d) - groundAt(x, y - d)) / (2 * d), l = Math.hypot(hx, hy, 1);
-    return [-hx / l, 1 / l, hy / l];
-  };
-  const add = (pts, width, lift, color, offset = 0, surf = false, side = false, edge = 0, cut = null) => {
-    const P = [], keep = [], wAt = (a, b, f) => a[3] > 0 ? a[3] + ((b[3] > 0 ? b[3] : a[3]) - a[3]) * f : 0;
-    for (let i = 0; i < pts.length - 1; i++) {
-      const a = pts[i], b = pts[i + 1], m = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 10));
-      for (let k = 0; k < m; k++) {
-        keep.push(k === 0);
-        P.push([a[0] + (b[0] - a[0]) * k / m, a[1] + (b[1] - a[1]) * k / m, deck ? (a[2] || 0) + ((b[2] || 0) - (a[2] || 0)) * k / m : 0, deck ? wAt(a, b, k / m) : 0]);
-      }
-    }
-    P.push([pts.at(-1)[0], pts.at(-1)[1], deck ? pts.at(-1)[2] || 0 : 0, deck ? wAt(pts.at(-1), pts.at(-1), 0) : 0]);
-    keep.push(true);
-    const c = color.map((v) => Math.round(v * 255)), vi = [];
-    const sP = side && cut ? [] : null;
-    if (sP) {
-      let sa = 0;
-      for (let i = 0; i < pts.length - 1; i++) {
-        const a = pts[i], b = pts[i + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]), m = Math.max(1, Math.ceil(L / 10));
-        for (let k = 0; k < m; k++) sP.push(sa + L * k / m);
-        sa += L;
-      }
-      sP.push(sa);
-    }
-    for (let i = 0; i < P.length; i++) {
-      const a = P[Math.max(0, i - 1)], b = P[Math.min(P.length - 1, i + 1)];
-      let dx = b[0] - a[0], dy = b[1] - a[1];
-      const l = Math.hypot(dx, dy) || 1;
-      dx /= l;
-      dy /= l;
-      const nx = -dy, ny = dx, q = normalAt(P[i][0], P[i][1]);
-      vi.push(n);
-      const wd = surf && P[i][3] > 0 ? P[i][3] : width, of = edge && P[i][3] > 0 ? edge * (P[i][3] / 2 - 0.35) : offset;
-      for (const s of [1, -1]) {
-        const x = P[i][0] + nx * (of + s * wd / 2), y = P[i][1] + ny * (of + s * wd / 2);
-        const up = P[i][2] > 0.3;
-        pos.push(x, groundAt(x, y) + lift + P[i][2], -y);
-        nor.push(up ? 0 : i8(q[0]), up ? 127 : i8(q[1]), up ? 0 : i8(q[2]), 0);
-        col.push(c[0], c[1], c[2], 255);
-      }
-      if (i > 0) {
-        const pv = vi[i - 1];
-        idx.push(pv, pv + 1, n + 1, pv, n + 1, n);
-      }
-      n += 2;
-      if (side && i > 0 && (P[i][2] > 0.3 || P[i - 1][2] > 0.3)) for (const s of [1, -1]) {
-        const A = [P[i - 1], P[i]].map((p, j) => {
-          const ww = p[3] > 0 ? p[3] : width, x = p[0] + nx * s * ww / 2, y = p[1] + ny * s * ww / 2, top = groundAt(x, y) + lift + p[2];
-          return [x, y, top];
-        });
-        const at = (f) => [A[0][0] + (A[1][0] - A[0][0]) * f, A[0][1] + (A[1][1] - A[0][1]) * f, A[0][2] + (A[1][2] - A[0][2]) * f];
-        for (const [f0, f1] of keepSpans(cut && cut[s], sP?.[i - 1], sP?.[i])) {
-          const m = n;
-          for (const [x, y, top] of [f0 === 0 ? A[0] : at(f0), f1 === 1 ? A[1] : at(f1)]) {
-            pos.push(x, top + 0.9, -y, x, top - 1.4, -y);
-            for (let k = 0; k < 2; k++) {
-              nor.push(i8(nx * s), 0, i8(-ny * s), 0);
-              col.push(150, 148, 142, 255);
-            }
-          }
-          idx.push(m, m + 1, m + 3, m, m + 3, m + 2, m, m + 3, m + 1, m, m + 2, m + 3);
-          n += 4;
-        }
-      }
-    }
-    if (surf && farStep > 0) {
-      let prev = 0;
-      for (let i = 1; i < P.length; i++) if (keep[i] || i - prev >= farStep) {
-        const A = vi[prev], B = vi[i];
-        fidx.push(A, A + 1, B + 1, A, B + 1, B);
-        prev = i;
-      }
-    }
-  };
-  const rank = { footway: 0, path: 0, steps: 0, cycleway: 0, track: 1, service: 2, pedestrian: 2, unknown: 2, living_street: 3, residential: 3, unclassified: 3, tertiary: 4, secondary: 5, primary: 6, trunk: 7, motorway: 7 }, R = (c) => rank[c] ?? 2;
-  const tone = (c) => R(c) === 0 ? [0.24, 0.23, 0.21] : R(c) === 1 ? [0.27, 0.24, 0.19] : R(c) <= 2 ? [0.13, 0.13, 0.13] : [0.085, 0.087, 0.092];
-  const PED = /^(footway|steps|cycleway|path|pedestrian|bridleway)$/;
-  if (flat) {
-    const toneF = (c) => R(c) <= 1 ? [0.24, 0.23, 0.21] : [0.095, 0.096, 0.1], sorted = [...roads].filter((r) => flat < 2 || R(r.cls) >= 2 && r.cls !== "service").sort((a, b) => R(a.cls) - R(b.cls));
-    const merged = flat !== 3 ? sorted : (() => {
-      const segs = [];
-      for (const r of sorted) if (R(r.cls) >= 5) for (let i = 0; i < r.pts.length - 1; i++) segs.push([r, r.pts[i], r.pts[i + 1]]);
-      return sorted.map((r) => {
-        if (R(r.cls) < 5) return r;
-        const out = [];
-        for (let i = 0; i < r.pts.length - 1; i++) {
-          const a = r.pts[i], b = r.pts[i + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, tx = (b[0] - a[0]) / L, ty = (b[1] - a[1]) / L, m = Math.max(1, Math.ceil(L / 10));
-          for (let k = 0; k <= m; k++) {
-            if (k === m && i < r.pts.length - 2) continue;
-            const x = a[0] + (b[0] - a[0]) * k / m, y = a[1] + (b[1] - a[1]) * k / m;
-            let best = 0;
-            for (const [o, p, q] of segs) {
-              if (o === r) continue;
-              const sx = q[0] - p[0], sy = q[1] - p[1], sl = Math.hypot(sx, sy) || 1;
-              if (Math.abs((sx * tx + sy * ty) / sl) < 0.94) continue;
-              const u = ((x - p[0]) * sx + (y - p[1]) * sy) / (sl * sl);
-              if (u < -0.05 || u > 1.05) continue;
-              const lat = (x - p[0] - sx * u) * -ty + (y - p[1] - sy * u) * tx;
-              if (Math.abs(lat) >= 4 && Math.abs(lat) <= 30 && (!best || Math.abs(lat) < Math.abs(best))) best = lat;
-            }
-            const d = -best / 2;
-            out.push([x - ty * d, y + tx * d, 0, best ? r.w + Math.abs(best) : 0]);
-          }
-        }
-        return { ...r, pts: out };
-      });
-    })();
-    for (const r of merged) add(r.pts, r.w, 0.3, toneF(r.cls), 0, true, false);
-    if ((flat === 1 || flat === 3) && lines) {
-      for (const r of merged) if (R(r.cls) >= 4 && r.w >= 8) add(r.pts, 0.3, 0.3, [0.78, 0.58, 0.08]);
-    }
-  } else
-    for (const r of [...roads].sort((a, b) => R(a.cls) - R(b.cls))) {
-      const k = R(r.cls);
-      add(r.pts, r.w, 0.1 + k * 0.012, tone(r.cls), 0, true, !!sides && !PED.test(r.cls), 0, r.edgeSkip ? { 1: edgeKeep(r, 1), "-1": edgeKeep(r, -1) } : null);
-      if (k >= 4 && lines) {
-        add(r.pts, 0.28, 0.24, [0.78, 0.58, 0.08]);
-        if (k >= 5) for (const o of [-1, 1]) for (const q of edgeRuns(r, o)) add(q, 0.16, 0.24, [0.8, 0.8, 0.78], o * (r.w / 2 - 0.35), false, false, o);
-      }
-    }
-  if (deck && pier) for (const [cx, cy, ux, uy, hw, h] of piers) {
-    const g = groundAt(cx, cy), top = g + 0.1 + h - 1.4, C = [[-1, -hw], [1, -hw], [1, hw], [-1, hw]].map(([u, v]) => [cx + ux * u - uy * v, cy + uy * u + ux * v]);
-    for (let k = 0; k < 4; k++) {
-      const A = C[k], Bq = C[(k + 1) % 4], ex = Bq[0] - A[0], ey = Bq[1] - A[1], el = Math.hypot(ex, ey) || 1, fx = ey / el, fy = -ex / el, m = n;
-      for (const [x, y] of [A, Bq]) {
-        pos.push(x, g - 0.5, -y, x, top, -y);
-        for (let j = 0; j < 2; j++) {
-          nor.push(i8(fx), 0, i8(-fy), 0);
-          col.push(140, 138, 132, 255);
-        }
-      }
-      idx.push(m, m + 2, m + 3, m, m + 3, m + 1);
-      n += 4;
-    }
-  }
-  const nMain = idx.length, nFar = fidx.length;
-  for (const v of fidx) idx.push(v);
-  return { pos: new Float32Array(pos), nor: new Int8Array(nor), col: new Uint8Array(col), idx: n > 65535 ? Uint32Array.from(idx) : Uint16Array.from(idx), n, nMain, nFar };
-}
 const buffers = (o) => {
   const out = [];
   const walk = (v) => {
@@ -460,20 +318,20 @@ const jobs = {
       ph[k] = (ph[k] || 0) + performance.now() - s;
       return r;
     };
-    const t0 = performance.now(), t = await tileData(url, ph, vf, rn), f0 = performance.now(), roads = await fetch(url + "roads.json", JSON_INIT).then((r) => r.json());
+    const t0 = performance.now(), t = await tileData(url, ph, vf, rn), f0 = performance.now(), roads = await jget(url + "roads.json", vf.j).then((r) => r.json());
     ph.fetch = (ph.fetch || 0) + performance.now() - f0;
     const grid = T("grid", () => buildGrid(decodeTerrain(t.terrain))), groundAt = (x, y) => gridAt(grid, x, y);
     t.roads = roads.context;
     const built = T("build", () => buildDetailed({ buildings: keepStyles(t.buildings, skip), roads: roads.context, groundAt, chunkSize: TILE_M / Math.max(1, chunk || 2), mode: 1, inner, shopfronts: t.shopfronts, fx3 }));
     if (rdMode > 0) {
       const up = (r) => r.pts.some((p) => p[2] > 0.3), flatRoads = roads.roads.filter((r) => !up(r));
-      return { buildings: built, roads: T("roads", () => roadRibbons(roads.roads.filter(up), groundAt, lines, farStep, roads.piers || [], deck, pier, side)), flat: T("roads", () => roadRibbons(flatRoads, groundAt, lines, 0, [], rdMode === 3 ? 1 : 0, 0, 0, rdMode)), h: grid.h, ms: performance.now() - t0, ph };
+      return { buildings: built, roads: T("roads", () => roadRibbons(roads.roads.filter(up), groundAt, lines, farStep, roads.piers || [], deck, pier, side, 0, roads.roads)), flat: T("roads", () => roadRibbons(flatRoads, groundAt, lines, 0, [], rdMode === 3 ? 1 : 0, 0, 0, rdMode, roads.roads)), h: grid.h, ms: performance.now() - t0, ph };
     }
     return { buildings: built, roads: T("roads", () => roadRibbons(roads.roads, groundAt, lines, farStep, roads.piers || [], deck, pier, side)), h: grid.h, ms: performance.now() - t0, ph };
   },
   async extras({ url, cx, cy, r, chunk = 2, skip = "", vf }) {
     const t = await tileData(url, null, vf);
-    if (!t.roads) t.roads = (await fetch(url + "roads.json", JSON_INIT).then((x) => x.json())).context;
+    if (!t.roads) t.roads = (await jget(url + "roads.json", vf.j).then((x) => x.json())).context;
     const grid = buildGrid(decodeTerrain(t.terrain));
     return buildDetailed({
       buildings: keepStyles(t.buildings, skip),

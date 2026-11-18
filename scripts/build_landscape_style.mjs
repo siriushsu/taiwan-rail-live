@@ -48,4 +48,22 @@ style.layers.splice(style.layers.findIndex(l=>l.id==='water')+1,0,{
   filter:style.layers.find(l=>l.id==='water').filter,
   paint:{'line-color':'#d8e5cc','line-width':['interpolate',['linear'],['zoom'],8,.3,15,1.4],'line-opacity':.65}
 });
+// 新地景接手後才開啟。沿既有圖源的道路放路名牌，有公路編號時一併顯示。
+const roadName = ['coalesce', ['get', 'name:zh-Hant'], ['get', 'name:zh'], ['get', 'name'], ''];
+const roadRef = ['coalesce', ['get', 'ref'], ''];
+style.layers.push({
+  id: 'landscape-road-signs', type: 'symbol', source: 'openmaptiles', 'source-layer': 'transportation_name', minzoom: 17,
+  filter: ['all', ['in', ['get', 'class'], ['literal', ['motorway', 'trunk', 'primary', 'secondary', 'tertiary']]],
+    ['any', ['!=', roadName, ''], ['!=', roadRef, '']]],
+  layout: {
+    visibility: 'none', 'symbol-placement': 'line', 'symbol-spacing': 1000, 'symbol-avoid-edges': false,
+    'text-field': ['case', ['==', roadName, ''], roadRef, ['any', ['==', roadRef, ''], ['==', roadName, roadRef]], roadName,
+      ['concat', roadRef, ' · ', roadName]],
+    'text-font': ['Noto Sans Regular'], 'text-size': 12, 'text-max-width': 14, 'text-padding': 55,
+    'text-pitch-alignment': 'viewport', 'text-rotation-alignment': 'viewport',
+    'icon-image': 'landscape-road-plate', 'icon-text-fit': 'both', 'icon-text-fit-padding': [3,6,3,6],
+    'icon-padding': 36, 'icon-pitch-alignment': 'viewport', 'icon-rotation-alignment': 'viewport',
+  },
+  paint: { 'text-color': '#ffffff' },
+});
 await writeFile(new URL('vendor/ofm-landscape.json',root),JSON.stringify(style,null,2)+'\n');

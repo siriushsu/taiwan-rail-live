@@ -426,8 +426,12 @@
        所以由 randBtn 的 ResizeObserver 量「地圖右緣到鈕右緣再留 16px」寫進 --attr-max;鈕藏起來時不寫,回到原本的寬度。
        一般底圖平常放得下,只有英文等較長的署名才會被限寬,放不下就換行(整段仍看得到)。 */
     .maplibregl-ctrl.maplibregl-ctrl-attrib { max-width: var(--attr-max, none); }
-    /* 地景多了來源署名，固定在右半側橫捲，留出中央隨機跟隨鈕。 */
-    .landscape-map .maplibregl-ctrl-attrib { max-width: min(calc(50vw - 90px), var(--attr-max, 100vw)); white-space: nowrap; overflow-x: auto; overflow-y: hidden; }
+  }
+  /* 電腦（不是手機殼、有滑鼠或觸控板）：署名列停在右下角隨機跟隨鈕的右邊，不捲、不截、不省略，最多兩行。寬度、字級由 fitAttrib() 量：
+     兩行放不下才把字縮小（每次 0.5px，最小 9px）。 */
+  .stage.attr-fit .maplibregl-ctrl.maplibregl-ctrl-attrib {
+    max-width: var(--attr-w); white-space: normal; overflow: visible; text-overflow: clip;
+    font-size: var(--attr-fs, 12px); line-height: calc(var(--attr-fs, 12px) * 5 / 3);
   }
   /* MapLibre 已經在正北且無俯角時不需要占一格；一旋轉或傾斜就立即現形成為回北出口。 */
   .maplibregl-map:not(.map-orient-active) .maplibregl-ctrl-compass { display: none; }
@@ -3861,8 +3865,6 @@
       max-width: 38vw; white-space: nowrap;
       overflow: hidden; text-overflow: ellipsis;
     }
-    /* 桌面窄視窗(901～1024)的隨機鈕仍是置中帶字的膠囊,英文較寬,38vw 不夠讓;再用量到的 --attr-max 夾一次(見 randBtn 的 ResizeObserver)。 */
-    body:not(.mobile-shell) .maplibregl-ctrl-attrib { max-width: min(38vw, var(--attr-max, 38vw)); }
   }
 
   /* ── 手機／觸控平板殼(議題1主案:上限 640→900;iPad/Android 平板改拿 tab bar＋「更多」抽屜＋速度膠囊,不再吃桌面帶) ──
@@ -5441,7 +5443,8 @@
 
     var h = new Date().getHours();
     try { h = +new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Taipei', hour: 'numeric', hourCycle: 'h23' }).format(new Date()) % 24; } catch (e) {}
-    // 夜景只給揭幕後地圖也是夜色的人：日夜光影開著才照真實時間（同 sunlightPreference：暗色外觀預設開、明亮外觀預設關，各自記住手動選擇）
+    // 揭幕後地圖會不會是夜色：日夜光影開著才照真實時間（同 sunlightPreference：暗色外觀預設開、明亮外觀預設關，各自記住手動選擇）。
+    // 挑片不看它：日景、夜景六段不分時段都會輪到，所以晚上播日景會接夜色地圖、白天播夜景會接日色地圖
     var dk = document.documentElement.getAttribute('data-theme') === 'dark', sp = null;
     try { sp = localStorage.getItem('trainmap-sunlight-v2' + (dk ? '-dark' : '-light')); } catch (e) {}
     R.night = (h >= 18 || h < 6) && (sp === '1' || (sp !== '0' && dk));
@@ -5451,7 +5454,7 @@
       var ls = localStorage;
       R.fresh = !['trainmap-device-id', 'trainmap-last-view', 'trainmap-howto-seen', 'trainmap-basemap'].some(function (k) { return ls.getItem(k) != null; });
     } catch (e) { R.fresh = true; }
-    R.pool = R.scenes.filter(function (s) { return !!s.night === R.night; });
+    R.pool = R.scenes; // 六段隨時輪流（只避開上次那段）
     var last = localStorage.getItem('ri-home-opening-last');
     var pick = R.pool.filter(function (s) { return s.id !== last; });
     if (!pick.length) pick = R.pool;
@@ -6046,7 +6049,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/11/18</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/11/19</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -6054,14 +6057,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="cksgate1119"><span class="d">11/19</span><span>電腦地景地圖的中正紀念堂：四周圍牆畫回白牆藍瓦，自由廣場牌樓改成五門藍瓦牌樓，不再像一排怪房子</span></li>
+        <li data-cl-of="openingmusic1119"><span class="d">11/19</span><span>電腦首頁開場的六段畫面不分白天晚上都會輪流出現；登入的人開場音樂不會再播到一半突然停掉</span></li>
+        <li data-cl-of="landscapeload1119"><span class="d">11/19</span><span>電腦地景地圖讀取更穩：圖磚卡住會自動重抓，不再整區停在模糊的遠景、換版後不會拿到舊資料；右下角的資料來源改成最多兩行，不再橫向捲動</span></li>
+        <li data-cl-of="surfaceroads1118"><span class="d">11/18</span><span>全台新版地景的道路沿原有路形轉彎，黃線在路口收住，高架橋的白線和護欄沿著橋邊走。放大主要道路還看得到路名牌</span></li>
         <li data-cl-of="homeopening1118"><span class="d">11/18</span><span>電腦直接打開首頁時，會先播一段全畫面開場（網站錄下的各地鐵道與列車，配上音樂），按任意鍵進入地圖；從分享連結進來直接看地圖。不想看可在「觀看」→「畫面」關掉「開場畫面」</span></li>
         <li data-cl-of="landscapeformal1118"><span class="d">11/18</span><span>電腦上的地景地圖改用新版全台地景（3D 地形、建物與夜景），不再標 Beta；跑不動的電腦會自動切回原本的地景。手機與平板暫時維持原本的地景</span></li>
         <li data-cl-of="trainsize1118"><span class="d">11/18</span><span>地圖上的立體列車預設改成「容易辨認」的正常大小；想看 Q 版可在「觀看」→「列車」→「列車大小」切換，之前選過的照舊</span></li>
         <li data-cl-of="landscapeweb1117"><span class="d">11/17</span><span>地景地圖的新版全台地景（3D 地形、建物與夜景）已放上網站做最後測試；這段期間畫面仍是原本的地景</span></li>
-        <li data-cl-of="qnoyield1114"><span class="d">11/14</span><span>Q 版列車停在站裡時不再往旁邊滑開，一直貼著軌道線；疊在一起的兩列改由前後層次分開</span></li>
-        <li data-cl-of="tymccrowd1113"><span class="d">11/13</span><span>桃園機場捷運的車站看板與跟車卡多了車廂擁擠度：四節車廂各一格、顏色表示鬆緊，資料取自桃園捷運官網的列車動態；對不上是哪一列車時留白</span></li>
-        <li data-cl-of="tragpsrun1113"><span class="d">11/13</span><span>台鐵列車在兩站之間的位置，改照校正懸賞錄到的實際行駛曲線來推（目前 95 條站間曲線），起步、進站的快慢更接近真車；還沒有實測的站間照舊用公式推算（謝謝幫忙錄程的島民）</span></li>
-        <li data-cl-of="garagenewcars1109"><span class="d">11/09</span><span>車庫新增 12 款車：EMU200、DR2800、S400、EMU400、0 系新幹線、總統花車等，各用 150 島民點數兌換</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -6095,6 +6098,9 @@
         <li data-cl="weatherapp1023"><span class="d">10/23</span><span>修正 App 颱風資訊整份重複顯示，改為各系統公告；補上新北環狀線、三鶯線 10/23 約 15 分鐘班距，淡海與安坑仍待確認</span></li>
         <li data-cl="weather1022"><span class="d">10/22</span><span>新增颱風期間全台鐵道營運提醒與官方來源，明確標示停駛、調整班距及待確認資訊；地圖有車不代表實際開行；開啟颱風公告時跟車卡暫時隱藏</span></li>
         <li class="grp">路網與車站</li>
+        <li data-cl="cksgate1119"><span class="d">11/19</span><span>電腦地景地圖的中正紀念堂：四周圍牆畫回白牆藍瓦，自由廣場牌樓改成五門藍瓦牌樓，不再像一排怪房子</span></li>
+        <li data-cl="landscapeload1119"><span class="d">11/19</span><span>電腦地景地圖讀取更穩：圖磚卡住會自動重抓，不再整區停在模糊的遠景、換版後不會拿到舊資料；右下角的資料來源改成最多兩行，不再橫向捲動</span></li>
+        <li data-cl="surfaceroads1118"><span class="d">11/18</span><span>全台新版地景的道路沿原有路形轉彎，黃線在路口收住，高架橋的白線和護欄沿著橋邊走。放大主要道路還看得到路名牌</span></li>
         <li data-cl="landscapeformal1118"><span class="d">11/18</span><span>電腦上的地景地圖改用新版全台地景（3D 地形、建物與夜景），不再標 Beta；跑不動的電腦會自動切回原本的地景。手機與平板暫時維持原本的地景</span></li>
         <li data-cl="trainsize1118"><span class="d">11/18</span><span>地圖上的立體列車預設改成「容易辨認」的正常大小；想看 Q 版可在「觀看」→「列車」→「列車大小」切換，之前選過的照舊</span></li>
         <li data-cl="landscapeweb1117"><span class="d">11/17</span><span>地景地圖的新版全台地景（3D 地形、建物與夜景）已放上網站做最後測試；這段期間畫面仍是原本的地景</span></li>
@@ -6574,6 +6580,7 @@
         <li><span class="d">7/21</span><span>手機大改版：打開就是全螢幕地圖，面板都住進底部；新增「捷」分頁，北中高捷運一張圖同框</span></li>
         <li><span class="d">7/13</span><span>新增「省電」模式（手機預設開啟）：降到 30fps；手機一次只開一個面板</span></li>
         <li class="grp">外觀與品牌</li>
+        <li data-cl="openingmusic1119"><span class="d">11/19</span><span>電腦首頁開場的六段畫面不分白天晚上都會輪流出現；登入的人開場音樂不會再播到一半突然停掉</span></li>
         <li data-cl="homeopening1118"><span class="d">11/18</span><span>電腦直接打開首頁時，會先播一段全畫面開場（網站錄下的各地鐵道與列車，配上音樂），按任意鍵進入地圖；從分享連結進來直接看地圖。不想看可在「觀看」→「畫面」關掉「開場畫面」</span></li>
         <li data-cl="buildinglook1031"><span class="d">10/31</span><span>3D 建築改成實心並加上光影與牆腳陰影；列車開到大樓後面時，樓上會開一扇窗讓你看到車，想看穿建築仍可打開「透視顯示」</span></li>
         <li data-cl="pendingstation0930"><span class="d">10/1</span><span>車站時刻表頁：中壢、埔心之間的平鎮臨時站要等官方公布英文站名後才會有頁面；在那之前每週更新班表時先略過它，其他車站照常更新</span></li>
@@ -7640,7 +7647,9 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1118b：電腦首頁開場各段改從網站本身錄（網站的立體列車、錄影當時刻的時刻表位置、非 Q 版）；多良換成蘭陽平原・龜山島；揭幕後落在臺北市區，沒記過地圖的開新地景、記過的照網站記的；「按任意鍵進入」不再等新地景的地形圖磚。網站列車大小預設改成「容易辨認」（選過的照舊）。開場開關仍關。
 // v1118c：電腦（跟首頁開場同一條 MQ）選「地景」改開新地景、地景鈕不標 Beta、跑不動的保底打開（等同 ?ls.auto=1；保底不再降像素比，用原本的像素比量、太慢就這次退回舊地景）；手機與平板照舊（舊地景、標 Beta，?landscape=new 才開新的）。
 // v1118d：電腦首頁開場打開給所有電腦訪客（HOME_OPENING_ON＝true）；其他條件不變（電腦 MQ、非 App、沒有深連結、尊重減少動態、設定關掉的不播）；自動化瀏覽器不帶 ?opening=1 不播。
-const BUILD = 'v1118d';
+// v1118e：全台地景道路沿圖資繪製，橋邊與標線接順，近景顯示路名牌。
+// v1119a：新地景圖磚請求停住 20 秒就中止重試、圖磚 JSON 帶 store.json 的版本號；首頁開場六段不分日夜輪流；電腦右下署名列留在原位最多兩行（新地景署名縮短、地形來源只列一次）；已登入者開場音樂不再被資格對齊換掉；併 Codex 道路（v1118e，未單獨上線）。
+const BUILD = 'v1119a';
 // v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 // 有播電腦首頁開場、又是第一次來（RI_HOME_OPENING.fresh）：揭幕後開新地景（開場影片就是新地景錄的）；只這一趟，不寫地景偏好
@@ -21997,7 +22006,9 @@ function musicReconcileMode() {
   if (key === m._effKey) return;
   const wasPaid = m._effKey && m._effKey.indexOf('free') !== 0;
   m._effKey = key;
-  musicApplyMode(null, {});
+  // 網站正在放的那首不換掉，只換接下來的清單（「絕不打斷正在播的曲子」）：已登入的人開頁後資格查詢才回來、第一次對齊就走到這裡，
+  // 原本會把開場正在放的歌換成另一首又不播，播到一半就沒聲音。App 的清單交給原生佇列，照舊立刻換。
+  musicApplyMode(null, { noLoad: !musicIsApp() && !m.audio.paused });
   // 退回免費要說一聲:音樂無聲換掉會被當成壞了。只在「付費→免費」那一次講。
   if (wasPaid && eff.kind === 'free' && m.enabled) showToast(t('通行證已到期,配樂回到隨機播放'));
   if (typeof musicPlSync === 'function') musicPlSync();   // 選單存在時同步顯示(Task 6 提供)
@@ -39452,13 +39463,19 @@ function glLandInstall() {
 // 署名:一般地圖=OFM(MapLibre 從 OFM 的 TileJSON 自動帶出「OpenFreeMap © OpenMapTiles Data from OpenStreetMap」,再推一份 OFM_ATTRIBUTION 會變兩行重複)、
 // 衛星=Esri(自訂 style 沒有來源署名,要自己給);離線陸地載入後永遠加內政部(法定要件,既有署名字串不變)。字串先過 t() 再交給控件,
 // 因為 MapLibre 的 AttributionControl 會在 sourcedata 時重寫 innerHTML,事後翻譯會被蓋回去。
+let glAttrNeedDtm = false, glAttrHooked = false;
 function glAttributionSync() {
   if (!M || !M.setAttribution) return;
   M.getContainer().classList.toggle('landscape-map', state.basemap === 'landscape');
   const list = [];
   if (state.basemap === 'sat' && satTokenState === 'ready' && satAttribution) list.push(satAttribution);
   if (glLand) list.push(t('臺灣輪廓：內政部'));
-  if (landscapeWebOn()) list.push(t('地景：地形＝內政部 20 m DTM（經 Mapterhorn）、影像＝Copernicus Sentinel-2、建物／道路／水域＝Overture Maps（© OpenStreetMap 貢獻者、東亞建物資料集 Shi 等 2023）、部分樓層＝臺北市建築執照套繪圖（臺北市建築管理工程處）'));
+  // 地形來源（rail-3d 的 terrain，加上後不會拿掉）自帶「© Mapterhorn · 內政部 20m DTM」：有它時地景這串不再寫地形，同一個來源只列一次；
+  // 還沒有它（3D 還沒掛上）時照舊寫，等它出現的 sourcedata 再同步一次。
+  const dtmShown = !!M.raw?.getSource?.('terrain');
+  glAttrNeedDtm = landscapeWebOn() && !dtmShown;
+  if (!glAttrHooked && M.raw) { glAttrHooked = true; M.raw.on('sourcedata', e => { if (glAttrNeedDtm && e.sourceId === 'terrain') glAttributionSync(); }); }
+  if (landscapeWebOn()) list.push(t(dtmShown ? '地景：Copernicus Sentinel-2、Overture Maps（© OpenStreetMap 貢獻者、Shi 等 2023）、臺北市建管處套繪圖' : '地景：內政部 20 m DTM（經 Mapterhorn）、Copernicus Sentinel-2、Overture Maps（© OpenStreetMap 貢獻者、Shi 等 2023）、臺北市建管處套繪圖'));
   M.setAttribution(list);
 }
 // MapLibre 引擎的衛星:整份 style=「background(海面色)+ z6 保底 raster + 主 raster」,離線陸地由 glLandInstall 在 style.load 插進 background 之上。
@@ -43789,9 +43806,30 @@ document.getElementById('tcDelayHist').onkeydown = e => boardRowKey(e, '#tcDelay
 document.getElementById('randBtn').onclick = () => state.autoTour ? nextTourTrain(undefined, true) : setAutoTour(true, true);
 // 右下的署名列要停在這顆置中鈕的右邊：鈕寬隨語言與字級變，量「地圖內緣右邊到鈕右緣再留 16px」寫給 CSS 的 --attr-max。
 // 鈕或地圖尺寸一變就重量(換語言、換字級、全畫面、視窗縮放)；鈕藏起來時拿掉，署名列回到原本的寬度。
+// 電腦的署名列另外交給 fitAttrib()：最多兩行、不捲不截（樣式見 .stage.attr-fit）。
 if (window.ResizeObserver) {
   const rb = document.getElementById('randBtn'), stageEl = document.querySelector('.stage');
+  let fitQ = 0, watched = null;
+  const fitAttrib = () => {
+    fitQ = 0;
+    const a = stageEl.querySelector('.maplibregl-ctrl-attrib'), vars = ['--attr-w', '--attr-fs'];
+    const off = () => { stageEl.classList.remove('attr-fit'); for (const k of vars) stageEl.style.removeProperty(k); };
+    if (!a) return;
+    // 盯右下角的控件容器，不盯署名元素本身：setAttribution 每次都換一顆新的署名控件，MapLibre 之後改寫的是新那顆的字（例如新地景露出、底圖署名拿掉）
+    const box = a.parentElement;
+    if (box && watched !== box) { watched = box; new MutationObserver(queueFit).observe(box, { childList: true, subtree: true, characterData: true }); } // 換底圖＝換署名
+    if (document.body.classList.contains('mobile-shell') || !matchMedia('(any-pointer: fine)').matches || a.classList.contains('maplibregl-compact') || !a.offsetWidth) return off();
+    const inner = a.querySelector('.maplibregl-ctrl-attrib-inner') || a, sr = stageEl.getBoundingClientRect(), cs = getComputedStyle(stageEl);
+    const right = sr.right - (parseFloat(cs.borderRightWidth) || 0), left = sr.left + (parseFloat(cs.borderLeftWidth) || 0), rr = rb.offsetWidth ? rb.getBoundingClientRect() : null;
+    const set = (w, fs) => { stageEl.style.setProperty('--attr-w', Math.floor(w) + 'px'); stageEl.style.setProperty('--attr-fs', fs + 'px'); };
+    const lines = () => Math.round(inner.getBoundingClientRect().height / (parseFloat(getComputedStyle(inner).lineHeight) || 18));
+    stageEl.classList.add('attr-fit');
+    const w = rr ? Math.max(120, right - rr.right - 16) : right - left - 20;
+    for (let fs = 12; fs >= 9; fs -= 0.5) { set(w, fs); if (lines() <= 2) return; }
+  };
+  const queueFit = () => { if (!fitQ) fitQ = requestAnimationFrame(fitAttrib); };
   const ro = new ResizeObserver(() => {
+    queueFit();
     if (!rb.offsetWidth) { stageEl.style.removeProperty('--attr-max'); return; }
     const inner = stageEl.getBoundingClientRect().right - (parseFloat(getComputedStyle(stageEl).borderRightWidth) || 0);
     stageEl.style.setProperty('--attr-max', Math.max(120, Math.floor(inner - rb.getBoundingClientRect().right - 16)) + 'px');

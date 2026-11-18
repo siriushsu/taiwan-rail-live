@@ -312,7 +312,24 @@ export function attach(map, { tilesBase, hour, date, params: extra = {}, onFail,
 
   // 底圖圖層藏起來／放回來（記住原本的 visibility，放回時照原樣）
   const hidden = new Map(); let sig = '';
-  const shouldHide = id => { const l = map.getLayer(id); if (!l || id === LAYER_ID) return false; if (HIDE_CUSTOM.has(id) || l.type === 'background') return true; return l.type !== 'custom' && BASEMAP_SOURCES.has(l.source); };
+  const signLayer = 'landscape-road-signs', plateImage = 'landscape-road-plate';
+  function syncSigns() {
+    if (!map.getLayer(signLayer)) return;
+    // 俯角很低時遠處的牌子會浮在山脊上，只在能看清路面的近景顯示。
+    const show = active && revealed && map.getZoom() >= 17 && map.getPitch() < 68;
+    if (show && !map.hasImage(plateImage)) {
+      const stamp = document.createElement('canvas'); stamp.width = stamp.height = 32;
+      const ctx = stamp.getContext('2d');
+      ctx.fillStyle = '#275349'; ctx.strokeStyle = '#d5e3d7'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.roundRect(1, 1, 30, 30, 6); ctx.fill(); ctx.stroke();
+      map.addImage(plateImage, ctx.getImageData(0, 0, 32, 32), {
+        pixelRatio: 2, stretchX: [[8, 24]], stretchY: [[8, 24]], content: [5, 5, 27, 27],
+      });
+    }
+    const wanted = show ? 'visible' : 'none';
+    if (map.getLayoutProperty(signLayer, 'visibility') !== wanted) map.setLayoutProperty(signLayer, 'visibility', wanted);
+  }
+  const shouldHide = id => { const l = map.getLayer(id); if (!l || id === LAYER_ID || id === signLayer) return false; if (HIDE_CUSTOM.has(id) || l.type === 'background') return true; return l.type !== 'custom' && BASEMAP_SOURCES.has(l.source); };
   // MapLibre 的地形網格每一格外圍有一圈往下垂的裙邊（terrain.getMeshFrameDelta，約地球周長／2^zoom／5 公尺，補相鄰圖磚的接縫），
   // 貼的是那一格貼圖邊緣的顏色。底圖不透明時裙邊被鄰格的地面蓋住；新地景把底圖藏掉後地形貼圖整片透明，貼在地形上的線
   // （跟車路線、GL 路線）跨過圖磚邊界的那一點就被裙邊往下拉成一條直條，沿著邊界走的線會拉成一整片。接手期間裙邊高度設 0
@@ -320,6 +337,7 @@ export function attach(map, { tilesBase, hour, date, params: extra = {}, onFail,
   const noSkirt = () => 0;
   function enforce() {
     if (!active || !revealed) return;
+    syncSigns();
     for (const id of map.getLayersOrder()) {
       if (!shouldHide(id)) continue;
       const v = map.getLayoutProperty(id, 'visibility') ?? 'visible';
@@ -329,6 +347,7 @@ export function attach(map, { tilesBase, hour, date, params: extra = {}, onFail,
     applyFade();
   }
   function restore() {
+    syncSigns();
     for (const [id, v] of hidden) if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', v); hidden.clear();
     if (map.terrain?.getMeshFrameDelta === noSkirt) delete map.terrain.getMeshFrameDelta;
     applyFade();

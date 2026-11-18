@@ -89,6 +89,12 @@ for (const [name, engine] of Object.entries({ chromium, webkit })) {
       const attr = await p.evaluate(() => document.querySelector('.maplibregl-ctrl-attrib-inner')?.textContent || '');
       check(`${name} 署名有地景來源`, attr.includes('Overture Maps') && attr.includes('Sentinel-2') && attr.includes('臺北市建築執照套繪圖'));
       // 換底圖：地景畫布收起、舊圖層放回；再切回來重新啟用
+      check(`${name} 拉遠時隱藏道路名牌`, (await vis(p, ['landscape-road-signs']))[0] === 'none');
+      await p.evaluate(() => M.raw.jumpTo({ center: [121.541435, 25.038204], zoom: 18.4, pitch: 18, bearing: 0 }));
+      await p.waitForFunction(() => M.raw.getLayer('landscape-road-signs') &&
+        M.raw.queryRenderedFeatures({ layers: ['landscape-road-signs'] }).some(f => f.properties.name || f.properties.ref),
+        null, { timeout: 30000 });
+      check(`${name} 放大道路顯示圖資中的路名或公路編號`, await p.evaluate(() => M.raw.hasImage('landscape-road-plate')));
       await p.evaluate(() => chooseBasemap('light')); await p.waitForFunction(() => M.getStyleKind() === 'light' && !railIslandLandscapeWeb.active, null, { timeout: 30000 });
       const back = await p.evaluate(() => ({ canvas: railIslandLandscapeWeb.canvas.style.display, layer: !!M.raw.getLayer('landscape-web'), bg: M.raw.getLayer('background') ? (M.raw.getLayoutProperty('background', 'visibility') ?? 'visible') : 'missing' }));
       check(`${name} 切到明亮地圖時收起新地景`, back.canvas === 'none' && !back.layer && back.bg === 'visible', JSON.stringify(back));

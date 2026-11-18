@@ -3,6 +3,7 @@ import { hash, pick, orientedBox, STYLES, ACCENT_WALLS, ROOF_TILE, REDBRICK_WALL
 import { HILL_STYLES } from "./shared/hill-styles.mjs";
 import { wallOf, deckOf, sheetRoofOf, addonWallOf } from "./shared/tw-variety.mjs";
 import { cvsCode } from "./shared/cvs-look.mjs";
+import { LANDMARK_TYPES, buildLandmark } from "../landmark-fix.mjs";
 import { BAY, FRAMES, CAGES, AWNINGS, SHUTTERS, DECKS, TANKS, TEMPLE_ROOFS, CAGE, CIVIC, seed, rnd } from "./kit-city-atlas.js";
 const colorCache = /* @__PURE__ */ new Map();
 const rgb = (hex) => {
@@ -218,6 +219,7 @@ export function buildDetailed({ buildings, roads, groundAt, chunkSize, mode = 0,
     for (const [i, j, k] of THREE.ShapeUtils.triangulateShape(pts, [])) for (const q of [ring[i], ring[j], ring[k]]) vert([q[0], q[1], z], [0, 0, 1], [q[0] * 0.25 + s, q[1] * 0.25, 0, 0], Z4, [P_DECK, 7, 0, 0], Z4, rgb("#a9aca8"), WHITE);
   }
   function buildOne(b) {
+    if (LANDMARK_TYPES.has(b.type)) return buildLandmark(b, { quad, tri, box, vert, rgb, shade, THREE, Z4, WHITE, P_DECK, P_TILE, P_PLAIN });
     if (b.type === "construction") return buildConstruction(b);
     if (b.type === "facility") return buildFacility(b);
     if (b.type === "canopy") return buildCanopy(b);

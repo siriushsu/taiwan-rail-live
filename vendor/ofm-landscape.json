@@ -3027,6 +3027,213 @@
         "text-halo-color": "#f5efdf",
         "text-halo-width": 1
       }
+    },
+    {
+      "id": "landscape-road-signs",
+      "type": "symbol",
+      "source": "openmaptiles",
+      "source-layer": "transportation_name",
+      "minzoom": 17,
+      "filter": [
+        "all",
+        [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "motorway",
+              "trunk",
+              "primary",
+              "secondary",
+              "tertiary"
+            ]
+          ]
+        ],
+        [
+          "any",
+          [
+            "!=",
+            [
+              "coalesce",
+              [
+                "get",
+                "name:zh-Hant"
+              ],
+              [
+                "get",
+                "name:zh"
+              ],
+              [
+                "get",
+                "name"
+              ],
+              ""
+            ],
+            ""
+          ],
+          [
+            "!=",
+            [
+              "coalesce",
+              [
+                "get",
+                "ref"
+              ],
+              ""
+            ],
+            ""
+          ]
+        ]
+      ],
+      "layout": {
+        "visibility": "none",
+        "symbol-placement": "line",
+        "symbol-spacing": 1000,
+        "symbol-avoid-edges": false,
+        "text-field": [
+          "case",
+          [
+            "==",
+            [
+              "coalesce",
+              [
+                "get",
+                "name:zh-Hant"
+              ],
+              [
+                "get",
+                "name:zh"
+              ],
+              [
+                "get",
+                "name"
+              ],
+              ""
+            ],
+            ""
+          ],
+          [
+            "coalesce",
+            [
+              "get",
+              "ref"
+            ],
+            ""
+          ],
+          [
+            "any",
+            [
+              "==",
+              [
+                "coalesce",
+                [
+                  "get",
+                  "ref"
+                ],
+                ""
+              ],
+              ""
+            ],
+            [
+              "==",
+              [
+                "coalesce",
+                [
+                  "get",
+                  "name:zh-Hant"
+                ],
+                [
+                  "get",
+                  "name:zh"
+                ],
+                [
+                  "get",
+                  "name"
+                ],
+                ""
+              ],
+              [
+                "coalesce",
+                [
+                  "get",
+                  "ref"
+                ],
+                ""
+              ]
+            ]
+          ],
+          [
+            "coalesce",
+            [
+              "get",
+              "name:zh-Hant"
+            ],
+            [
+              "get",
+              "name:zh"
+            ],
+            [
+              "get",
+              "name"
+            ],
+            ""
+          ],
+          [
+            "concat",
+            [
+              "coalesce",
+              [
+                "get",
+                "ref"
+              ],
+              ""
+            ],
+            " · ",
+            [
+              "coalesce",
+              [
+                "get",
+                "name:zh-Hant"
+              ],
+              [
+                "get",
+                "name:zh"
+              ],
+              [
+                "get",
+                "name"
+              ],
+              ""
+            ]
+          ]
+        ],
+        "text-font": [
+          "Noto Sans Regular"
+        ],
+        "text-size": 12,
+        "text-max-width": 14,
+        "text-padding": 55,
+        "text-pitch-alignment": "viewport",
+        "text-rotation-alignment": "viewport",
+        "icon-image": "landscape-road-plate",
+        "icon-text-fit": "both",
+        "icon-text-fit-padding": [
+          3,
+          6,
+          3,
+          6
+        ],
+        "icon-padding": 36,
+        "icon-pitch-alignment": "viewport",
+        "icon-rotation-alignment": "viewport"
+      },
+      "paint": {
+        "text-color": "#ffffff"
+      }
     }
   ],
   "name": "軌島・地景"

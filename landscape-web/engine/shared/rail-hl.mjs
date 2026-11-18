@@ -1,5 +1,5 @@
 import * as THREE from "../vendor/three.module.js";
-import { JSON_INIT } from "./fetch-v.mjs";
+import { jget } from "./fetch-v.mjs";
 const COLORS = [
   ["mrt", "文湖", "#C48C31"],
   ["mrt", "新北投", "#F48B9F"],
@@ -110,7 +110,7 @@ function ribbon(lines) {
   g.userData.verts = nv;
   return g;
 }
-export function createRailHl({ params, DATA, index, TILE_M, scene, origin, shared }) {
+export function createRailHl({ params, DATA, index, TILE_M, scene, origin, shared, jv }) {
   const code = params.get("railhl");
   if (!code || !STYLES[code]) return null;
   const S = { ...BASE, ...STYLES[code] };
@@ -190,7 +190,7 @@ export function createRailHl({ params, DATA, index, TILE_M, scene, origin, share
   });
   async function farFetch(id, i, j) {
     try {
-      const r = await fetch(DATA + id + "/rails.json", JSON_INIT);
+      const r = await jget(DATA + id + "/rails.json", jv?.(id));
       const rails = await r.json(), out = [];
       for (const tr of rails.tracks) {
         if (tr.service) continue;
