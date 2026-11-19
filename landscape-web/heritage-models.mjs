@@ -1,3 +1,4 @@
+import {modelHours,mapLightClock,lightModelScene} from '../rail-3d/environment/model-hours.js';
 // 區域圖磚與離島的精細廟體使用同一份近景屋面。近景模型到貨後交回原圖磚的深度與光照。
 import * as THREE from './engine/vendor/three.module.js';
 import {toTM2} from './engine/proj/tm2.mjs';
@@ -19,7 +20,7 @@ function makeHall(part,site,material){
   mesh.userData={ll,tm,tile:'E'+Math.floor(tm[0]/1280)+'_N'+Math.floor(tm[1]/1280)};
   return mesh;
 }
-export async function syncHeritageModels(map,kind,hour){
+export async function syncHeritageModels(map,kind){
   const sites=await heritageSites();
   // 等待清單期間，鏡頭或底圖都可能已切換。
   if(!map.getLayer('place-names') || kind()!=='landscape' || map.getZoom()<14){
@@ -45,14 +46,14 @@ export async function syncHeritageModels(map,kind,hour){
         sun.position.set(-1,2,.5);scene.add(sun,sky);
         const anchor=maplibregl.MercatorCoordinate.fromLngLat(site.center,0),u=anchor.meterInMercatorCoordinateUnits();
         const local=new THREE.Matrix4().set(u,0,0,anchor.x,0,0,u,anchor.y,0,u,0,anchor.z,0,0,0,1);
-        groups.push({site,scene,sun,sky,local});
+        groups.push({site,scene,sun,sky,local,hours:modelHours(site.id)});
       }
     },
     render(gl,args){
       const web=globalThis.railIslandLandscapeWeb,api=web?.active && web.revealed && web.api(),tiles=api?.tiles;
-      const day=Math.max(0,Math.min(1,Math.sin((hour()-6)*Math.PI/12)*3));
+      const clock=mapLightClock(globalThis.railIslandSunlight?.current);
       renderer.resetState();
-      for(const {site,scene,sun,sky,local} of groups){
+      for(const {site,scene,sun,sky,local,hours} of groups){
         let drawable=false;
         for(const m of scene.children){
           if(!m.isMesh)continue;
@@ -67,7 +68,7 @@ export async function syncHeritageModels(map,kind,hour){
           }
         }
         if(!drawable)continue;
-        sun.intensity=2*day;sky.intensity=.5+.9*day;
+        lightModelScene(sun,sky,hours,clock,2,1.4);
         camera.projectionMatrix.fromArray(args.defaultProjectionData.mainMatrix).multiply(local);
         renderer.render(scene,camera);
       }

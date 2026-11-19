@@ -91,6 +91,14 @@ function patchPlaces(src, pairs) {
   return src;
 }
 const placesMain = [
+  ['const stationLit = new Map()', 'const modelLights = createModelLights();\nconst stationLit = new Map()'],
+  ['if (NC.win &&', 'modelLights.setTime(h, twDate(), stationLitOn.v);\n  if (NC.win &&'],
+  ['function stationGroup(buf, lod) {', 'function stationGroup(buf, lod, site, parts) { const siteId=site.id;'],
+  ['for (const part of lod.drawGroups) {', 'for (const raw of parts) { const part = siteId === "taipei101-landmark-v1" && isWeekly(raw) ? {...raw, nightWeeklyHours:[12,23]} : raw;'],
+  ['() => stationGroup(buf, lod)', '() => modelLights.group(s, lod, parts => stationGroup(buf, lod, s, parts), stationSolid, stationGlass)'],
+  ['() => stationGroup(sb, st.near)', '() => modelLights.group(st, st.near, parts => stationGroup(sb, st.near, st, parts), stationSolid, stationGlass)'],
+  ['g.userData.bytes = pos.byteLength', 'let detailBytes = 0; if (siteId === "presidential-office") { const geometry=presidentialFacade(THREE,site.at[0]%TILE_M,site.at[1]%TILE_M,lod.origin[2],lod.file.endsWith(".near.bin")); addMesh(g,geometry,stationSolid).name="presidential-facade"; detailBytes=geomBytes(geometry); } g.userData.bytes = detailBytes + pos.byteLength'],
+  ['mats.has(o.material)', 'mats.has(modelLights.original(o.material))'],
   // 手機的跟車鏡頭會一直移動。即使每格都超時，也要持續上傳，並先顯示列車所在的地形。
   ['function drainStage() {', 'let lastUploadStep = -Infinity;\nfunction drainStage() {'],
   ['LIMIT.late > 0 && lastDt > 20)', 'LIMIT.late > 0 && lastDt > 20 && performance.now() - lastUploadStep < 50)'],
@@ -104,23 +112,23 @@ const placesMain = [
   ['new DataView(treeBuf), n = Math.floor(treeBuf.byteLength / 10 * LIMIT.trees)', 'withTunnelTrees(treeBuf, r.trees, LIMIT.trees), n = T.byteLength / 10'],
   ["const rd = await lampRoads;", "const [rd,tunnels] = await Promise.all([lampRoads,tunnelDetail(url)]);"],
   ["lampPositions(rd.roads, local", "lampPositions(surfaceRoads(rd.roads,tunnels), local"],
-  ['if (r.roads.n && P28.rd)', "if (r.temples?.n) { const m = addMesh(g,geom(r.temples),fieldMaterial,{cast:true}); m.name='temple-halls';bytes+=geomBytes(m.geometry); }\n  if (r.fields?.n) { const m = addMesh(g, geom(r.fields), fieldMaterial, { cast: false }); m.name = 'campus-sports'; bytes += geomBytes(m.geometry); }\n  if (r.roads.n && P28.rd)"],
+  ['if (r.roads.n && P28.rd)', "for (const hall of r.heritage||[]) { const mesh=addMesh(g,geom(hall),fieldMaterial,{cast:true});modelLights.bind(mesh,modelHours(hall.id));mesh.name='heritage-'+hall.id;bytes+=geomBytes(mesh.geometry); }\n  if (r.temples?.n) { const m = addMesh(g,geom(r.temples),fieldMaterial,{cast:true}); modelLights.bind(m, []); m.name='temple-halls';bytes+=geomBytes(m.geometry); }\n  if (r.fields?.n) { const m = addMesh(g, geom(r.fields), fieldMaterial, { cast: false }); m.name = 'campus-sports'; bytes += geomBytes(m.geometry); }\n  if (r.roads.n && P28.rd)"],
   ['const roadMat =', 'const fieldMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .97, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });\nconst roadMat ='],
 ];
 const placesWorker = [
-  ["import { roadRibbons }", "import { placeDetail, applyPlaceBuildings, fieldMesh, templeMesh } from '../places.mjs';\nimport { surfaceRoads } from '../tunnel-roads.mjs';\nimport { roadRibbons }"],
+  ["import { roadRibbons }", "import { placeDetail, applyPlaceBuildings, fieldMesh, templeMesh, reviewedTempleMeshes } from '../places.mjs';\nimport { surfaceRoads } from '../tunnel-roads.mjs';\nimport { roadRibbons }"],
   ['[tb, bj, sf] =', '[tb, bj, sf, detail] ='],
   ['t.roads = roads.context;', 'roads.roads = surfaceRoads(roads.roads,t.detail?.tunnels); t.roads = roads.context;'],
   ['t = { terrain: new Uint8Array(tb)', 't = { detail, terrain: new Uint8Array(tb)'],
   ['fixLandmarks(bj); await aeroDropBuildings', 'applyPlaceBuildings(bj, detail); fixLandmarks(bj); await aeroDropBuildings'],
-  ["const built = T('build'", "const fields = fieldMesh(t.detail, groundAt), temples=templeMesh(t.detail,groundAt); const built = T('build'"],
+  ["const built = T('build'", "const fields = fieldMesh(t.detail, groundAt), temples=templeMesh(t.detail,groundAt),heritage=reviewedTempleMeshes(t.detail,groundAt); const built = T('build'"],
 ];
 // near 的兩種路面模式都要帶回運動場。
 const placeJob = src => {
   if (src.split('return { buildings: built, roads:').length !== 3) throw Error('近景建物出口變更');
   const shop = src.includes('shopfrontsOf(url, vf)])') ? 'shopfrontsOf(url, vf)' : 'shopfrontsOf(url)';
   src = patchPlaces(src, [[shop+'])',shop+', placeDetail(url)])']]);
-  return patchPlaces(src, placesWorker).replaceAll('return { buildings: built, roads:', 'return { buildings: built, fields, temples, trees:t.detail?.tunnels?.trees, roads:');
+  return patchPlaces(src, placesWorker).replaceAll('return { buildings: built, roads:', 'return { buildings: built, fields, temples, heritage, trees:t.detail?.tunnels?.trees, roads:');
 };
 const placesFacades = [
   ['color = rgb(isMetal ? (b.style.roofMetal','color = rgb(b.sceneRoof || (isMetal ? (b.style.roofMetal'],
@@ -154,7 +162,7 @@ const patchLandmarksBuildings = src => hook(src, 'buildings.worker.js', [
 const patched = new Map([
   ['shared/fx3.mjs',patchLand(show(WEB+'/shared/fx3.mjs').toString('utf8'))],
   ['buildings.worker.js', patchLandmarksBuildings(patchPlaces(show(WEB + '/buildings.worker.js').toString('utf8'), placesFacades))],
-  ['main.js', "import { shadeRainGround, shadeRainRail, shadeRainSky, shareMist, weatherBudget } from '../follow-rain.mjs';\nimport { patchNightTexture } from '../night-tunnels.mjs';\nimport { tunnelDetail } from '../places.mjs';\nimport { surfaceRoads, withTunnelTrees } from '../tunnel-roads.mjs';\n" + patchPlaces(patchMain(show(WEB + '/main.js').toString('utf8')), placesMain)],
+  ['main.js', "import { presidentialFacade } from '../presidential-facade.mjs';\nimport { createModelLights } from '../model-lights.mjs';\nimport { modelHours } from '../../rail-3d/environment/model-hours.js';\nimport { shadeRainGround, shadeRainRail, shadeRainSky, shareMist, weatherBudget } from '../follow-rain.mjs';\nimport { patchNightTexture } from '../night-tunnels.mjs';\nimport { tunnelDetail } from '../places.mjs';\nimport { surfaceRoads, withTunnelTrees } from '../tunnel-roads.mjs';\n" + patchPlaces(patchMain(show(WEB + '/main.js').toString('utf8')), placesMain)],
   ['tile.worker.js', placeJob(patchLandmarksTile(patchRoads(show(WEB + '/tile.worker.js').toString('utf8'))))],
 ]);
 if (existsSync(OUT)) rmSync(OUT, { recursive: true });

@@ -51,7 +51,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   // 而被跳過（railHeight 回 null）才需要——不然平移過起伏地形時每片圖磚到貨都重建一次（實測半個畫面 5 次、每次 40～57ms）。
   const demRebuildWanted=()=>lastNear!==false||farMissing;
   const clearance=createRailClearance();
-  const terrainState={terrain:groundMode==='terrain',buildings:true,labels:true,stationInspection:false,stationInspectionAll:true,exaggeration:1};
+  const terrainState={landscape,terrain:groundMode==='terrain',buildings:true,labels:true,stationInspection:false,stationInspectionAll:true,exaggeration:1};
   const scene=new THREE.Scene(),camera=new THREE.Camera(),projection=new THREE.Matrix4(),deepProjection=new THREE.Matrix4(),anchor=ml.MercatorCoordinate.fromLngLat([121,24]),unit=anchor.meterInMercatorCoordinateUnits();
   const transform=new THREE.Matrix4().makeTranslation(anchor.x,anchor.y,0).scale(new THREE.Vector3(unit,-unit,unit));
   const cache=new Map(),pending=new Map(),models=new Map(),failed=new Set(),paths=new WeakMap(),motion=new Map(),formations=new WeakMap(),qModels=new WeakMap();
@@ -212,7 +212,8 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
   // 分段重建的狀態（見 startLines）。LINE_MARGIN＝原本近景建置範圍的外框（度）；BUILD_EXTEND＝再往外推畫面寬高的幾成。
   const LINE_SLICE_MS=6,LINE_MARGIN=.004,BUILD_EXTEND=.25,lineChannel=new MessageChannel();
   let lineJob=null,lineQueued=false,lineDeadline=Infinity,builtBox=null,haveLines=false,groundRev=-1;
-  function clearLines(){haveLines=false;stats.undergroundRailSegments=stats.buriedDepthSegments=stats.buriedHiddenSegments=0;reliefCells.clear();reliefPoints.clear();profileVertices=[];rails.set([]);undergroundRails.set([]);structures.set([],[]);apertures.set([]);}
+  let renderedPiers=[],checkPierGround=false,pierTileZoom=null;
+  function clearLines(){renderedPiers=[];haveLines=false;stats.undergroundRailSegments=stats.buriedDepthSegments=stats.buriedHiddenSegments=0;reliefCells.clear();reliefPoints.clear();profileVertices=[];rails.set([]);undergroundRails.set([]);structures.set([],[]);apertures.set([]);}
   // 遠景（raw zoom <14）的起伏地形：示意線形一樣走這個 3D 自訂層，不交給 MapLibre 的地形 RTT。
   // RTT 依距離把遠處換成低一、兩級的地形圖磚貼圖（pitch 62 時 z12→z11→z10→z9），同一條線一過圖磚
   // 交界就變粗變糊，交界連起來是圍著鏡頭的一圈；原生 R3dLines 也是全程 3D 畫線、靠深度到地平線。
@@ -311,7 +312,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     const railsReady=yield* rails.build(lineSegments,lineDue),buriedReady=yield* undergroundRails.build(buriedSegments,lineDue);
     if(lineDue())yield;
     // 換上：到這裡才清掉上一份（重建途中畫面照舊是上一份，不會一閃空白）
-    return ()=>{clearLines();profileVertices=pv;stats.buriedHiddenSegments=hidden;stats.buriedDepthSegments=depthN;railsReady();buriedReady();structuresReady();apertures.set(terrainState.terrain?portalGroups:[]);stats.undergroundRailSegments=buriedSegments.length;
+    return ()=>{clearLines();profileVertices=pv;stats.buriedHiddenSegments=hidden;stats.buriedDepthSegments=depthN;railsReady();buriedReady();structuresReady();renderedPiers=piers;checkPierGround=true;apertures.set(terrainState.terrain?portalGroups:[]);stats.undergroundRailSegments=buriedSegments.length;
     stats.railSegments=lineSegments.length;};
   }
   // 重建分段做：一次重建約兩百毫秒（沿線取高、生成橋墩隧道與剖面線），原本整段卡在一格裡，轉動、縮放時每 250 ms 一次＝操作時感覺到的卡頓。
@@ -329,6 +330,20 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     if(!r.done)return;
     lineJob=null;const c0=performance.now();r.value?.();haveLines=true;const commit=performance.now()-c0;job.ms+=commit;
     stats.lineBuildMs=+job.ms.toFixed(1);stats.lineBuildMaxMs=Math.max(stats.lineBuildMaxMs||0,stats.lineBuildMs);stats.lineBuildSlices=job.slices;stats.lineSliceMaxMs=+job.sliceMax.toFixed(1);stats.lineCommitMs=+commit.toFixed(1);
+  }
+  // 分段建置會跨過 DEM 換片。即將顯示的那份橋墩必須對到本幀的地面，
+  // 新幾何完成、圖磚到貨或取樣層級改變才核對；穩定畫面不用逐幀巡橋墩。
+  function alignPierGround(){
+    if(!terrainState.terrain||!frame||!renderedPiers.length)return;
+    const tileZoom=map.transform.tileZoom;
+    if(!checkPierGround&&tileZoom===pierTileZoom)return;
+    pierTileZoom=tileZoom;
+    const stale=renderedPiers.some(({coordinate,groundM})=>{
+      const current=terrainSample(coordinate);
+      return current===null||Math.abs(current-groundM)>.01;
+    });
+    if(stale)startLines(true);
+    checkPierGround=false;
   }
   function queueLines(){if(!lineQueued&&!disposed){lineQueued=true;lineChannel.port2.postMessage(0);}}
   lineChannel.port1.onmessage=()=>{lineQueued=false;if(disposed||!lineJob)return;try{stepLines(LINE_SLICE_MS);}catch(e){report(e);return;}if(lineJob)queueLines();else map.triggerRepaint();};
@@ -379,7 +394,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     routeKey=key;routeRefs=next.routes.map(r=>r.coordinates);dirty=true;
   }
   function update(next){if(!ready||disposed)return;frame=next;loadedCells.clear();
-    {const g=engineGround(),rev=g?g.rev:-1;if(rev!==groundRev){const swapped=(groundRev<0)!==(rev<0);groundRev=rev;if(swapped||demRebuildWanted())dirty=true;if(swapped){lastBuild=-Infinity;demRecovered();demWaitFrom=0;}}}
+    {const g=engineGround(),rev=g?g.rev:-1;if(rev!==groundRev){const swapped=(groundRev<0)!==(rev<0);groundRev=rev;checkPierGround=true;if(swapped||demRebuildWanted())dirty=true;if(swapped){lastBuild=-Infinity;demRecovered();demWaitFrom=0;}}}
     demWatch();syncZoomAnchor();
     if(clearance.update([...(next.clearanceRoutes||next.routes),...next.vehicles.filter(v=>!v.route?.physical).map(v=>v.route).filter(Boolean)]))stationLayer?.refresh();
     trees?.refresh();
@@ -564,6 +579,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
       render(gl,args){
         // DEM 在 MapLibre 本幀準備完成後才同步橋墩與車體，避免沿用前一幀地表。
         if(terrainRefreshPending&&terrainState.terrain&&frame&&!engineGround()&&Number.isFinite(terrainSample(map.getCenter().toArray()))){if(demRebuildWanted()){dirty=true;lastBuild=-Infinity;update(frame);}if(map.isSourceLoaded('terrain'))terrainRefreshPending=false;}
+        alignPierGround();
         const night=nightAmount(globalThis.railIslandSunlight?.current);ambientLight.intensity=1.9*(1-night*.7);sun.intensity=2*(1-night*.94);camera.projectionMatrix.copy(projection.fromArray(args.defaultProjectionData.mainMatrix).multiply(transform));deepenFar(deepProjection.copy(camera.projectionMatrix));updateModelScales();trainHalo.update(models,(c,h,deep)=>project(world(c,h),deep),viewW,viewH,frame?.display);structures.setVisible(map.getZoom()>=14);rails.setFade(map.railIslandDistanceFade);undergroundRails.setFade(map.railIslandDistanceFade);rails.render(viewW,viewH,routeWidth(map.getZoom()),terrainState.terrain||(map.getZoom()>=14&&frame?.routes.some(r=>r.physical||r.drawingRanges)),frame?.display?.dark,camera.projectionMatrix);webgl.resetState();camera.layers.enable(3);webgl.render(scene,camera);camera.layers.disable(3);stats.frames++;
         const lead=models.get(frame?.selectedVehicleId)?.cars?.[0],pad=map.getPadding();
         stats.headLockErrorPx=frame?.headLocked&&lead?Math.hypot(project(lead.position.toArray()).x-(viewW+pad.left-pad.right)/2,project(lead.position.toArray()).y-(viewH+pad.top-pad.bottom)/2):null;
@@ -630,7 +646,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     listenMap('sourcedata',e=>{if(terrainState.terrain&&e.sourceId==='terrain'&&(e.tile||e.sourceDataType==='content')&&!engineGround()){
       // 圖磚回來了就把退場歸零；本來已經退成平坦的話，順手要求重建，列車會回到起伏高度。
       demRecovered();demWaitFrom=0;
-      if(demRebuildWanted())dirty=true;terrainRefreshPending=true;}});
+      if(demRebuildWanted())dirty=true;checkPierGround=true;terrainRefreshPending=true;}});
     // 地形來源自己的載入錯誤（島內 DEM 圖磚讀壞、分片長度不符、連粗圖磚都取不到）。
     // 取消中的圖磚不算——平移縮放時 MapLibre 本來就會大量中止請求。
     listenMap('error',e=>{
@@ -711,7 +727,7 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
       },
       togglePitch(){const flat=map.getPitch()>0;map.jumpTo({pitch:flat?0:55});return flat;},
       syncLayerOrder(){orderBuildingPasses(map);},
-      setAppearance({buildings,dark,transparent,satellite=false,landscape=false}){dark=dark&&!landscape;terrainState.buildings=buildings;terrainState.stationSolidAppearance=(satellite||landscape)&&!transparent;terrainState.stationInspection=transparent;inspection=transparent;const look=globalThis.railIslandBuildingLooks?.[landscape?'landscape':dark&&!satellite?'dark':'light'];for(const id of ['building-3d','station-building-context'])if(map.getLayer(id)){if(look)map.setPaintProperty(id,'fill-extrusion-color',look.color);map.setPaintProperty(id,'fill-extrusion-opacity',transparent?.24:1);map.setLayoutProperty(id,'visibility',buildings?'visible':'none');}stationLayer?.refresh();},
+      setAppearance({buildings,dark,transparent,satellite=false,landscape=false}){dark=dark&&!landscape;terrainState.landscape=landscape;terrainState.buildings=buildings;terrainState.stationSolidAppearance=(satellite||landscape)&&!transparent;terrainState.stationInspection=transparent;inspection=transparent;const look=globalThis.railIslandBuildingLooks?.[landscape?'landscape':dark&&!satellite?'dark':'light'];for(const id of ['building-3d','station-building-context'])if(map.getLayer(id)){if(look)map.setPaintProperty(id,'fill-extrusion-color',look.color);map.setPaintProperty(id,'fill-extrusion-opacity',transparent?.24:1);map.setLayoutProperty(id,'visibility',buildings?'visible':'none');}stationLayer?.refresh();},
       alignment(){const h=hits.find(h=>h.v.followed);if(!h)return null;let closest=null;for(const a of profileVertices){for(let i=0;i<a.length;i+=6){const dx=a[i+3]-a[i],dy=a[i+4]-a[i+1],d=dx*dx+dy*dy,t=Math.max(0,Math.min(1,((h.p[0]-a[i])*dx+(h.p[1]-a[i+1])*dy)/(d||1))),p=[a[i]+dx*t,a[i+1]+dy*t,a[i+2]+(a[i+5]-a[i+2])*t],horizontal=Math.hypot(p[0]-h.p[0],p[1]-h.p[1]);if(!closest||horizontal<closest.horizontal)closest={horizontal,heightDelta:p[2]-h.p[2],vehicle:project(h.p),rail:project(p),p,train:h.p};}}return closest;},
       projectedRailSamples(){return profileVertices.flatMap(a=>{const out=[];for(let i=0;i<a.length;i+=6)out.push(project([(a[i]+a[i+3])/2,(a[i+1]+a[i+4])/2,(a[i+2]+a[i+5])/2]));return out;});},
       projectedModels(){return [...models].flatMap(([id,m])=>{if(!m.group?.visible)return [];const box=new THREE.Box3().setFromObject(m.group),points=[];for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z])points.push(project([x,y,z]));return [{id,width:Math.max(...points.map(p=>p.x))-Math.min(...points.map(p=>p.x)),height:Math.max(...points.map(p=>p.y))-Math.min(...points.map(p=>p.y))}];});},

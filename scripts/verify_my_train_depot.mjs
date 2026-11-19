@@ -243,8 +243,12 @@ async function honorPages(page, P, touch, has3d) {
   ok(P('[成就] 車隊成就:6 枚,獎勵是車庫佈置'), fl.items === 6 && /車庫佈置：招牌金字/.test(fl.text) && /車庫佈置之後才開放/.test(fl.text), js(fl).slice(0, 120));
   await press(page, `${PANEL} [data-a="achClose"]`, touch); await page.waitForTimeout(450);
   await chip(page, 3, touch);
-  await press(page, A('ach'), touch); await page.waitForTimeout(450);
-  ok(P('[成就] 路上沒有同款真車的車款寫清楚拿不到'), /這款車路上沒有同款真車，拿不到。/.test(await page.evaluate(() => document.querySelector('#mtDepot .md-panel').innerText)));
+  await press(page, A('ach'), touch);
+  // 等選中這一列的面板確實打開，避免在切頁動畫中讀到上一列的成就。
+  const fourthHonors = page.locator(PANEL).filter({ has: page.getByText('四號的成就', { exact: true }) });
+  await fourthHonors.waitFor({ state: 'visible' });
+  const description = await fourthHonors.innerText();
+  ok(P('[成就] 路上沒有同款真車的車款寫清楚拿不到'), description.includes('這款車路上沒有同款真車，拿不到。'), description.slice(0, 80));
   await press(page, `${PANEL} [data-a="achClose"]`, touch); await page.waitForTimeout(450);
   await press(page, A('back'), touch); await settle(page);
 }

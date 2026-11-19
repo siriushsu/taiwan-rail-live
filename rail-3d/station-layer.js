@@ -1,3 +1,4 @@
+import {modelHours,mapLightClock,lightModelScene} from './environment/model-hours.js';
 import {buildingCatalog,buildBlenderBuilding,inspectBlenderBuilding} from './blender-buildings.js';
 import * as THREE from './vendor/three.module.js';
 import {disposeStation} from './station-models.js';
@@ -13,8 +14,8 @@ export async function createStationLayer(map,getState,onUpdate=()=>{}, {assetsBa
     const features=footprint.type==='FeatureCollection'?footprint.features:[footprint],masks=features.map(f=>f.geometry.coordinates);
     const maskBounds=masks.map(r=>{const xs=r[0].map(p=>p[0]),ys=r[0].map(p=>p[1]);return [Math.min(...xs)-.00002,Math.min(...ys)-.00002,Math.max(...xs)+.00002,Math.max(...ys)+.00002];});
     const anchor=maplibre.MercatorCoordinate.fromLngLat(meta.anchor,0),s=anchor.meterInMercatorCoordinateUnits(),transform=new THREE.Matrix4().makeTranslation(anchor.x,anchor.y,0).scale(new THREE.Vector3(s,-s,s));
-    const scene=new THREE.Scene();scene.add(new THREE.AmbientLight(0xffffff,1.65));const sun=new THREE.DirectionalLight(0xfff3db,1.8);sun.position.set(-160,-260,500);scene.add(sun);
-    records.push({entry,meta,footprint,masks,maskBounds,scene,transform,imported,model:null,lastUsed:0,loading:null,retryAt:new Map(),
+    const scene=new THREE.Scene();const ambient=new THREE.AmbientLight(0xffffff,1.65);scene.add(ambient);const sun=new THREE.DirectionalLight(0xfff3db,1.8);sun.position.set(-160,-260,500);scene.add(sun);
+    records.push({sun,ambient,hours:modelHours(meta.id,meta.name),entry,meta,footprint,masks,maskBounds,scene,transform,imported,model:null,lastUsed:0,loading:null,retryAt:new Map(),
       stats:{id:meta.id,blender:true,ready:false,visible:false,inspection:false,groundM:null,displayHeightM:meta.displayHeightM,railElevationM:null,realBuildingHeightM:meta.realBuildingHeightM||null,meshes:0,triangles:0,masked:false,excludedFeatureIds:[],revision:0}});
   }
   records.sort((a,b)=>catalog.findIndex(e=>e.id===a.meta.id)-catalog.findIndex(e=>e.id===b.meta.id));
@@ -234,7 +235,7 @@ export async function createStationLayer(map,getState,onUpdate=()=>{}, {assetsBa
       renderer=new THREE.WebGLRenderer({canvas:map.getCanvas(),context:gl});renderer.autoClear=false;
       map.on('idle',schedule);map.on('moveend',viewChanged);map.on('sourcedata',sourceChanged);map.on('styledata',styleChanged);map.on('move',noteMove);refresh();
     },
-    render(gl,args){labelBounds=[];const canvas=map.getCanvas();for(const r of records)if(r.stats.visible&&r.model){camera.projectionMatrix.copy(projection.fromArray(args.defaultProjectionData.mainMatrix).multiply(r.transform));renderer.resetState();renderer.render(r.scene,camera);
+    render(gl,args){labelBounds=[];const clock=mapLightClock(getState().landscape ? globalThis.railIslandSunlight?.current : null);const canvas=map.getCanvas();for(const r of records)if(r.stats.visible&&r.model){lightModelScene(r.sun,r.ambient,r.hours,clock,1.8,1.65);camera.projectionMatrix.copy(projection.fromArray(args.defaultProjectionData.mainMatrix).multiply(r.transform));renderer.resetState();renderer.render(r.scene,camera);
       const points=[];for(const x of [r.labelBox.min.x,r.labelBox.max.x])for(const y of [r.labelBox.min.y,r.labelBox.max.y])for(const z of [r.labelBox.min.z,r.labelBox.max.z]){const p=new THREE.Vector3(x,y,z+r.stats.groundM).applyMatrix4(camera.projectionMatrix);if(p.z>=-1&&p.z<=1)points.push({x:(p.x+1)*canvas.clientWidth/2,y:(1-p.y)*canvas.clientHeight/2});}
       if(points.length){const xs=points.map(p=>p.x),ys=points.map(p=>p.y),x=Math.min(...xs),y=Math.min(...ys);labelBounds.push({id:r.meta.id,x,y,width:Math.max(...xs)-x,height:Math.max(...ys)-y});}
     }},

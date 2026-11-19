@@ -50,7 +50,7 @@ export function attach(map, { tilesBase, hour, date, weather, params: extra = {}
   const size = { w: container.clientWidth || 1, h: container.clientHeight || 1 }, resizeFns = [];
   new ResizeObserver(() => { const w = container.clientWidth, h = container.clientHeight; if (!w || !h || (w === size.w && h === size.h)) return; size.w = w; size.h = h; for (const f of resizeFns) f(); }).observe(container);
 
-  let mainMatrix = null, api = null, active = false, failed = false, lastHour = -Infinity, lastStatus = '';
+  let mainMatrix = null, api = null, active = false, failed = false, lastMinute = -1, lastStatus = '';
   // 第一次切進來時，舊底圖先留著蓋在上面，等新地景這個視角的圖磚到齊（或等太久）才藏掉舊底圖：載入那十幾秒畫面不會只剩路線。
   let revealed = false, activeSince = 0, settledSince = 0, settledCount = -1;
   const REVEAL_MAX_MS = 25000, REVEAL_SETTLE_MS = 800;
@@ -197,8 +197,9 @@ export function attach(map, { tilesBase, hour, date, weather, params: extra = {}
   function draw() {
     if (!api || !active || !mainMatrix) return;
     // 網站時刻／日期 → engine 的太陽、月亮與夜景（engine 每次 setTime 都重讀 params 的 date）
-    const d = date?.(); if (d && d !== params.get('date')) { params.set('date', d); lastHour = -Infinity; }
-    const h = hour(); if (!(Math.abs(h - lastHour) <= 1 / 60)) { lastHour = h; api.setTime(h); }
+    const d = date?.(); if (d && d !== params.get('date')) { params.set('date', d); lastMinute = -1; }
+    const h = hour(), minute = Math.floor(h * 60);
+    if (minute !== lastMinute) { lastMinute = minute; api.setTime(h); }
     // 這一格要的圖磚範圍與層級（schedule 每 250 ms 看一次 view）：畫面中心＋鏡頭到中心的距離、方位、俯角，都從真的鏡頭算
     const { view, origin, camera } = api, { cam, Er, Nr } = solve(origin);
     const ty = api.groundAt(Er, Nr), dx = cam[0] - (Er - origin.e), dy = cam[1] - ty, dz = cam[2] + (Nr - origin.n), dist = Math.hypot(dx, dy, dz);

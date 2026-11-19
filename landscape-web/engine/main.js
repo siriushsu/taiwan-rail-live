@@ -1,3 +1,6 @@
+import { presidentialFacade } from "../presidential-facade.mjs";
+import { createModelLights } from "../model-lights.mjs";
+import { modelHours } from "../../rail-3d/environment/model-hours.js";
 import { shadeRainGround, shadeRainRail, shadeRainSky, shareMist, weatherBudget } from "../follow-rain.mjs";
 import { patchNightTexture } from "../night-tunnels.mjs";
 import { tunnelDetail } from "../places.mjs";
@@ -376,6 +379,7 @@ function setTime(h) {
       w.m.emissive.setRGB(...weeklyColor(w, h));
     }
   }
+  modelLights.setTime(h, twDate(), stationLitOn.v);
   if (NC.win && night > 0 !== facadeNightProg) {
     facadeNightProg = night > 0;
     for (const m of /* @__PURE__ */ new Set([facade?.material, facadeMat, facadeFarMat])) if (m) m.needsUpdate = true;
@@ -597,6 +601,7 @@ const makeTreeGeo = (detail) => {
 };
 const treeLo = makeTreeGeo(0), treeHi = coarse ? treeLo : makeTreeGeo(1), sharedGeo = /* @__PURE__ */ new Set([treeLo, treeHi]);
 const stationSolid = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.05, roughness: 0.62, side: THREE.DoubleSide }), stationGlass = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.25, roughness: 0.3, side: THREE.DoubleSide });
+const modelLights = createModelLights();
 const stationLit = /* @__PURE__ */ new Map(), stationLitOn = { v: 0 };
 const BLOOM_ON = (params.has("nbloom") ? params.get("nbloom") === "1" : !coarse && params.get("n64") !== "0") || FX2.bloom, LIT_GAIN = BLOOM_ON ? 1 : 1.6, WEEK_GAIN = BLOOM_ON ? 1 : 0.7;
 const stationLitMat = (e) => {
@@ -628,9 +633,11 @@ const stationWeeklyMat = (part) => {
   return w.m;
 };
 const isWeekly = (part) => Array.isArray(part.nightEmissiveWeekly) && part.nightEmissiveWeekly.length === 7;
-function stationGroup(buf, lod) {
+function stationGroup(buf, lod, site, parts) {
+  const siteId = site.id;
   const { pos, nor, index: index2 } = decodeStation(buf, lod), n = lod.vertexCount, col = new Float32Array(n * 3), solid = [], glass = [], lit = /* @__PURE__ */ new Map(), wk = /* @__PURE__ */ new Map();
-  for (const part of lod.drawGroups) {
+  for (const raw of parts) {
+    const part = siteId === "taipei101-landmark-v1" && isWeekly(raw) ? { ...raw, nightWeeklyHours: [12, 23] } : raw;
     const e = Array.isArray(part.nightEmissive) && part.nightEmissive.length === 3 ? part.nightEmissive : null, list = isWeekly(part) ? wk.get(part) || wk.set(part, []).get(part) : e ? lit.get(e.join(",")) || lit.set(e.join(","), []).get(e.join(",")) : part.metalness > 0.15 ? glass : solid;
     for (let i = part.start; i < part.start + part.count; i++) {
       const v = index2[i];
@@ -652,7 +659,13 @@ function stationGroup(buf, lod) {
     bg.setIndex(new THREE.BufferAttribute(n > 65535 ? new Uint32Array(list) : new Uint16Array(list), 1));
     addMesh(g, bg, mat).frustumCulled = !!P24.stnCull;
   }
-  g.userData.bytes = pos.byteLength + nor.byteLength + col.byteLength + lod.indexCount * (n > 65535 ? 4 : 2);
+  let detailBytes = 0;
+  if (siteId === "presidential-office") {
+    const geometry = presidentialFacade(THREE, site.at[0] % TILE_M, site.at[1] % TILE_M, lod.origin[2], lod.file.endsWith(".near.bin"));
+    addMesh(g, geometry, stationSolid).name = "presidential-facade";
+    detailBytes = geomBytes(geometry);
+  }
+  g.userData.bytes = detailBytes + pos.byteLength + nor.byteLength + col.byteLength + lod.indexCount * (n > 65535 ? 4 : 2);
   return g;
 }
 facade = createFacade(renderer, { coarse, glass: { a: 1, b: 2 }[params.get("glass")] || 0, pane: FX.glassR === 2 ? "color" : !!FX.glassR, nwin: NC.win, nroom: NC.room, fx: P79 ? P79W ? "full" : "lite" : false });
@@ -976,7 +989,7 @@ async function loadTile(id, ti, tj, n = 0) {
   });
   t.stations = [];
   for (const s of P24.stn ? stations : []) {
-    const lod = s.lods.far || s.lods.near, buf = await bin(url + lod.file, V(lod.file), n), g = tm("tile.station", () => stationGroup(buf, lod));
+    const lod = s.lods.far || s.lods.near, buf = await bin(url + lod.file, V(lod.file), n), g = tm("tile.station", () => modelLights.group(s, lod, parts => stationGroup(buf, lod, s, parts), stationSolid, stationGlass));
     t.group.add(g);
     t.stations.push({ id: s.id, name: s.name, far: g, near: s.lods.far && !P24.stnFar ? s.lods.near : null, at: s.at });
   }
@@ -1051,11 +1064,12 @@ async function loadNear(t, rn = 0) {
     }
     for(const hall of r.heritage||[]){
       const mesh=addMesh(g,geom(hall),fieldMaterial,{cast:true});
+      modelLights.bind(mesh, modelHours(hall.id));
       mesh.name="heritage-"+hall.id;
       bytes+=geomBytes(mesh.geometry);
     }
     if (r.temples?.n) {
-    const m = addMesh(g,geom(r.temples),fieldMaterial,{cast:true}); m.name="temple-halls";bytes+=geomBytes(m.geometry);
+    const m = addMesh(g,geom(r.temples),fieldMaterial,{cast:true}); modelLights.bind(m, []); m.name="temple-halls";bytes+=geomBytes(m.geometry);
   }
   if (r.fields?.n) {
       const m = addMesh(g, geom(r.fields), fieldMaterial, { cast: false });
@@ -1106,7 +1120,7 @@ async function loadNear(t, rn = 0) {
   try {
     for (const st of t.stations) {
       if (!st.near) continue;
-      const sb = await bin(url + st.near.file, V(st.near.file), rn), sg = tm("near.station", () => stationGroup(sb, st.near));
+      const sb = await bin(url + st.near.file, V(st.near.file), rn), sg = tm("near.station", () => modelLights.group(st, st.near, parts => stationGroup(sb, st.near, st, parts), stationSolid, stationGlass));
       g.add(sg);
       st.nearG = sg;
       bytes += sg.userData.bytes;
@@ -1999,7 +2013,7 @@ function hsKey() {
 function hsCasters() {
   const mats = new Set([simpleMat, facadeMat, facade.material, facadeFarMat, stationSolid, ...stationLit.values()].filter(Boolean)), out = [];
   for (const t of tiles.values()) if (t.state === "ready") t.group.traverse((o) => {
-    if (o.isMesh && !o.isInstancedMesh && o.visible && o.layers.isEnabled(0) && (mats.has(o.material) || o === t.structMesh)) out.push(o);
+    if (o.isMesh && !o.isInstancedMesh && o.visible && o.layers.isEnabled(0) && (mats.has(modelLights.original(o.material)) || o === t.structMesh)) out.push(o);
   });
   return out;
 }

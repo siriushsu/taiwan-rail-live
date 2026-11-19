@@ -1,3 +1,4 @@
+import {modelHours,mapLightClock,lightModelScene} from '../rail-3d/environment/model-hours.js';
 // 實際中心點與高度來自 OSM。車廂數：三井台中港開幕專刊、麗寶天空之夢票券介紹。
 // https://www.mop.com.tw/taichung/teaser/assets/pdf/MITSUI-OUTLET-PARK1102.pdf
 // https://www.lihpaoresort.com/Shop/Ticket/details/2200100019
@@ -88,7 +89,7 @@ function release(model) {
 }
 
 // 在同一個 WebGL 深度緩衝區放置地景模型，移出視野即釋放網格。
-export function syncPlaceModel(map, kind, hour) {
+export function syncPlaceModel(map, kind) {
   const c=map.getCenter(),z=map.getZoom();
   const site=kind==='landscape' && [station,buddha,...wheels].find(v=>z>=(v===station?15:14) &&
     Math.abs(c.lng-v.ll[0])<.035 && Math.abs(c.lat-v.ll[1])<.035);
@@ -99,6 +100,7 @@ export function syncPlaceModel(map, kind, hour) {
   const id=site?.layerId||wheelLayerId;
   if(!site || map.getLayer(id) || !map.getLayer('place-names')) return;
   let renderer,model,scene,camera,sun,ambient,removed=false;
+  const hours=modelHours(site.name);
   const matrix=new THREE.Matrix4();
   const layer={id,type:'custom',renderingMode:'3d',modelName:site.name,ready:false,
     onAdd(_,gl){
@@ -119,8 +121,7 @@ export function syncPlaceModel(map, kind, hour) {
       const anchor=maplibregl.MercatorCoordinate.fromLngLat(site.ll,altitude),u=anchor.meterInMercatorCoordinateUnits();
       matrix.set(u,0,0,anchor.x, 0,0,u,anchor.y, 0,u,0,anchor.z, 0,0,0,1);
       camera.projectionMatrix.fromArray(args.defaultProjectionData.mainMatrix).multiply(matrix);
-      const daylight=Math.max(0,Math.min(1,Math.sin((hour()-6)*Math.PI/12)*3));
-      sun.intensity=daylight*2;ambient.intensity=.55+.8*daylight;
+      lightModelScene(sun,ambient,hours,mapLightClock(globalThis.railIslandSunlight?.current),2,1.35);
       renderer.resetState();renderer.render(scene,camera);renderer.resetState();
     },
     onRemove(){removed=true;release(model);renderer.dispose();},
