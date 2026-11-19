@@ -428,11 +428,13 @@
     .maplibregl-ctrl.maplibregl-ctrl-attrib { max-width: var(--attr-max, none); }
   }
   /* 電腦（不是手機殼、有滑鼠或觸控板）：署名列停在右下角隨機跟隨鈕的右邊，不捲、不截、不省略，最多兩行。寬度、字級由 fitAttrib() 量：
-     兩行放不下才把字縮小（每次 0.5px，最小 9px）。 */
+     兩行放不下才把字縮小（每次 0.5px，最小 9px）；縮到 9px 還放不下就收成 ⓘ 鈕（點開看全文）。 */
   .stage.attr-fit .maplibregl-ctrl.maplibregl-ctrl-attrib {
     max-width: var(--attr-w); white-space: normal; overflow: visible; text-overflow: clip;
     font-size: var(--attr-fs, 12px); line-height: calc(var(--attr-fs, 12px) * 5 / 3);
   }
+  /* 收成 ⓘ 時 MapLibre 用 content-box 再加左右內距，點開會比 --attr-w 寬而壓到隨機鈕；改算進寬度裡 */
+  .stage.attr-fit .maplibregl-ctrl-attrib.maplibregl-compact { box-sizing: border-box; }
   /* MapLibre 已經在正北且無俯角時不需要占一格；一旋轉或傾斜就立即現形成為回北出口。 */
   .maplibregl-map:not(.map-orient-active) .maplibregl-ctrl-compass { display: none; }
 
@@ -6064,7 +6066,7 @@
         <li data-cl-of="places1119"><span class="d">11/19</span><span>地景補上廟宇、校園、百貨、圖書館與遊具。政大跑道恢復藍色，隧道進山，墓地白格也已移除。「觀看 → 視角」可從多良、牡丹、彰化與鹿野取景</span></li>
         <li data-cl-of="cksgate1119"><span class="d">11/19</span><span>電腦地景地圖的中正紀念堂：四周圍牆畫回白牆藍瓦，自由廣場牌樓改成五門藍瓦牌樓，不再像一排怪房子</span></li>
         <li data-cl-of="openingmusic1119"><span class="d">11/19</span><span>電腦首頁開場的六段畫面不分白天晚上都會輪流出現；登入的人開場音樂不會再播到一半突然停掉</span></li>
-        <li data-cl-of="landscapeload1119"><span class="d">11/19</span><span>電腦地景地圖讀取更穩：圖磚卡住會自動重抓，不再整區停在模糊的遠景、換版後不會拿到舊資料；右下角的資料來源改成最多兩行，不再橫向捲動</span></li>
+        <li data-cl-of="landscapeload1119"><span class="d">11/19</span><span>電腦地景地圖讀取更穩：圖磚卡住會自動重抓，不再整區停在模糊的遠景、換版後不會拿到舊資料；右下角的資料來源改成最多兩行，不再橫向捲動；來源多到放不下時收成 ⓘ 鈕，點一下看全文</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -6103,7 +6105,7 @@
         <li data-cl="heritagetemples1119"><span class="d">11/19</span><span>地景補上 29 間古蹟廟宇，依實景重畫各殿位置、天井與屋頂，從彰化孔廟到金門奎閣都能拉近看</span></li>
         <li data-cl="places1119"><span class="d">11/19</span><span>地景補上廟宇、校園、百貨、圖書館與遊具。政大跑道恢復藍色，隧道進山，墓地白格也已移除。「觀看 → 視角」可從多良、牡丹、彰化與鹿野取景</span></li>
         <li data-cl="cksgate1119"><span class="d">11/19</span><span>電腦地景地圖的中正紀念堂：四周圍牆畫回白牆藍瓦，自由廣場牌樓改成五門藍瓦牌樓，不再像一排怪房子</span></li>
-        <li data-cl="landscapeload1119"><span class="d">11/19</span><span>電腦地景地圖讀取更穩：圖磚卡住會自動重抓，不再整區停在模糊的遠景、換版後不會拿到舊資料；右下角的資料來源改成最多兩行，不再橫向捲動</span></li>
+        <li data-cl="landscapeload1119"><span class="d">11/19</span><span>電腦地景地圖讀取更穩：圖磚卡住會自動重抓，不再整區停在模糊的遠景、換版後不會拿到舊資料；右下角的資料來源改成最多兩行，不再橫向捲動；來源多到放不下時收成 ⓘ 鈕，點一下看全文</span></li>
         <li data-cl="surfaceroads1118"><span class="d">11/18</span><span>全台新版地景的道路沿原有路形轉彎，黃線在路口收住，高架橋的白線和護欄沿著橋邊走。放大主要道路還看得到路名牌</span></li>
         <li data-cl="landscapeformal1118"><span class="d">11/18</span><span>電腦上的地景地圖改用新版全台地景（3D 地形、建物與夜景），不再標 Beta；跑不動的電腦會自動切回原本的地景。手機與平板暫時維持原本的地景</span></li>
         <li data-cl="trainsize1118"><span class="d">11/18</span><span>地圖上的立體列車預設改成「容易辨認」的正常大小；想看 Q 版可在「觀看」→「列車」→「列車大小」切換，之前選過的照舊</span></li>
@@ -7658,7 +7660,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1119c：併入 v1119b；新地景地形來源出現時署名控制項延到事件跑完才換（不再丟 TypeError）；淡水信義線夜景開場片用新圖磚重錄（圓山大飯店夜間亮燈）。
 // v1119d：古蹟廟宇的實景位置與分殿屋面。
 // v1119e：地景跟車的當地雨霧、隧道遮雨與手機繪圖負載調節。
-const BUILD = 'v1119f';
+// v1119g：電腦署名列放不下兩行時收成 ⓘ。
+const BUILD = 'v1119g';
 // v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 // 有播電腦首頁開場、又是第一次來（RI_HOME_OPENING.fresh）：揭幕後開新地景（開場影片就是新地景錄的）；只這一趟，不寫地景偏好
@@ -44056,6 +44059,9 @@ if (window.ResizeObserver) {
     const a = stageEl.querySelector('.maplibregl-ctrl-attrib'), vars = ['--attr-w', '--attr-fs'];
     const off = () => { stageEl.classList.remove('attr-fit'); for (const k of vars) stageEl.style.removeProperty(k); };
     if (!a) return;
+    // 上一次收成 ⓘ 的是我們（不是 MapLibre 的窄地圖收合）：先拆掉重量，看現在放不放得下；使用者已點開的話量完再照樣展開
+    const ours = a.dataset.attrCompact === '1', shown = ours && a.classList.contains('maplibregl-compact-show');
+    if (ours) { a.classList.remove('maplibregl-compact', 'maplibregl-compact-show'); a.setAttribute('open', ''); delete a.dataset.attrCompact; }
     // 盯右下角的控件容器，不盯署名元素本身：setAttribution 每次都換一顆新的署名控件，MapLibre 之後改寫的是新那顆的字（例如新地景露出、底圖署名拿掉）
     const box = a.parentElement;
     if (box && watched !== box) { watched = box; new MutationObserver(queueFit).observe(box, { childList: true, subtree: true, characterData: true }); } // 換底圖＝換署名
@@ -44067,6 +44073,10 @@ if (window.ResizeObserver) {
     stageEl.classList.add('attr-fit');
     const w = rr ? Math.max(120, right - rr.right - 16) : right - left - 20;
     for (let fs = 12; fs >= 9; fs -= 0.5) { set(w, fs); if (lines() <= 2) return; }
+    // 縮到 9px 仍超過兩行（地景來源多、視窗窄）：收成 MapLibre 的 ⓘ 鈕，點開看全文。
+    // 控件是 compact:false 建的，地圖 resize 時 MapLibre 會拿掉這個 class；stage 的 ResizeObserver 隨後重量、再收回來。
+    set(w, 12); a.dataset.attrCompact = '1'; a.classList.add('maplibregl-compact');
+    if (shown) { a.classList.add('maplibregl-compact-show'); a.removeAttribute('open'); }
   };
   const queueFit = () => { if (!fitQ) fitQ = requestAnimationFrame(fitAttrib); };
   const ro = new ResizeObserver(() => {

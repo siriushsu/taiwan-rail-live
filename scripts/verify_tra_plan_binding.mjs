@@ -108,7 +108,8 @@ const overtakeTracks=JSON.parse(fs.readFileSync('data/tra_overtake_tracks.json',
 const plannedOn=(day,secs)=>{const sc=JSON.parse(raw),ctx=makeSandbox('index.html');ctx.state.passObs=readPassObs('data/tra_pass_obs.json');ctx.state.trackSections=secs;ctx.state.overtakeTracks=overtakeTracks;
  for(const t of sc.trains)t.sys='tra_sched';ctx.trs=sc.dates[day].map(i=>sc.trains[i]);ctx.lines=lines;ctx.union={trains:sc.trains,dates:sc.dates};
  runInContext('canonicalizeAliasTrains(trs); clearPlannedOvertakes(trs); assignSchedShapePathsFor(trs, lines); resolveTraTraffic(trs, union, state.trackSections, state.overtakeTracks)',ctx);
- return ctx.trs.flatMap(t=>t.stops.filter(s=>s._plannedDwell).map(s=>({no:String(t.train),station:s.name})));};
+ // 只算同向待避：單線交會（_meetStop）另走對向交會規劃，區段表拿掉一站反而讓那段更像單線，照排是對的。
+ return ctx.trs.flatMap(t=>t.stops.filter(s=>s._plannedDwell&&!s._meetStop).map(s=>({no:String(t.train),station:s.name})));};
 const day=Object.keys(sched.dates).sort()[0],waits=plannedOn(day,sections);
 assert(waits.length>0,`${day} 要有預排待避（對照組）`);
 const X=normSta(waits[0].station),atX=waits.filter(p=>normSta(p.station)===X).length,untracked=Object.fromEntries(Object.entries(sections).filter(([pk])=>!pk.split('|').includes(X)));
