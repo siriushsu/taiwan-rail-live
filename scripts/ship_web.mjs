@@ -168,6 +168,12 @@ try {
   const tripAsk = spawnSync('node', [path.join(wt, 'scripts', 'verify_trip_ask.mjs')], { cwd: wt, encoding: 'utf8' });
   process.stdout.write(tripAsk.stdout || ''); process.stderr.write(tripAsk.stderr || '');
   if (tripAsk.status !== 0) fail('AI 一句話排行程守門未過（單獨重跑：npm run check-trip-ask）');
+  // 行程「跟這趟」P3／P4（laBind 收整趟、交棒、改搭、出狀況判斷）與整段提醒：真 SQLite D1 替身＋假 TDX／APNs，不推任何東西。
+  for (const [name, npmName] of [['verify_trip_impact', 'check-trip-impact'], ['verify_la_trip', 'check-la-trip'], ['verify_la_trip_remind', 'check-la-trip-remind']]) {
+    const r = spawnSync('node', [path.join(wt, 'scripts', name + '.mjs')], { cwd: wt, encoding: 'utf8' });
+    process.stdout.write(r.stdout || ''); process.stderr.write(r.stderr || '');
+    if (r.status !== 0) fail(`行程跟這趟守門 ${name} 未過（單獨重跑：npm run ${npmName}）`);
+  }
   // 高鐵指定日期（/api/thsr-schedule?date=）：只給 D1 那一天、日期範圍、快取鍵帶日期；不帶 date 行為不變。
   const thsrDay = spawnSync('node', [path.join(wt, 'scripts', 'verify_thsr_schedule_day.mjs')], { cwd: wt, encoding: 'utf8' });
   process.stdout.write(thsrDay.stdout || ''); process.stderr.write(thsrDay.stderr || '');

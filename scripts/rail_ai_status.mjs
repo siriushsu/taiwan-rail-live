@@ -6,6 +6,7 @@
 // Claude API 用 fetch 直接呼叫、不引 SDK：worker.js 沒有任何 npm 執行期相依，出貨鏈各棵 worktree 共用
 // 主 repo 的 node_modules，加套件會讓還沒裝的樹出貨時打包失敗。
 import manualBulletin from '../data/rail_weather_bulletin.json' with { type: 'json' };
+import traLines from '../data/tra_station_of_line.json' with { type: 'json' };
 
 export const RAIL_AI_SYSTEMS = [
   { id: 'tra', label: '台鐵' },
@@ -231,17 +232,29 @@ const SYSTEM_PROMPT = `你負責軌島 App 的「即時營運整理」：把鐵�
 - 舊方案與歷史只在不寫會讓人誤會時才提，一句帶過。
 - 附屬服務只寫乘客會用到的，一句帶過。
 - 中文用台灣用語。英文、日文版內容要跟中文版一致，不增不減。
-- impacts 只列原文寫明的影響；state 用「停駛」「部分停駛」「減班或改點」「正常」「未確認」其中之一，trains 只放原文明列的車次。
+- impacts 只列原文寫明、會影響列車行駛或乘客上下車的事項；自行車上車、行李、停車場、售票、商店、站內設施等附屬服務一律不列進 impacts（detail 裡照上面的規則一句帶過）。state 用「停駛」「部分停駛」「減班或改點」「正常」「未確認」其中之一，trains 只放原文明列的車次。
+- impacts 的結構化欄位（line、fromStation、toStation、trainClass、fromAt、untilAt）是給程式拿去跟乘客行程比對用的，填錯會讓人誤判，寧可留空：
+  - line：只能用下方「站名與路線清單」裡這個系統的路線代號或線名；整個系統都受影響填「*」；對不上清單就空字串。
+  - fromStation、toStation：只能用清單裡的站名原字。區間要兩端都有才填；原文是整條線、全系統、區間只寫到一端、或站名對不上清單，就兩個都空字串（範圍留給 scope 說明）。只涉及一站的事項（某站暫停停靠、封站），fromStation、toStation 都填那一站。
+  - 同一句原文涵蓋多個不相連的區間或路線（例如「縱貫線基隆=彰化、宜蘭線、北迴線停駛」），拆成多筆 impacts，每筆一個連續區間。跨線的區間照路線拆開，例如東部幹線「樹林=花蓮」拆成縱貫線 樹林=八堵（WL）與宜蘭線起點八堵=花蓮（EL）。
+  - trainClass：原文限定對號列車（自強、莒光、普悠瑪、太魯閣等）填「對號」，限定區間車、區間快車、普快車等填「非對號」，沒分或全部車種填「全部」。
+  - fromAt、untilAt：ISO 8601 帶 +08:00，例如 2026-10-24T12:00:00+08:00；原文只寫時刻沒寫日期時，用「現在時間」與原文發布日判斷日期；原文沒寫明、或寫「俟…後」「視情況」這類無法換算成時刻的，一律空字串（from、until 照舊填原文字樣）。
 - sourceUrls 只放這次實際依據、而且在下方原文裡出現過的網址。`;
 
 const IMPACT = {
-  type: 'object', additionalProperties: false, required: ['scope', 'state', 'from', 'until', 'trains'],
+  type: 'object', additionalProperties: false, required: ['scope', 'state', 'from', 'until', 'trains', 'line', 'fromStation', 'toStation', 'trainClass', 'fromAt', 'untilAt'],
   properties: {
     scope: { type: 'string', description: '路線或區間，例如「基隆=彰化 對號列車」' },
     state: { type: 'string', enum: ['停駛', '部分停駛', '減班或改點', '正常', '未確認'] },
     from: { type: 'string', description: '原文寫明的開始時刻，沒寫就空字串' },
     until: { type: 'string', description: '原文寫明的結束或預計恢復時刻，沒寫就空字串' },
     trains: { type: 'array', items: { type: 'string' } },
+    line: { type: 'string', description: '路線代號或線名，只能用「站名與路線清單」裡的值；整個系統受影響填「*」；對不上就空字串' },
+    fromStation: { type: 'string', description: '受影響區間起站，只能用清單裡的站名；只涉及一站（暫停停靠、封站）填那一站；整條線、全系統、區間只寫到一端或對不上清單就空字串' },
+    toStation: { type: 'string', description: '受影響區間迄站，規則同 fromStation；起迄要同時有或同時空，只涉及一站時填同一站' },
+    trainClass: { type: 'string', enum: ['對號', '非對號', '全部'], description: '限定對號列車填對號、限定區間車等填非對號，沒分填全部' },
+    fromAt: { type: 'string', description: 'ISO 8601 帶 +08:00 的開始時刻，例如 2026-10-24T12:00:00+08:00；原文沒寫明或無法換算就空字串' },
+    untilAt: { type: 'string', description: 'ISO 8601 帶 +08:00 的結束或預計恢復時刻；原文沒寫明或寫「俟…後」這類無法換算就空字串' },
   },
 };
 const ENTRY_SCHEMA = {
@@ -277,6 +290,23 @@ export async function sourceBlocks(db, sys, now) {
   return { blocks, urls: [...arts.map(a => a.url), ...RAIL_AI_SOURCES.filter(x => x.system === sys).map(x => x.url)] };
 }
 
+// 站名與路線清單：只附這個系統的（每次只整理一個系統），讓模型的 line／fromStation／toStation 只能抄清單裡的值。
+const THSR_STATIONS = ['南港', '台北', '板橋', '桃園', '新竹', '苗栗', '台中', '彰化', '雲林', '嘉義', '台南', '左營'];
+const TRA_LINE_NOTE = { WL: '縱貫線（含山線）', 'WL-C': '海線 竹南=彰化', EL: '宜蘭線＋北迴線＋臺東線 八堵=臺東', SL: '南迴線 枋寮=臺東', PX: '平溪線', NW: '內灣線', JJ: '集集線', LJ: '六家線', SH: '沙崙線', SA: '深澳線', SU: '蘇澳支線', CZ: '成追線' };
+const METRO_LINES = {
+  trtc: ['文湖線', '淡水信義線', '新北投支線', '松山新店線', '小碧潭支線', '中和新蘆線', '板南線', '環狀線'],
+  tymc: ['機場捷運'], ntmetro: ['環狀線', '淡海輕軌', '安坑輕軌', '三鶯線'],
+  tmrt: ['綠線'], krtc: ['紅線', '橘線'], klrt: ['環狀輕軌'],
+};
+export function stationListBlock(sys) {
+  let body;
+  if (sys === 'tra') body = traLines.lines.map(l => `${l.lineId}${TRA_LINE_NOTE[l.lineId] ? '（' + TRA_LINE_NOTE[l.lineId] + '）' : ''}：${l.stations.map(s => s.name).join('、')}`).join('\n');
+  else if (sys === 'thsr') body = `THSR（由北到南）：${THSR_STATIONS.join('、')}`;
+  else if (METRO_LINES[sys]) body = `線名：${METRO_LINES[sys].join('、')}（這個系統的站名這次不附，fromStation、toStation 一律空字串）`;
+  else return '';
+  return `<station_list system="${sys}">\n${body}\n</station_list>\n\n`;
+}
+
 async function buildPrompt(db, sys, prevEntry, now) {
   const since = prevEntry ? prevEntry.updatedAt : now - ARTICLE_WINDOW_MS;
   const ev = (await db.prepare('SELECT at_ms, source, type, item_key, value, prev FROM rail_ai_events WHERE system = ? AND relevant = 1 AND type != ? AND at_ms > ? ORDER BY at_ms DESC, id DESC LIMIT 40')
@@ -295,7 +325,7 @@ ${prevView ? `<previous_entry>\n${JSON.stringify(prevView, null, 1)}\n</previous
 這次偵測到的變化：
 ${ev.length ? ev.map(e => `- ${twTime(e.at_ms)} ${e.source} ${({ new: '新出現', changed: '內容改變', removed: '消失', fetched: '補抓到內文' })[e.type] || e.type}：${e.item_key || ''} ${e.value || e.prev || ''}`.slice(0, 600)).join('\n') : '（無）'}
 
-以下是官方原文（已去掉 HTML，可能含網站選單雜訊）：
+${stationListBlock(sys)}以下是官方原文（已去掉 HTML，可能含網站選單雜訊）：
 ${blocks.join('\n') || '（目前沒有可讀的官方原文）'}
 ${prevView ? `
 請以上一版為基礎更新：

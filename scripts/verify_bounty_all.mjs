@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // 路段懸賞＋籌碼的出貨總閘門：15 支 node 驗收並行跑，merge_web、recorder_web（真 Chromium 無視窗）、chips_web（Chromium＋WebKit 無視窗，
-// 護照籌碼列、懸賞身分與快取）最後逐支跑。
+// 護照籌碼列、懸賞身分與快取）、stamps_web（車庫印章簿與集滿領車）最後逐支跑。
 // - 每支的輸出直接寫進暫存檔、不經管道：子程序最後呼叫 process.exit 時，管道上還沒寫完的 stdout 會被丟掉
 //   （gates 曾因此只剩半份 log、後段的 FAIL 行不見）。自己也不呼叫 process.exit，只設 exitCode。
 // - 驗收讀 data/bounty_rules.json 用相對路徑，所以 cwd 一律是 repo 根目錄。
@@ -21,10 +21,10 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const NODE_SUITES = ['hardening', 'schema', 'valuation', 'gates', 'dwell', 'api', 'ledger', 'chips', 'rules',
-  'redeem', 'collect', 'cloud', 'merge', 'cron', 'auth', 'cron2', 'plus', 'usable', 'monthly'];
-const BROWSER_SUITES = ['merge_web', 'recorder_web', 'chips_web'];
+  'redeem', 'collect', 'cloud', 'merge', 'cron', 'auth', 'cron2', 'plus', 'usable', 'monthly', 'stamps'];
+const BROWSER_SUITES = ['merge_web', 'recorder_web', 'chips_web', 'stamps_web'];
 const EXPECT = { hardening: 184, schema: 53, valuation: 88, gates: 78, dwell: 16, api: 105, ledger: 73, chips: 37, rules: 21,
-  redeem: 106, collect: 44, cloud: 119, merge: 60, cron: 74, auth: 89, cron2: 131, plus: 25, usable: 47, monthly: 45, merge_web: 27, recorder_web: 8, chips_web: 648 };
+  redeem: 106, collect: 44, cloud: 119, merge: 60, cron: 74, auth: 89, cron2: 131, plus: 25, usable: 47, monthly: 45, stamps: 43, merge_web: 27, recorder_web: 8, chips_web: 648, stamps_web: 25 };
 // 逾時是拿來抓「卡住」的，不是拿來抓「慢」：別的工作把 1 分鐘負載壓到 16 以上時，chips_web 單獨跑完就要 16 分鐘以上，
 // 固定的「每支 15 分鐘」會把還在一條一條出結果的驗收砍掉。所以分兩道：
 // - STALL_MS 這麼久輸出檔一個位元組都沒長＝卡住（頁面卡死、evaluate 不回、或機器忙到動不了）；

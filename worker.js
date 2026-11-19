@@ -13,7 +13,8 @@ import {
   bindTracksToTrips, buildTripSetsByLineDir, joinBoardRowsToTrips, planTrtcTripBindingPersistence,
 } from './scripts/trtc_board_ledger.mjs';
 import { reduceOfficialRosterSelfHealing } from './scripts/trtc_official_roster.mjs';
-import { laNextIdx, laObsIdx, laSchedIdx, laSchedStopping, laArrivalEpoch, laStaleDate, laJwt, laJwtReset } from './scripts/la_push_core.mjs';
+import { laNextIdx, laObsIdx, laSchedIdx, laSchedStopping, laArrivalEpoch, laStaleDate, laJwt, laJwtReset, laTripVerdict, laTripPick } from './scripts/la_push_core.mjs';
+import { tripImpact, parseIsoSec } from './scripts/trip_impact.mjs';
 import {
   mwTrtcRows, mwLiveRows, mwCrowdByNo, mwContentState, mwStaleDate, mwShouldPush, mwApproachTickDue, mwTrtcDataAt,
   MW_LIVE_MAX_AGE_SEC,
@@ -33,7 +34,7 @@ import {
 } from './scripts/bus_live_core.mjs';
 import { twDayStr, nextHolidaySpan, weekendBody } from './scripts/weekend_core.mjs';
 import { replayBuildNet, replayDay } from './scripts/delay_replay.mjs';
-import { tripPoints, priceOfNth, canRedeem, taipeiDay, cloudRideCounts, itemPrice, canCollect } from './scripts/bounty_chips_core.mjs';
+import { tripPoints, priceOfNth, canRedeem, taipeiDay, cloudRideCounts, itemPrice, canCollect, stampsOn, stampsView, canClaimSet, STAMP_ID_RE } from './scripts/bounty_chips_core.mjs';
 
 // Cloudflare Worker 入口:靜態資產(assets binding)+ /api/tra-live 台鐵即時動態代理
 // + /api/tra-alert 台鐵營運通阻公告 + /api/thsr-alert 高鐵營運狀態公告(颱風停駛等)
@@ -3931,6 +3932,227 @@ function laJourneyRead(raw) {
     return value;
   } catch (e) { return null; }
 }
+// ── 跟這趟(AI 串聯行程 P3):bind 的 journey＝時刻頁選定方案的各段,一段一段交棒、在轉乘點判斷接不接得上。
+// 契約本尊在原生 railcore follow/FollowTripJson.kt 檔頭(App 組、這裡驗):
+//   {legIndex, legCount, endIndex, endAt, endCode, legs:[LEG…], missed?}
+//   LEG = {trainNo, sys, kind, color, terminus, transferStop, waitUntil, carModel, stops, staMap, stopCodes,
+//          endIndex, endAt, endCode, conn:{sys,no,kind,dep,walkSec,latest}, rebook:[{latest, arrive, legs:[LEG]}]}
+// 與單次交棒(handoff／phase)是兩套:journey_state 以 mode:'trip' 區分,laJourneyRead 不會把它當成交棒狀態。
+// 任何一格不合 ⇒ undefined ⇒ 整個 bind 回 400(同 handoff:App 端先自驗,不合就不送 journey)。
+// 例外:remindLead(行程導航第二棒 B 節,整段提醒「下車前 N 分」,通行證)只收整數 1／3／5／10,
+//   沒帶或不合＝null＝不推這種提醒,不擋整個 bind(舊版 App 不帶)。有值才存進 journey_state,換段時跟著帶。
+const LA_TRIP_MAX_JSON = 120000;
+const LA_TRIP_REMIND_LEADS = new Set([1, 3, 5, 10]);
+const LA_TRIP_MAX_LEGS = 6;
+function laTripConnOk(c, nowSec) {
+  if (!c || typeof c !== 'object' || Array.isArray(c)) return null;
+  const dep = Number(c.dep), latest = Number(c.latest), walkSec = Number(c.walkSec);
+  const sys = String(c.sys || ''), no = String(c.no == null ? '' : c.no);
+  if (!sys || sys.length > 16 || !/^[0-9A-Za-z]{0,8}$/.test(no)
+      || !Number.isFinite(dep) || Math.abs(dep - nowSec) >= 86400
+      || !Number.isFinite(latest) || latest > dep || dep - latest > 7200
+      || !Number.isInteger(walkSec) || walkSec < 0 || walkSec > 7200
+      || (c.kind != null && (typeof c.kind !== 'string' || c.kind.length > 40))) return null;
+  return { sys, no, kind: c.kind == null ? null : c.kind, dep, latest, walkSec };
+}
+function laTripEndOk(o, stopCount, nowSec) {
+  const endIndex = Number(o.endIndex), endAt = Number(o.endAt);
+  const endCode = o.endCode == null ? null : String(o.endCode);
+  if (!Number.isInteger(endIndex) || endIndex < 0 || endIndex >= stopCount
+      || !Number.isFinite(endAt) || Math.abs(endAt - nowSec) >= 86400
+      || (endCode != null && endCode.length > 16)) return null;
+  return { endIndex, endAt, endCode };
+}
+function laTripLegOk(raw, nowSec, withRebook) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const sys = String(raw.sys || ''), trainNo = String(raw.trainNo || '');
+  if ((sys !== 'tra_sched' && sys !== 'thsr_sched') || !/^[0-9A-Za-z]{1,8}$/.test(trainNo)
+      || !laValidSchedule(raw.stops, raw.staMap, raw.stopCodes, nowSec)) return null;
+  const kind = String(raw.kind || ''), color = String(raw.color || ''), terminus = String(raw.terminus || '');
+  const transferStop = String(raw.transferStop || ''), waitUntil = Number(raw.waitUntil);
+  if (kind.length > 40 || terminus.length > 40 || transferStop.length > 40
+      || (color && !/^#[0-9a-fA-F]{6}$/.test(color))
+      || !Number.isFinite(waitUntil) || Math.abs(waitUntil - nowSec) >= 86400) return null;
+  const end = laTripEndOk(raw, raw.stops.length, nowSec);
+  if (!end || end.endIndex !== raw.stops.length - 1) return null;
+  const conn = laTripConnOk(raw.conn, nowSec);
+  if (!conn) return null;
+  const carModel = typeof raw.carModel === 'string' && raw.carModel.length <= 40 ? raw.carModel : null;
+  const leg = { sys, trainNo, kind, color, terminus, transferStop, waitUntil, carModel,
+    stops: raw.stops, staMap: raw.staMap, stopCodes: raw.stopCodes, ...end, conn };
+  if (withRebook && raw.rebook != null) {
+    if (!Array.isArray(raw.rebook) || raw.rebook.length > 3) return null;
+    const rebook = [];
+    for (const r of raw.rebook) {
+      const latest = Number(r && r.latest), arrive = Number(r && r.arrive);
+      if (!Number.isFinite(latest) || Math.abs(latest - nowSec) >= 86400
+          || !Number.isFinite(arrive) || Math.abs(arrive - nowSec) >= 86400
+          || !Array.isArray(r.legs) || !r.legs.length || r.legs.length > LA_TRIP_MAX_LEGS) return null;
+      const legs = r.legs.map(x => laTripLegOk(x, nowSec, false));
+      if (legs.some(x => !x)) return null;
+      rebook.push({ latest, arrive, legs });
+    }
+    // 依 latest 由早到晚(laTripPick 取第一個趕得上的,順序錯了會挑到比較晚的那班)。
+    rebook.sort((x, y) => x.latest - y.latest);
+    if (rebook.length) leg.rebook = rebook;
+  }
+  return leg;
+}
+function laTripFromBind(raw, nowSec, sourceStopCount) {
+  if (raw == null) return null;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const legIndex = Number(raw.legIndex), legCount = Number(raw.legCount);
+  if (!Array.isArray(raw.legs) || raw.legs.length > LA_TRIP_MAX_LEGS
+      || !Number.isInteger(legIndex) || legIndex < 0 || legCount !== legIndex + 1 + raw.legs.length) return undefined;
+  const end = laTripEndOk(raw, sourceStopCount, nowSec);
+  if (!end) return undefined;
+  const legs = raw.legs.map(x => laTripLegOk(x, nowSec, true));
+  if (legs.some(x => !x)) return undefined;
+  const missed = raw.missed == null ? null : laTripConnOk({ ...raw.missed, dep: nowSec, latest: nowSec }, nowSec);
+  const remindLead = Number.isInteger(raw.remindLead) && LA_TRIP_REMIND_LEADS.has(raw.remindLead) ? raw.remindLead : null;
+  const out = { mode: 'trip', legIndex, legCount, ...end, legs, missed: missed ? { sys: missed.sys, no: missed.no, kind: missed.kind } : null,
+    ...(remindLead ? { remindLead } : {}) };
+  return JSON.stringify(out).length <= LA_TRIP_MAX_JSON ? out : undefined;
+}
+// 交棒(或自動改搭)之後的下一個狀態:cur＝現在跟的這一段(覆寫 attributes 用),下車資訊換成它的,legs 往前推一格。
+function laTripAdvance(state, chosen, missed) {
+  const cur = chosen[0];
+  const { rebook, ...curNoRebook } = cur;
+  return { mode: 'trip', legIndex: Number(state.legIndex) + 1, legCount: Number(state.legIndex) + 1 + chosen.length,
+    endIndex: cur.endIndex, endAt: cur.endAt, endCode: cur.endCode, cur: curNoRebook,
+    legs: chosen.slice(1), missed: missed || null, carModel: state.carModel == null ? null : state.carModel,
+    ...(state.remindLead ? { remindLead: state.remindLead } : {}) };
+}
+// ── 跟這趟 P4:這趟受不受營運公告影響(scripts/trip_impact.mjs 的 tripImpact;契約 native build/pp3/p4-phase2.md「鎖屏」節)。
+// content-state 尾端五欄,只有 tripImpact 的 show 為 true 才送非 null;一般跟車、收卡那發、沒有要顯示時全 null(key 不省略)。
+const LA_IMPACT_NULL = Object.freeze({ impact: null, impactSys: null, impactState: null, impactUntil: null, impactLeg: null });
+const LA_IMPACT_SYSTEM = { tra_sched: 'TRA', thsr_sched: 'THSR' };
+function laTripImpactLeg(sys, trainNo, kind, stops, b, a) {
+  return {
+    system: LA_IMPACT_SYSTEM[sys] || '', train: String(trainNo || ''), kind: kind == null ? '' : String(kind),
+    board: String(stops[b].name), alight: String(stops[a].name),
+    boardAt: Number(stops[b].dep != null ? stops[b].dep : stops[b].at), alightAt: Number(stops[a].at),
+    route: stops.slice(b).map(s => String(s.name)),
+  };
+}
+// tripImpact 要的各段:現在這段＋後面各段(已經過去的段不在 state 裡)。現在這段從車目前的上一站算到下車站:
+// 第一段的站表是整台車(起站～終點),從站表第一站算會把已經開過、之後才停駛的區間也算成受影響。
+// route＝站表從上車那站起的站名(台鐵分得出山線、海線;第一段含下車站之後,同原生「這班車會經過」)。
+// 第一段的車種來自 bind 的 kind(舊 App 不帶＝''):限定對號／非對號的公告對它最多判成可能受影響。
+function laTripImpactLegs(state, sys, trainNo, kind, stops, idx) {
+  const a = Math.min(Number(state.endIndex), stops.length - 1);
+  const b = Math.max(0, Math.min(idx - 1, a - 1));
+  return [laTripImpactLeg(sys, trainNo, kind, stops, b, a),
+    ...(state.legs || []).map(l => laTripImpactLeg(l.sys, l.trainNo, l.kind, l.stops, 0, Number(l.endIndex)))];
+}
+// impactLeg＝整趟從 0 起算(state.legIndex＝現在這段)。沒有依據(全部不受影響、也沒有任何一筆適用)時 sys／state／leg 是 null。
+function laTripImpactFields(r, legBase) {
+  if (!r || !r.show) return LA_IMPACT_NULL;
+  return {
+    impact: r.verdict,
+    impactSys: r.system == null ? null : String(r.system),
+    impactState: r.state == null ? null : String(r.state),
+    impactUntil: parseIsoSec(r.untilAt),
+    impactLeg: r.legIndex >= 0 ? legBase + r.legIndex : null,
+  };
+}
+// 比對拋例外(整理的內容長得不對)只讓這一列的公告欄位送 null,不讓整張卡這一分鐘停更。
+function laTripImpactNow(state, sys, trainNo, kind, stops, idx, systems, nowSec) {
+  try {
+    return laTripImpactFields(tripImpact(laTripImpactLegs(state, sys, trainNo, kind, stops, idx), systems, nowSec), Number(state.legIndex));
+  } catch (e) {
+    console.error('[cron la-push] 公告比對拋出例外(這一列公告欄位送 null,卡片照推):', String((e && e.message) || e));
+    return LA_IMPACT_NULL;
+  }
+}
+// 與 /api/rail-status 同一份內容(railAiStatus 本體:最新一版、鎖定的系統改人工、24 小時前已恢復正常的系統不列)。
+// 讀不到＝null ⇒ 這一輪跟這趟的公告欄位全 null,卡片其他內容照推。
+async function laRailSystems(env, baseUrl, nowMs) {
+  try {
+    const res = await railAiStatus(new Request(baseUrl + '/api/rail-status'), env, nowMs);
+    const j = await res.json();
+    if (res.ok && j && Array.isArray(j.systems)) return j.systems;
+    console.error(`[cron la-push] 讀不到 AI 營運整理(status=${res.status}),本輪跟這趟的公告欄位全 null`);
+  } catch (e) {
+    console.error('[cron la-push] 讀 AI 營運整理拋出例外,本輪跟這趟的公告欄位全 null:', String((e && e.message) || e));
+  }
+  return null;
+}
+// 一發 content-state 的「跟這趟」欄位(全部 Optional;一般跟車一律送 null,欄位集合是跨行程契約)。
+function laTripFields(state, verdict, impact = LA_IMPACT_NULL) {
+  const v = verdict, c = v ? v.conn : null, rb = v && v.rebook ? v.rebook : null;
+  const rc = rb && rb.legs && rb.legs[0] ? rb.legs[0].conn : null;
+  const m = state && state.missed;
+  return {
+    legIndex: state ? Number(state.legIndex) : null,
+    legCount: state ? Number(state.legCount) : null,
+    conn: v ? v.tone : null,
+    connSlack: v ? v.slack : null,
+    nextSys: c ? c.sys : null, nextNo: c ? c.no : null, nextKind: c ? c.kind : null, nextDep: c ? c.dep : null,
+    rebookSys: rc ? rc.sys : null, rebookNo: rc ? rc.no : null, rebookKind: rc ? rc.kind : null,
+    rebookDep: rc ? rc.dep : null, rebookArr: rb ? rb.arrive : null,
+    missedSys: m ? m.sys : null, missedNo: m ? m.no : null, missedKind: m ? m.kind : null,
+    // P4 公告五欄(laTripImpactFields)。
+    impact: impact.impact, impactSys: impact.impactSys, impactState: impact.impactState,
+    impactUntil: impact.impactUntil, impactLeg: impact.impactLeg,
+  };
+}
+// last_conn 的值。'#' 前＝接續:判斷、挑到第幾個改搭、有沒有自動改搭過(沒有接續＝'-')。
+// '#' 後＝公告(P4):H＝這次綁定已經為「受影響」亮過螢幕(或那一發讓給了「可能接不上」),之後不再亮;再接這一發的五個公告欄位。
+// 公告那半沒有東西時沿用 P3 的格式(只有接續,或 null):一般跟車與沒有公告的跟這趟,值與改版前逐字相同。
+// 'H' 之後可再接 R<段>~(第二棒 B 節):整趟第幾段(從 0 起算)的「下車前 N 分」提醒已經響過;只留現在這一段的,換段就掉。
+function laTripConnKey(state, verdict, impact = LA_IMPACT_NULL, rung = false, remindLeg = null) {
+  const conn = verdict || (state && state.missed)
+    ? `${verdict ? verdict.tone : '-'}|${verdict ? verdict.pick : -1}|${state && state.missed ? 1 : 0}` : null;
+  const imp = impact.impact
+    ? [impact.impact, impact.impactSys, impact.impactState, impact.impactUntil, impact.impactLeg].join('|') : '';
+  const rem = remindLeg == null ? '' : `R${remindLeg}~`;
+  if (!rung && !imp && !rem) return conn;
+  return `${conn == null ? '-' : conn}#${rung ? 'H' : ''}${rem}${imp}`;
+}
+// 上一發的 last_conn 記著「已經為受影響亮過」沒有。
+function laTripImpactRung(lastConn) {
+  const i = lastConn == null ? -1 : lastConn.indexOf('#');
+  return i >= 0 && lastConn[i + 1] === 'H';
+}
+// 上一發的 last_conn 記著哪一段的提醒響過(沒有＝null)。
+function laTripRemindRungLeg(lastConn) {
+  const m = lastConn == null ? null : /#H?R(\d+)~/.exec(lastConn);
+  return m ? Number(m[1]) : null;
+}
+// ── 整段提醒(行程導航第二棒 B 節,通行證):「下車前 N 分」那一則有聲音的提醒由這裡在預估到站前 N 分推,才會跟著即時誤點延後。
+// 預估到站＝這一段下車站表定(endAt)＋這一發的誤點(同 laTripVerdict 的 ready)。
+// 該響＝bind 帶了 remindLead、這一段還沒響過、預估到站 − N 分 ≤ 現在 < 預估到站(過了到站就不補,例如 App 晚綁)。
+// loc-key 三個與 App 的字串檔逐字相同(App 端照鍵翻譯);loc-args 是原樣插入、不翻譯,站名與車名用鎖屏 content-state 同一套(中文)。
+// 最後一段＝arrive,其他段＝transfer;transfer 的下一班＝到站時這條迴圈會交棒的那班(晚過界線又有趕得上的改搭＝改搭第一段,同換段那一段的判斷)。
+function laTripHHmm(sec) {
+  return new Date((Number(sec) + 8 * 3600) * 1000).toISOString().slice(11, 16);
+}
+// 車名同 iOS 鎖屏 RailFollowActivity.trainName 的完整寫法:高鐵＝「高鐵 車次」、台鐵＝「車種(沒有就台鐵) 車次」。
+function laTripTrainName(c) {
+  const no = c && c.no ? String(c.no) : '';
+  const kind = c && c.kind ? String(c.kind) : '';
+  const head = c && c.sys === 'thsr_sched' ? '高鐵' : c && c.sys === 'tra_sched' ? (kind || '台鐵') : (kind || '');
+  return [head, no].filter(Boolean).join(' ');
+}
+function laTripRemindAlert(state, verdict, stops, delaySec, nowSec, rungLeg) {
+  const lead = Number(state && state.remindLead);
+  if (!LA_TRIP_REMIND_LEADS.has(lead) || rungLeg === Number(state.legIndex)) return null;
+  const eta = Number(state.endAt) + Number(delaySec || 0);
+  if (!Number.isFinite(eta) || nowSec >= eta || eta - lead * 60 > nowSec) return null;
+  const end = stops[Math.min(Number(state.endIndex), stops.length - 1)];
+  const title = { 'loc-key': '快到%@了', 'loc-args': [String(end ? end.name : '')] };
+  const next = state.legs && state.legs[0];
+  if (!next) return { title, body: { 'loc-key': '約 %@ 到，終點', 'loc-args': [laTripHHmm(eta)] }, sound: 'default' };
+  const c = verdict && verdict.ready > Number(verdict.conn.latest) && verdict.pick >= 0 && verdict.rebook.legs[0].conn
+    ? verdict.rebook.legs[0].conn : next.conn;
+  return {
+    title,
+    body: { 'loc-key': '約 %@ 到。下車後搭 %@ %@', 'loc-args': [laTripHHmm(eta), laTripHHmm(c.dep), laTripTrainName(c)] },
+    sound: 'default',
+  };
+}
+
 // 端點外部可打,限流擋在任何 D1 寫入之前(照本檔慣例,寫入型一律 failClosed=true)。
 async function laBind(request, env) {
   // 端點只收 POST(同 deleteAccountData 慣例)——API_POST_ALLOWED 只擋「非 GET/HEAD 且不在名單內」,
@@ -3964,7 +4186,11 @@ async function laBind(request, env) {
   if (!b.staMap || typeof b.staMap !== 'object' || Array.isArray(b.staMap)) return jsonRes({ error: 'bad_map' }, 400, 'no-store');
   // 含通過站的 staMap 約 100–150 筆,400 筆／8000 bytes 都留了 2–3 倍餘裕。
   if (Object.keys(b.staMap).length > 400 || JSON.stringify(b.staMap).length > 8000) return jsonRes({ error: 'bad_map' }, 400, 'no-store');
-  const journey = laJourneyFromBind(b.handoff, nowSec, b.stops.length);
+  // 跟這趟(P3):有 journey 就一段一段交棒(laPushAll 的 mode:'trip' 分支),不收單次交棒 handoff——
+  // 兩套同時存在時「到轉乘站該換成誰」會有兩個答案。journey 不合 ⇒ 400(App 端先自驗,不合就不送)。
+  const trip = laTripFromBind(b.journey, nowSec, b.stops.length);
+  if (trip === undefined) return jsonRes({ error: 'bad_journey' }, 400, 'no-store');
+  const journey = trip ? null : laJourneyFromBind(b.handoff, nowSec, b.stops.length);
   if (journey === undefined) return jsonRes({ error: 'bad_handoff' }, 400, 'no-store');
   // 🔴 跟車卡進站軌道契約訂正(2026-09-23):iOS 的 Attributes.carModel 只在開卡當下寫入、
   // 之後不能改,背景推播必須每一發都送【目前這台車】的車型,不能只在交棒時送——沒有交棒時
@@ -3974,7 +4200,10 @@ async function laBind(request, env) {
   // 不准改 D1 schema——沒有專屬欄位,借用既有的 journey_state JSON 欄位放這個 binding 自己的
   // carModel。有交棒計畫時兩者並存(頂層 carModel＝現在這台車,journey.target.carModel＝
   // 交棒之後接續車的車型,語意不同、缺一不可);沒有交棒且沒有 carModel 時維持原樣送 null。
-  const journeyState = journey ? { ...journey, carModel: bindCarModel }
+  // 第一段(沒有 cur)的車種:bind 帶 kind(字串且 ≤40)才收,給 laTripImpactNow 判「對號列車某區間停駛」;換段後用 cur.kind。
+  const bindKind = typeof b.kind === 'string' && b.kind.length <= 40 ? b.kind : null;
+  const journeyState = trip ? { ...trip, carModel: bindCarModel, kind: bindKind }
+    : journey ? { ...journey, carModel: bindCarModel }
     : (bindCarModel != null ? { carModel: bindCarModel } : null);
 
   // 具名的本機測試閘門:設了才開,且只認那個確切的值。正式環境不設這顆 secret ⇒ 這條路徑不存在。
@@ -3989,8 +4218,8 @@ async function laBind(request, env) {
   try {
     const now = Math.floor(Date.now() / 1000);
     await env.DELAY_DB.prepare(
-      'INSERT INTO la_bindings (token,uid,sys,train_no,stops,sta_map,stop_codes,journey_state,last_idx,last_delay,bound_at,expire_at)' +
-      ' VALUES (?,?,?,?,?,?,?,?,-1,0,?,?) ON CONFLICT(token) DO UPDATE SET' +
+      'INSERT INTO la_bindings (token,uid,sys,train_no,stops,sta_map,stop_codes,journey_state,last_idx,last_delay,last_conn,bound_at,expire_at)' +
+      ' VALUES (?,?,?,?,?,?,?,?,-1,0,NULL,?,?) ON CONFLICT(token) DO UPDATE SET' +
       ' uid=excluded.uid, sys=excluded.sys, train_no=excluded.train_no, stops=excluded.stops,' +
       // 🔴 last_obs_idx 必須與 last_idx 一起歸零:同一顆 device token 換綁另一台車時,
       // 沒歸零的話單調閘門的地板還停在【上一台車】的索引 ⇒ 新車的第一發觀測會被
@@ -4003,7 +4232,8 @@ async function laBind(request, env) {
       // 一發(無害);真正的坑是反過來——新車一開卡就繼承舊車的停靠中標籤。規矩本身比個案重要
       // (釘死者 PBIND):重設點要重設全部狀態欄位,留一個例外就是留給下一個新欄位的坑。
       ' sta_map=excluded.sta_map, stop_codes=excluded.stop_codes, journey_state=excluded.journey_state,' +
-      ' last_idx=-1, last_obs_idx=-1, last_delay=0, last_notice=0, last_stopping=0,' +
+      // last_conn(跟這趟上一發的接續判斷)同一條規矩:不歸零的話,換綁後第一次「可能接不上」會被當成沒變而不亮螢幕。
+      ' last_idx=-1, last_obs_idx=-1, last_delay=0, last_notice=0, last_stopping=0, last_conn=NULL,' +
       ' bound_at=excluded.bound_at, expire_at=excluded.expire_at'
     ).bind(String(b.token), uid, String(b.sys), String(b.trainNo),
       JSON.stringify(b.stops), JSON.stringify(b.staMap), JSON.stringify(b.stopCodes), journeyState ? JSON.stringify(journeyState) : null,
@@ -4468,7 +4698,9 @@ async function laApnsOnce(env, jwt, token, body, host) {
       authorization: 'bearer ' + jwt,
       'apns-topic': 'tw.railisland.app.push-type.liveactivity',
       'apns-push-type': 'liveactivity',
-      'apns-priority': '5',        // 5 不計入更新預算;不指定會是 10 且計入
+      // 5 不計入更新預算;不指定會是 10 且計入。唯一例外是帶 alert 的那一發(跟這趟第一次「可能接不上」,
+      // 一次轉乘最多一發):要馬上亮螢幕,5 是「系統方便時才送」,會晚到失去提醒的意義。
+      'apns-priority': body && body.aps && body.aps.alert ? '10' : '5',
       'content-type': 'application/json',
     },
     body: JSON.stringify(body),
@@ -4525,6 +4757,8 @@ async function laPushEnd(env, jwt, row, stops, delaySec, now) {
           carModelOverride: null,
           plateLeft: null,
           plateRight: null,
+          // 跟這趟的欄位:收卡沒有下一段可言,全 null,但 key 集合與 update 那發一致。
+          ...laTripFields(null, null),
         },
       },
     }, row.apns_env);
@@ -4599,7 +4833,11 @@ async function laPushAll(env, ctx, baseUrl, half = null) {
   // 新鮮度(跟車卡進站軌道契約點 2:用新 now 重判會把「30 秒後看起來更舊」誤判成剛斷線)。
   if (half) {
     live = half.live; liveDown = half.liveDown; liveAgeSec = half.liveAgeSec;
-  } else if (rows.some(r => r.sys === 'tra_sched' || laJourneyRead(r.journey_state)?.target?.sys === 'tra_sched')) {
+  } else if (rows.some(r => {
+    const j = laJourneyRead(r.journey_state);
+    // 跟這趟:下一段是台鐵時也要拿,換段那一分鐘才有接續車的觀測(同單次交棒的 target)。
+    return r.sys === 'tra_sched' || j?.target?.sys === 'tra_sched' || (j?.mode === 'trip' && j.legs?.[0]?.sys === 'tra_sched');
+  })) {
     try {
       const r = await traLive(new Request(baseUrl + '/api/tra-live?_src=cron'), env, ctx);
       const j = await r.json();
@@ -4625,6 +4863,10 @@ async function laPushAll(env, ctx, baseUrl, half = null) {
       console.error('[cron la-push] tra-live 呼叫拋出例外,本輪台鐵列拿不到任何觀測資料:', (e && e.stack) || String(e));
     }
   }
+  // 跟這趟 P4:這一輪有跟這趟的列才讀一次最新的 AI 營運整理(整輪共用,不每列打 D1);半分鐘那一輪吃第一輪交下來的。
+  let railSystems = null;
+  if (half) railSystems = half.railSystems || null;
+  else if (rows.some(r => laJourneyRead(r.journey_state)?.mode === 'trip')) railSystems = await laRailSystems(env, baseUrl, tickStartMs);
 
   const jwt = await laJwt(env);
   let sent = 0, dropped = 0;
@@ -4717,6 +4959,12 @@ async function laPushAll(env, ctx, baseUrl, half = null) {
       const journey = laJourneyRead(row.journey_state);
       let identity = journey && journey.phase === 'active' ? journey.target : null;
       let handoffTransition = false;
+      // 跟這趟(P3):journey_state 是 mode:'trip' 的多段行程。cur＝已經交棒過去的這一段(第一段沒有 cur,
+      // 用這一列自己的身分)。tripState＝這一發之後要寫回的狀態(換段時是 laTripAdvance 的結果);
+      // tripVerdict＝這一段接下一段的判斷(laTripVerdict;沒有下一段＝null)。一般跟車兩者都是 null。
+      const trip = journey && journey.mode === 'trip' ? journey : null;
+      let tripState = trip, tripVerdict = null;
+      if (trip) identity = trip.cur || null;
       if (journey && journey.phase === 'planned') {
         const rawObs = useObs ? laObsIdx(String(t.sta), Number(t.status), staMap, stopCodes) : null;
         const sourceCode = String(journey.sourceCode || '');
@@ -4729,22 +4977,53 @@ async function laPushAll(env, ctx, baseUrl, half = null) {
         if (atTransfer || passedTransfer || dueByClock) {
           identity = journey.target;
           handoffTransition = true;
-          activeSys = String(identity.sys || ''); activeTrainNo = String(identity.trainNo || '');
-          stops = (identity.stops || []).map(s => ({ ...s, at: Number(s.at), dep: s.dep != null ? Number(s.dep) : undefined }));
-          staMap = identity.staMap || {}; stopCodes = identity.stopCodes || [];
-          t = activeSys === 'tra_sched' ? live[activeTrainNo] : null;
-          delaySec = t ? Math.round((Number(t.delay) || 0) * 60) : 0;
-          schedFallbackBlocked = liveDown && activeSys === 'tra_sched' && !LA_SCHED_FALLBACK_ON_UPSTREAM_DOWN;
-          useObs = !!t && !liveDown;
-          idx = useObs ? laNextIdx(String(t.sta), Number(t.status), staMap, stopCodes, -1, -1)
-            : schedFallbackBlocked ? -1 : laSchedIdx(stops, delaySec, now, -1);
-          obsResolved = useObs && laObsIdx(String(t.sta), Number(t.status), staMap, stopCodes) != null;
-          notice = (liveDown && activeSys === 'tra_sched' && !schedFallbackBlocked) ? LA_NOTICE_UPSTREAM_DOWN : null;
-          stopping = useObs
-            ? !!(Number(t.status) === 1 && stopCodes.indexOf(String(t.sta)) === idx)
-            : (!schedFallbackBlocked && laSchedStopping(stops, delaySec, now, idx));
+        }
+      } else if (trip) {
+        // 到下車站的判斷照單次交棒(上面那段),比的是這一段的 endCode／endIndex／endAt。
+        // idx 跑出站表也算到了:中間各段的站表到下車站為止,不能讓下面「走完全程」把整趟收掉。
+        const endIndex = Number(trip.endIndex), endCode = String(trip.endCode || '');
+        const rawObs = useObs ? laObsIdx(String(t.sta), Number(t.status), staMap, stopCodes) : null;
+        const atEnd = useObs && endCode && String(t.sta) === endCode
+          && (Number(t.status) === 1 || Number(t.status) === 2);
+        const passedEnd = useObs && rawObs != null && rawObs > endIndex;
+        const dueByClock = now >= Number(trip.endAt) + delaySec + (activeSys === 'tra_sched' ? 180 : 0);
+        if (atEnd || passedEnd || dueByClock || idx >= stops.length) {
+          if (!trip.legs.length) {                          // 最後一段到了下車站 → 收卡
+            if (half) continue;                             // 半分鐘那一輪不收卡(同下面「走完全程」)
+            // 第一段的站表可能比下車站長(整台車的停靠站):收卡那發的 nextStop／terminus 用下車站。
+            await laPushEnd(env, jwt, row, stops.slice(0, endIndex + 1), delaySec, now);
+            await env.DELAY_DB.prepare('DELETE FROM la_bindings WHERE token=?').bind(row.token).run();
+            continue;
+          }
+          // 預估到站已晚過接續的界線(規劃器從轉乘站重查也排不上)而且有趕得上的改搭 ⇒ 換成改搭,
+          // missed 記被換掉的那班;否則照原本的下一段交棒(偏緊或裕度剛好負一點只提醒,跑一下可能還趕得上)。
+          const v = laTripVerdict(trip, delaySec);
+          tripState = v && v.ready > Number(v.conn.latest) && v.pick >= 0
+            ? laTripAdvance(trip, v.rebook.legs, { sys: v.conn.sys, no: v.conn.no, kind: v.conn.kind })
+            : laTripAdvance(trip, trip.legs, null);
+          identity = tripState.cur;
+          handoffTransition = true;
         }
       }
+      // 換車(單次交棒或跟這趟換段):站表、觀測、誤點、站序都換成接續那班自己的,站序地板從 -1 重來。
+      if (handoffTransition) {
+        activeSys = String(identity.sys || ''); activeTrainNo = String(identity.trainNo || '');
+        stops = (identity.stops || []).map(s => ({ ...s, at: Number(s.at), dep: s.dep != null ? Number(s.dep) : undefined }));
+        staMap = identity.staMap || {}; stopCodes = identity.stopCodes || [];
+        t = activeSys === 'tra_sched' ? live[activeTrainNo] : null;
+        delaySec = t ? Math.round((Number(t.delay) || 0) * 60) : 0;
+        schedFallbackBlocked = liveDown && activeSys === 'tra_sched' && !LA_SCHED_FALLBACK_ON_UPSTREAM_DOWN;
+        useObs = !!t && !liveDown;
+        idx = useObs ? laNextIdx(String(t.sta), Number(t.status), staMap, stopCodes, -1, -1)
+          : schedFallbackBlocked ? -1 : laSchedIdx(stops, delaySec, now, -1);
+        obsResolved = useObs && laObsIdx(String(t.sta), Number(t.status), staMap, stopCodes) != null;
+        notice = (liveDown && activeSys === 'tra_sched' && !schedFallbackBlocked) ? LA_NOTICE_UPSTREAM_DOWN : null;
+        stopping = useObs
+          ? !!(Number(t.status) === 1 && stopCodes.indexOf(String(t.sta)) === idx)
+          : (!schedFallbackBlocked && laSchedStopping(stops, delaySec, now, idx));
+      }
+      // 跟這趟:現在這一段(換段後就是新的那一段)接下一段的判斷,用這一發的誤點。
+      if (trip) tripVerdict = laTripVerdict(tripState, delaySec);
       const transferWaiting = !!(identity && idx === 0 && now < Number(identity.waitUntil));
       if (transferWaiting) stopping = false;
       if (idx >= stops.length) {                            // 走完全程 → 收卡
@@ -4762,6 +5041,10 @@ async function laPushAll(env, ctx, baseUrl, half = null) {
       // 🔴 idx < 0 是「剛 bind、TDX 還沒回報過這台車」,不是走完了。
       //    把它併進上面那條會讓新卡在第一分鐘就被刪掉——不推也不收卡,下一分鐘再說。
       if (idx < 0) continue;
+      // 跟這趟 P4:現在這段(換段後就是新的那一段)＋後面各段對這一輪的 AI 營運整理(railSystems,整輪共用)。
+      const impactFields = trip && railSystems
+        ? laTripImpactNow(tripState, activeSys, activeTrainNo, identity ? identity.kind : (trip ? trip.kind : null), stops, idx, railSystems, now)
+        : LA_IMPACT_NULL;
       // st/prev/arrivalDate 提前算(半分鐘那一輪的「running」判準要用到,兩輪共用同一份)。
       const st = stops[idx];
       const prev = idx > 0 ? stops[idx - 1] : null;
@@ -4776,8 +5059,10 @@ async function laPushAll(env, ctx, baseUrl, half = null) {
       // 若送 null 會把 App 前景已經畫好的車圖蓋掉(推播一到版面就跳回舊的)。交棒生效(identity
       // 非空)用接續車 identity.carModel;沒有交棒就是這個 binding 自己的 journey.carModel
       // (laBind 存進 journey_state 的那顆);兩者都沒有(舊 binding／還沒解出車型)才是 null。
+      // 跟這趟換過段(identity＝cur)就只看這一段自己的 carModel:頂層那顆是第一段的車,
+      // 沿用會把第一班的車畫在第二段上(改搭的各段 carModel 是 null,退回沒有車型的畫法)。
       const carModelOverride = identity && identity.carModel != null ? String(identity.carModel)
-        : (journey && journey.carModel != null ? String(journey.carModel) : null);
+        : (journey && journey.carModel != null && !(trip && identity) ? String(journey.carModel) : null);
       const body = {
         aps: {
           timestamp: now, event: 'update',
@@ -4821,9 +5106,42 @@ async function laPushAll(env, ctx, baseUrl, half = null) {
             // 目前這一站站牌的左右鄰站(來自 bind 時算好、跟著 stops[] 存的 pl/pr);沒有就 null。
             plateLeft: st.pl != null ? String(st.pl) : null,
             plateRight: st.pr != null ? String(st.pr) : null,
+            // 跟這趟:第 n／N 段、下一個接續接不接得上、改搭、被換掉的那班、受不受公告影響(laTripFields)。
+            // 一般跟車一律送 null(不省略 key——欄位集合是跨行程契約,App 端是 Optional)。
+            ...laTripFields(tripState, tripVerdict, impactFields),
           },
         },
       };
+      // 跟這趟:接續判斷(含挑到第幾個改搭、有沒有自動改搭過)與公告五欄跟上一發不同就要推;一般跟車恆為 null ⇒ 這一項恆等。
+      const lastConn = row.last_conn == null ? null : String(row.last_conn);
+      const impactRung = laTripImpactRung(lastConn);
+      let connKey = trip ? laTripConnKey(tripState, tripVerdict, impactFields, impactRung || impactFields.impact === 'hit') : null;
+      // 第一次翻成「可能接不上」的那一發亮一次螢幕,之後同樣是 miss 只更新卡片(last_conn 記著上一發)。
+      // 半分鐘那一輪不帶:那一輪不寫 last_conn,帶了會讓同一次判斷響兩次。
+      if (!half && connKey && connKey.startsWith('miss') && !(lastConn && lastConn.startsWith('miss'))) {
+        body.aps.alert = {
+          title: { 'loc-key': '這趟可能接不上' },
+          body: { 'loc-key': tripVerdict && tripVerdict.rebook ? '鎖屏卡上有改搭建議' : '請留意轉乘時間' },
+          sound: 'default',
+        };
+      } else if (!half && impactFields.impact === 'hit' && !impactRung) {
+        // P4:這次綁定第一次判成受影響亮一次(可能受影響不亮)。跟「可能接不上」同一發時讓給它,
+        // 但 connKey 照樣記 H ⇒ 下一發也不補響。
+        body.aps.alert = {
+          title: { 'loc-key': '這趟受營運公告影響' },
+          body: { 'loc-key': '鎖屏卡上有公告重點' },
+          sound: 'default',
+        };
+      }
+      // 整段提醒(第二棒 B 節):排在接不上、受影響之後——同一發只帶一個 alert,被擠掉的這一發不記 R,下一輪還沒到站就補送。
+      // 半分鐘那一輪不帶(不寫 last_conn,同上)。記 R 才會讓 connKey 跟上一發不同 ⇒ 下面「沒變就不推」不會把它吃掉。
+      if (trip) {
+        const rungLeg = laTripRemindRungLeg(lastConn);
+        const remind = !half && !body.aps.alert ? laTripRemindAlert(tripState, tripVerdict, stops, delaySec, now, rungLeg) : null;
+        if (remind) body.aps.alert = remind;
+        const remindLeg = remind || rungLeg === Number(tripState.legIndex) ? Number(tripState.legIndex) : null;
+        if (remindLeg != null) connKey = laTripConnKey(tripState, tripVerdict, impactFields, impactRung || impactFields.impact === 'hit', remindLeg);
+      }
       // 半分鐘那一輪(waitCardHalfMinute 的第二輪):只服務【行駛中】的列,單純把車往前挪一格
       // (tick 换成這一輪的 now,其餘內容維持與第一輪同一次判定的結果)——不收卡、不記
       // fail_streak、不處理交棒的 D1 寫入(那件事留給下一次第一輪,避免半套交棒狀態)。
@@ -4855,7 +5173,8 @@ async function laPushAll(env, ctx, baseUrl, half = null) {
       // 推播時往前挪一格,所以每分鐘都要推恰好一發,哪怕站序/誤點/告知/停靠中都沒變。
       if (!running && !handoffTransition && idx === row.last_idx && delaySec === row.last_delay
           && noticeFlag === (Number(row.last_notice) || 0)
-          && stoppingFlag === (Number(row.last_stopping) || 0)) {
+          && stoppingFlag === (Number(row.last_stopping) || 0)
+          && connKey === lastConn) {
         // 🔴 複審 N-2:「卡片內容沒變」不等於「地板沒學到東西」。這一輪如果真的解出了觀測、
         // 而且它比 last_obs_idx 更前面,地板就必須吸收它——否則下一發抖動觀測會拿一個過時的
         // 低地板把卡片往回拉好幾站(實測:last_idx=5／last_obs_idx=1 時觀測解出 5 ⇒ 三項全等
@@ -4888,15 +5207,16 @@ async function laPushAll(env, ctx, baseUrl, half = null) {
         // 值一律以「這次成功的環境」為準而不是「原本記的」——同一顆 token 的環境雖然不會變,
         // 但寫死成「只在 null 時才寫」會讓修錯的值永遠黏著,沒有自癒路徑。
         if (handoffTransition) {
-          const activeJourney = JSON.stringify({ phase: 'active', target: identity });
+          // 跟這趟換段:寫 laTripAdvance 的結果(cur＝新的這一段、legs 往前推一格),不是單次交棒的 active。
+          const activeJourney = JSON.stringify(trip ? tripState : { phase: 'active', target: identity });
           await env.DELAY_DB.prepare(
             'UPDATE la_bindings SET sys=?, train_no=?, stops=?, sta_map=?, stop_codes=?, journey_state=?,' +
-            ' last_idx=?, last_delay=?, last_obs_idx=?, last_notice=?, last_stopping=?, apns_env=?, fail_streak=0 WHERE token=?'
+            ' last_idx=?, last_delay=?, last_obs_idx=?, last_notice=?, last_stopping=?, last_conn=?, apns_env=?, fail_streak=0 WHERE token=?'
           ).bind(activeSys, activeTrainNo, JSON.stringify(stops), JSON.stringify(staMap), JSON.stringify(stopCodes), activeJourney,
-            idx, delaySec, obsResolved ? idx : -1, noticeFlag, stoppingFlag, r.envName, row.token).run();
+            idx, delaySec, obsResolved ? idx : -1, noticeFlag, stoppingFlag, connKey, r.envName, row.token).run();
         } else {
-          await env.DELAY_DB.prepare('UPDATE la_bindings SET last_idx=?, last_delay=?, last_obs_idx=?, last_notice=?, last_stopping=?, apns_env=?, fail_streak=0 WHERE token=?')
-            .bind(idx, delaySec, obsResolved ? idx : row.last_obs_idx, noticeFlag, stoppingFlag, r.envName, row.token).run();
+          await env.DELAY_DB.prepare('UPDATE la_bindings SET last_idx=?, last_delay=?, last_obs_idx=?, last_notice=?, last_stopping=?, last_conn=?, apns_env=?, fail_streak=0 WHERE token=?')
+            .bind(idx, delaySec, obsResolved ? idx : row.last_obs_idx, noticeFlag, stoppingFlag, connKey, r.envName, row.token).run();
         }
         sent++;
         if (useObs) sentObs++; else sentSched++;
@@ -4970,11 +5290,11 @@ async function laPushAll(env, ctx, baseUrl, half = null) {
   // 🔴 最終複審 A-I3:sentObs/sentSched 讓「表定推算佔比」變成可觀測量;B-I4:把 APNs host
   // 印出來,正式版拿到 sandbox token(或反過來)造成的全滅才分得出是環境錯配還是後端壞了。
   console.log(`[cron la-push] tick 完成: rows=${rows.length} attempted=${attempted} sent=${sent}(obs=${sentObs} sched=${sentSched}) dropped=${dropped} apnsDefault=${laApnsDefaultHost(env)}(環境未知時先試) apnsRetry=${apnsRetried}${liveDown ? ` traLiveDown(觀測資料距今 ${liveAgeSec === null ? '不明' : liveAgeSec + ' 秒'})` : ''}${heldBack ? ` heldBack=${heldBack}(熔斷)` : ''}${budgetExhausted ? ` budgetExhausted(未處理 ${notReached} 列)` : ''}`);
-  // 交給半分鐘那一輪的東西:這一輪已經判定好的 live/liveDown/liveAgeSec 與這一輪的 now
-  // (比照 metroWaitPushAll 的 pickNow)——第二輪原樣吃這份,零額外上游呼叫、也不用新的
+  // 交給半分鐘那一輪的東西:這一輪已經判定好的 live/liveDown/liveAgeSec、這一輪的 now
+  // (比照 metroWaitPushAll 的 pickNow)與 AI 營運整理(railSystems)——第二輪原樣吃這份,零額外上游呼叫與 D1 讀取、也不用新的
   // 時鐘重判上游過不過期(見上面 half 分支讀 live 的註解)。沒有任何一列行駛中 ⇒ 不必為它
   // 再跑一次迴圈,handoff=null 讓 waitCardHalfMinute 略過這次的第二輪。
-  return { sent, dropped, heldBack, handoff: anyRunning ? { live, liveDown, liveAgeSec, pickNow: now } : null };
+  return { sent, dropped, heldBack, handoff: anyRunning ? { live, liveDown, liveAgeSec, pickNow: now, railSystems } : null };
 }
 
 // ══════════ 捷運等車卡:每分鐘推播迴圈 ══════════
@@ -6898,14 +7218,14 @@ const APP_ORIGINS = new Set(['capacitor://localhost', 'https://localhost']);
 // 不可以改成「全部放行」——擋掉的是「隨手對唯讀端點打 POST」這類探測,而那正是最便宜的防線。
 // ⚠️ 這道門的粒度是「路徑」不是「方法」：列進來等於該路徑的所有非 GET 方法都到得了處理函式。
 // /api/pass-admin 正是需要這樣（POST 匯入、DELETE 清批），它自己在函式內分派方法、未知的回 405。
-const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/api/bounty-submit', '/api/bounty-merge', '/api/garage-redeem', '/api/garage-collect', '/api/cloud-ride', '/api/revenuecat-webhook', '/api/la/bind', '/api/la/unbind', '/api/metro-wait/bind', '/api/metro-wait/unbind', '/api/tra-wait/bind', '/api/tra-wait/unbind', '/api/trackside/bind', '/api/trackside/unbind', '/api/pass-claim', '/api/pass-admin', '/api/journey-share', '/api/push/register', '/api/push/unregister', '/api/rail-push/decide', '/api/pass-monthly', '/api/trip-ask', '/api/trip-ask/explain']);
+const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/api/bounty-submit', '/api/bounty-merge', '/api/garage-redeem', '/api/garage-collect', '/api/stamp-claim', '/api/cloud-ride', '/api/revenuecat-webhook', '/api/la/bind', '/api/la/unbind', '/api/metro-wait/bind', '/api/metro-wait/unbind', '/api/tra-wait/bind', '/api/tra-wait/unbind', '/api/trackside/bind', '/api/trackside/unbind', '/api/pass-claim', '/api/pass-admin', '/api/journey-share', '/api/push/register', '/api/push/unregister', '/api/rail-push/decide', '/api/pass-monthly', '/api/trip-ask', '/api/trip-ask/explain']);
 // /api 端點白名單——只給流量埋點的 blob 用(不是路由閘門,路由在 fetch 裡)。不在名單內一律記成
 // 'other',否則隨便打 /api/<亂數> 就能把 blob 基數炸開。新增端點時要一起加進來。
 const API_ENDPOINTS = new Set([
   'tra-platforms', 'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'hazard-alert', 'rail-status', 'metro-live', 'ntmetro-live', 'trtc-live',
   'klrt-position', 'bus-transfer', 'bus-leg-live', 'bus-route-stops', 'bus-stop-search', 'bus-stop-live', 'journey-share',
   'delay-stats', 'delay-climate', 'delay-replay', 'delay-history', 'thsr-schedule', 'thsr-freeseat', 'thsr-seat', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'basemap-src', 'basemap-fallback', 'account-delete',
-  'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge', 'chips-me', 'garage-redeem', 'garage-collect', 'cloud-ride', 'plus-status', 'revenuecat-webhook',
+  'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge', 'chips-me', 'garage-redeem', 'garage-collect', 'stamp-claim', 'cloud-ride', 'plus-status', 'revenuecat-webhook',
   'la/bind', 'la/unbind', 'metro-wait/bind', 'metro-wait/unbind', 'tra-wait/bind', 'tra-wait/unbind', 'pass-claim', 'pass-admin',
   'trackside/bind', 'trackside/unbind', 'push/register', 'push/unregister', 'rail-push/decide', 'weather',
   'pass-monthly', 'points-summary',
@@ -7861,6 +8181,13 @@ async function bountyMerge(request, env) {
       ' AND EXISTS (SELECT 1 FROM garage_items u WHERE u.actor=? AND u.item=garage_items.item)'
     ).bind(dev, dev, uid, uid));
     add('itemMove', db.prepare('UPDATE garage_items INDEXED BY sqlite_autoindex_garage_items_1 SET actor=? WHERE actor=?' + G).bind(uid, dev, dev, uid));
+    // ⑦c 搭乘紀錄（ride_log，schema/0027，集章用）：兩邊有同一趟＝留帳號那一列（同一個人搭同一班車只算一次），其餘改名。
+    // 領過的組記在帳本（kind 'redeem'、id 'stampset|…'），帳本那一句已經整批改名，這裡不用另外搬。
+    add('logDropTwin', db.prepare(
+      'DELETE FROM ride_log INDEXED BY sqlite_autoindex_ride_log_1 WHERE actor=?' + G +
+      ' AND EXISTS (SELECT 1 FROM ride_log u WHERE u.actor=? AND u.trip_date=ride_log.trip_date AND u.train_no=ride_log.train_no AND u.sys=ride_log.sys)'
+    ).bind(dev, dev, uid, uid));
+    add('logMove', db.prepare('UPDATE ride_log INDEXED BY sqlite_autoindex_ride_log_1 SET actor=? WHERE actor=?' + G).bind(uid, dev, dev, uid));
     // ⑧ 雲端搭乘：同一天兩邊都有＝留一筆。「算次數」的那筆（simulator=0）勝過模擬器的；同類則 created_at 較早的勝，
     // 平手留 uid 的。（(simulator, created_at) 是列值比較，小的勝。）其餘改名。
     add('rideDropLater', db.prepare(
@@ -7954,7 +8281,7 @@ async function bountyPurgeUid(env, uid, deviceActor) {
   const TABLES_V1 = [['samples', 'bounty_samples INDEXED BY idx_samples_trip'], ['claims', 'bounty_claims INDEXED BY idx_claims_actor']];
   // 換到的車款（garage_items，schema/0021）是錢包的一部分，規則同這四張（items）。
   const TABLES_V2 = [['chips', 'chip_ledger INDEXED BY idx_chip_ledger_actor_day'], ['unlocks', 'garage_unlocks INDEXED BY sqlite_autoindex_garage_unlocks_1'],
-    ['items', 'garage_items INDEXED BY sqlite_autoindex_garage_items_1'],
+    ['items', 'garage_items INDEXED BY sqlite_autoindex_garage_items_1'], ['rides', 'ride_log INDEXED BY sqlite_autoindex_ride_log_1'],
     ['cloudRides', 'cloud_rides INDEXED BY sqlite_autoindex_cloud_rides_1'], ['contrib', 'bounty_seg_contrib INDEXED BY idx_seg_contrib_actor']];
   const stmts = [], at = {};                       // at[名稱] ＝ 這個名稱的語句在 batch 裡的位置們（結果加總時用名字取，不寫死索引）
   const add = (name, st) => { (at[name] = at[name] || []).push(stmts.length); stmts.push(st); };
@@ -8087,6 +8414,8 @@ async function chipsMe(request, env) {
       "SELECT COALESCE(SUM(" + BOUNTY_POINTS_OF_ROW + "),0) AS n FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=? AND kind='trip' AND day=?")
       .bind(chips.chipToPoints, actor, day).first();
     const items = await garageItemsOf(env.DELAY_DB, actor);
+    // 集章（chips.stamps 沒列＝功能關著，整個欄位不給；舊客端遇到不認得的欄位直接略過）
+    const stamps = stampsOn(chips) ? await stampsOf(env, actor, chips) : undefined;
     return jsonRes({
       unit: 'point',
       balance: st.balance,
@@ -8097,6 +8426,7 @@ async function chipsMe(request, env) {
       // 小於 1 會一直退避重查），新客端讀 points。
       cloud: { rides: nRides, toNextChip: 1, points: chips.cloud.points },
       today: { chips: Number(got && got.n) || 0, cap: chips.dailyChipCap },
+      ...(stamps ? { stamps } : {}),
     }, 200, 'no-store');
   } catch (e) {
     return jsonRes({ error: 'not_ready' }, 503, 'no-store');
@@ -8294,6 +8624,158 @@ async function garageCollect(request, env) {
     return jsonRes({ error: 'conflict' }, 409, 'no-store');
   } catch (e) {
     return jsonRes({ error: 'collect_failed' }, 503, 'no-store');
+  }
+}
+
+// ── 搭乘集章（2026-11-19 定案）──────────────────────────────────────────────
+// 判定合格的每一趟記一列 ride_log（schema/0027）；chips-me 照規則檔 chips.stamps 換算成章（scripts/bounty_chips_core.mjs 的 stampsView），
+// 一組蓋滿而且那組有獎勵（reward 'pick'）的，POST /api/stamp-claim 從 chips.items 現在開賣的車款自選一款，不扣點數。
+// 規格：native 主樹 build/ride-stamps-1119/搭乘集章-提案.html；契約：docs/bounty/contract-v3.md 3.0.1 節。
+// 🔴 這一區同樣不讀任何通行證欄位：章與獎勵車全員一樣。
+
+// 台鐵車種名（data/tra_schedule.json 的 carName）：先看那一天那一班，那一天不在檔內（檔一次 14 天、隨版部署）就退回同車次任一天的。
+// 4 MB 的檔只在第一次用到時讀，整理成兩張對照表後丟掉原檔（不放進 cloudRideAssetMem：那裡留的是整份 JSON）。讀不到就丟例外，由呼叫端決定。
+let traCarMem = null;
+async function traCarOf(env, day, no) {
+  if (!traCarMem) {
+    const r = await env.ASSETS.fetch(new Request('https://railisland.tw/data/tra_schedule.json'));
+    if (!r.ok) throw new Error('tra_schedule unavailable: ' + r.status);
+    const S = await r.json();
+    const trains = (S && S.trains) || [];
+    const byDay = new Map(), byNo = new Map();
+    for (const [d, idxs] of Object.entries((S && S.dates) || {})) {
+      for (const i of Array.isArray(idxs) ? idxs : []) {
+        const t = trains[i];
+        if (t && t.train != null && t.carName) byDay.set(d + '|' + t.train, String(t.carName));
+      }
+    }
+    for (const t of trains) if (t && t.train != null && t.carName) byNo.set(String(t.train), String(t.carName));
+    traCarMem = { byDay, byNo };
+  }
+  return traCarMem.byDay.get(day + '|' + no) || traCarMem.byNo.get(no) || '';
+}
+
+// 記一趟（bountyCreditTripChips 算出這趟有點數之後呼叫）。身分、租約、樣本還在，跟錄程入帳那一句同一套守衛、在同一句裡當場看。
+// 每班車多一個子請求（verify_bounty_cron2.mjs 的 K4／M1 手算）；不在判定這一端讀班表：4 MB 的班表檔一發讀一次會讓第一班車比其他班貴，
+// 子請求份額（verify_bounty_hardening.mjs 的 N1g）就不再是「每班一樣貴」。台鐵的車種名由讀錢包的那一端補（stampsOf，car 是空字串的列）。
+// 🔴 寫入失敗（表沒套）只記 log、不往外丟：點數入帳不能因為集章出錯而卡住。
+async function bountyLogRide(env, trip, who, now, fence) {
+  try {
+    const sys = String((trip && trip.sys) || ''), no = String((trip && trip.trainNo) || ''), day = String((trip && trip.tripDate) || '');
+    if (!sys || !no || !day) return;
+    await env.DELAY_DB.prepare(
+      'INSERT OR IGNORE INTO ride_log (actor,trip_date,train_no,sys,car,created_at)' +
+      ' SELECT w, ?, ?, ?, ?, ? FROM (SELECT ' + BOUNTY_WHO_SQL + ' AS w) WHERE 1=1' + BOUNTY_VERIFY_HELD + BOUNTY_VERIFY_PENDING
+    ).bind(day, no, sys, '', now, who, who, BOUNTY_VERIFY_LEASE_KEY, fence.lease, fence.ids, fence.n).run();
+  } catch (e) {
+    console.error(`[cron bounty 驗證] 搭乘紀錄寫入失敗：${e && e.message}`);
+  }
+}
+
+// 領過獎勵的組：帳本 kind 'redeem'、id 'stampset|<組>|<兌換品>|<ref>'（delta 0）。合併帳號時帳本整批改名，所以跟著帳號走。
+const STAMP_SET_PREFIX = 'stampset|';
+async function stampClaimedOf(db, actor) {
+  const r = await db.prepare(
+    "SELECT id FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=? AND kind='redeem' AND substr(id, 1, ?) = ?"
+  ).bind(actor, STAMP_SET_PREFIX.length, STAMP_SET_PREFIX).all();
+  return [...new Set((r.results || []).map(x => String(x.id).split('|')[1]).filter(Boolean))].sort();
+}
+// 錢包的 stamps 欄：{ cars: [{ id, n, first: { day, train } }], claimed: [組 id] }。
+// 台鐵的列 car 還是空字串（判定那一端不讀班表，見 bountyLogRide）就在這裡查班表補上：寫入總閘開著才寫回（之後不用再查），
+// 關著只在這一次回應裡用。查不到這個車次寫 '-'（不再每次重查；'-' 不會命中任何章）。班表讀不到就照空字串算（這一次蓋不到台鐵的章），不擋錢包。
+const RIDE_CAR_UNKNOWN = '-';
+async function stampsOf(env, actor, chips) {
+  const db = env.DELAY_DB;
+  const r = await db.prepare(
+    'SELECT trip_date, train_no, sys, car FROM ride_log INDEXED BY sqlite_autoindex_ride_log_1 WHERE actor=? ORDER BY trip_date, train_no'
+  ).bind(actor).all();
+  const rows = r.results || [];
+  const todo = rows.filter(x => x.sys === 'tra_sched' && !x.car);
+  if (todo.length) {
+    try {
+      for (const x of todo) x.car = (await traCarOf(env, String(x.trip_date), String(x.train_no))) || RIDE_CAR_UNKNOWN;
+      if (!bountyWritesOff(env)) {
+        await db.prepare(
+          "UPDATE ride_log INDEXED BY sqlite_autoindex_ride_log_1 SET car = json_extract(j.value, '$[3]')" +
+          " FROM json_each(?) j WHERE ride_log.actor=? AND ride_log.trip_date=json_extract(j.value, '$[0]')" +
+          " AND ride_log.train_no=json_extract(j.value, '$[1]') AND ride_log.sys=json_extract(j.value, '$[2]') AND ride_log.car=''"
+        ).bind(JSON.stringify(todo.map(x => [x.trip_date, x.train_no, x.sys, x.car])), actor).run();
+      }
+    } catch (e) {
+      console.error(`[chips-me] 集章補車種名失敗：${e && e.message}`);
+    }
+  }
+  return { cars: stampsView(rows, chips), claimed: await stampClaimedOf(db, actor) };
+}
+
+// POST /api/stamp-claim {actor, set, item, requestId}：一組章蓋滿，從 chips.items 開賣中的車款自選一款（不扣點數，永久）。
+// 跟 garageCollect 同一套做法（判斷與寫入同一筆交易、ref 冪等、身分 'wallet'），差在：
+//   ・不看餘額，看「這組蓋滿了沒、領過沒」（canClaimSet）。蓋滿在 JS 端先判：章只會變多（刪帳號、合併以外），先判再寫沒有窗口可鑽。
+//   ・帳本列 delta 0、id 'stampset|<組>|<兌換品>|<ref>'：「這組領過沒」在寫入那一句裡當場看（同一個身分有任何一列這個前綴＝領過），
+//     兩個同時抵達的請求（同一組、不同車）只有一個寫得進去。
+//   ・garage_items 那一列 cost 0：合併帳號時兩邊都有同一款，退的是 0 點。
+// 錯誤碼：unknown_set（沒有這組）／no_reward（這組只蓋章）／incomplete（還沒蓋滿）／claimed（領過了）／unknown_item（不是開賣中的車款）／already（已經有這款）。
+async function stampClaim(request, env) {
+  if (request.method !== 'POST') return jsonRes({ error: 'method' }, 405, 'no-store');
+  if (await rateLimited(env.BOUNTY_LIMITER, request, true)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+  if (bountyWritesOff(env)) return jsonRes({ error: 'bounty_paused' }, 503, 'no-store');
+  let b;
+  try { b = await request.json(); } catch (e) { return jsonRes({ error: 'bad_json' }, 400, 'no-store'); }
+  if (!b || !isActorId(b.actor)) return jsonRes({ error: 'bad_actor' }, 400, 'no-store');
+  if (hasGeoKeys(b)) return jsonRes({ error: 'coordinates_not_accepted' }, 400, 'no-store');
+  if (typeof b.requestId !== 'string' || !BOUNTY_REQUEST_ID_RE.test(b.requestId))
+    return jsonRes({ error: 'bad_request_id' }, 400, 'no-store');
+  let chips;
+  try { chips = await bountyChipsRules(env); } catch (e) { return jsonRes({ error: 'not_ready' }, 503, 'no-store'); }
+  const set = typeof b.set === 'string' ? b.set : '';
+  const item = typeof b.item === 'string' ? b.item : '';
+  if (!STAMP_ID_RE.test(set) || !stampsOn(chips) || !chips.stamps.sets.some(s => s && s.id === set)) return jsonRes({ error: 'unknown_set' }, 400, 'no-store');
+  if (itemPrice(item, chips) == null) return jsonRes({ error: 'unknown_item' }, 400, 'no-store');
+  try {
+    const db = env.DELAY_DB;
+    const idn = await bountyIdentity(request, env, b.actor, 'wallet');
+    if (idn.res) return idn.res;
+    const actor = idn.who;
+    const ref = `${b.actor}.${b.requestId}`;          // 解析前的 b.actor（理由見 garageRedeem 的冪等說明）
+    const now = Number(env.BOUNTY_NOW) || Date.now();
+    const ledgerId = `${STAMP_SET_PREFIX}${set}|${item}|${ref}`;
+    const setPrefix = `${STAMP_SET_PREFIX}${set}|`;
+    const priorRedeem = async () => db.prepare("SELECT id FROM chip_ledger WHERE kind='redeem' AND ref=?").bind(ref).first();
+    const done = async (led) => {
+      if (String(led.id) !== ledgerId) return jsonRes({ error: 'conflict' }, 409, 'no-store');
+      const items = await garageItemsOf(db, actor);
+      if (!items.some(x => x.item === item)) return jsonRes({ error: 'conflict' }, 409, 'no-store');
+      return jsonRes({ ok: true, set, item, items, stamps: await stampsOf(env, actor, chips) }, 200, 'no-store');
+    };
+    for (let attempt = 0; attempt < 2; attempt++) {
+      let led = await priorRedeem();
+      if (led) return await done(led);
+      const view = await stampsOf(env, actor, chips);
+      const owned = (await garageItemsOf(db, actor)).map(x => x.item);
+      const can = canClaimSet(set, item, view.cars, view.claimed, owned, chips);
+      if (!can.ok) {
+        const st = can.why === 'unknown_set' || can.why === 'no_reward' || can.why === 'unknown_item' ? 400 : 409;
+        return jsonRes({ error: can.why }, st, 'no-store');
+      }
+      await db.batch([
+        db.prepare(
+          'INSERT OR IGNORE INTO chip_ledger (id,actor,kind,delta,ref,day,created_at,unit)' +
+          " SELECT ?,?,'redeem',0,?,NULL,?,'point'" +
+          ' WHERE NOT EXISTS (SELECT 1 FROM garage_items WHERE actor=? AND item=?)' +
+          " AND NOT EXISTS (SELECT 1 FROM chip_ledger INDEXED BY idx_chip_ledger_actor_day WHERE actor=? AND kind='redeem' AND substr(id, 1, ?) = ?)"
+        ).bind(ledgerId, actor, ref, now, actor, item, actor, setPrefix.length, setPrefix),
+        db.prepare(
+          'INSERT OR IGNORE INTO garage_items (actor,item,cost,created_at,unit)' +
+          " SELECT ?,?,0,?,'point'" +
+          " WHERE EXISTS (SELECT 1 FROM chip_ledger WHERE id=? AND kind='redeem' AND ref=? AND actor=?)"
+        ).bind(actor, item, now, ledgerId, ref, actor),
+      ]);
+      led = await priorRedeem();
+      if (led) return await done(led);
+    }
+    return jsonRes({ error: 'conflict' }, 409, 'no-store');
+  } catch (e) {
+    return jsonRes({ error: 'claim_failed' }, 503, 'no-store');
   }
 }
 
@@ -9214,6 +9696,7 @@ function verdictOf(ig, qg) {
 function bountyResetMemCaches() {
   bountyRulesMem = null; bountyUnitsMem = null;
   for (const k of Object.keys(cloudRideAssetMem)) delete cloudRideAssetMem[k];      // 雲端搭乘的班表資產快取（見 cloudRideAsset）
+  traCarMem = null;                                                                  // 集章的台鐵車種名對照（見 traCarOf）
 }
 
 // ── 路段懸賞 v2：每段去重人數 ＋ 籌碼入帳（都由 bountyVerifyCron 呼叫）──────────────────────
@@ -9361,6 +9844,9 @@ async function bountyCreditTripChips(env, rules, groups, prior, now, who, fence,
   const { tripDate, trainNo } = groups[0].trip;
   const raw = tripPoints({ verdict: 'ok', durationSec, day: tripDate, lines }, chips);
   if (!(raw > 0)) return 0;
+  // 搭乘集章：這趟有點數（合格）就記一趟，不看當天是不是已經領滿上限（見 bountyLogRide）。寫在通行證資格之前：
+  // 資格查不完整時整班留 pending、下一發重判，這一列由主鍵＋OR IGNORE 擋重複。
+  await bountyLogRide(env, groups[0].trip, who, now, fence);
   // 通行證錄程加成：這趟有點數才查資格（不合格的趟不打 RevenueCat），而且在寫帳本之前查——查不完整就回 null，
   // 呼叫端整班留 pending：錄程列一寫、這班標成已判定，就不會再判，少給的加成補不回來，所以不能當成沒有通行證照寫。
   const plusPct = await bountyPlusPct(env, rules, who, stat);
@@ -12027,6 +12513,7 @@ export default {
     else if (url.pathname === '/api/pass-monthly') res = await passMonthly(request, env);
     else if (url.pathname === '/api/garage-redeem') res = await garageRedeem(request, env);
     else if (url.pathname === '/api/garage-collect') res = await garageCollect(request, env);
+    else if (url.pathname === '/api/stamp-claim') res = await stampClaim(request, env);
     else if (url.pathname === '/api/cloud-ride') res = await cloudRide(request, env);
     else if (url.pathname === '/api/pass-claim') res = await passClaim(request, env);
     else if (url.pathname === '/api/pass-admin') res = await passAdmin(request, env);
@@ -12128,7 +12615,7 @@ export const _accountDelete = { deleteAccountData, deletePlusEntitlement };
 // D1 寫入之前」「回應裡有沒有夾帶 reject_code」這類只在編排層才成立的性質。
 export const _bounty = { bountyCardId, bountySegLine, groupBoardRows, bountyBoard, isActorId, resolveActor,
   bountyClaim, hasGeoKeys, sanitizeSamples, sanitizeClient, bountySubmit, firebaseUid, bountyMe, bountyMerge, bountyPurgeUid,
-  chipsMe, garageRedeem, garageCollect, cloudRide, passMonthly, pointsSummary,
+  chipsMe, garageRedeem, garageCollect, stampClaim, traCarOf, cloudRide, passMonthly, pointsSummary,
   bountyMedian, bountyL1, bountyL2, bountyPointsOf, bountyUnlocked, bountyValuationCron,
   assembleTrip, integrityGate, qualityGate, verdictOf, coverageOf, bountyCoverage, bountyKeptSegments, bountyUnionLen, bountyLineMeters, bountyPriorGroups, bountyVerifyCron, bountyResetMemCaches, bountyCounted, BOUNTY_BYTES_PER_ROW, bountyUsableFlags, bountyUsableCron, BOUNTY_USABLE };
 // 純函式導出,供離線回歸測試 import:trtcParse 雙路徑解析(含上游故障回 HTML 錯誤頁、
@@ -12175,7 +12662,7 @@ export const _trtcLedger = {
 // scripts/verify_la_push_loop.mjs。正式 router 不因此增加任何路徑。
 // traLive 一併導出(修復輪次1):驗 Important 6(cron 呼叫不可污染用量分析)需要一個「真人前景
 // 呼叫」的正向對照——不然「cron 沒寫用量」這個斷言測不出「本來就寫不進去」的假綠。
-export const _la = { laPushAll, laPushWithHalf, traLive, laBind,
+export const _la = { laPushAll, laPushWithHalf, traLive, laBind, laTripFromBind,
   TRA_LIVE_MEM_TTL_MS, TRA_LIVE_WAIT_MAX_MS, TRA_LIVE_RECLAIM_MS, LA_TICK_BUDGET_MS };
 // 捷運等車卡推播鏈(task-10)導出,理由與上面 _la 完全相同(D1／APNs／官方看板三個 IO,
 // 走 getPlatformProxy 在 Node 端直接呼叫)。見 scripts/verify_metro_wait_push.mjs。

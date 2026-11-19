@@ -138,12 +138,43 @@ html[data-theme=dark] #trainGarage{--g-hdr:var(--paper-tr);--g-hdr-ink:var(--ink
 #trainGarage .g-sc .g-lock{display:block;color:var(--g-muted)}
 #trainGarage .g-sc.on{border:2px solid var(--navy);padding:7.5px 11.5px;box-shadow:var(--g-shadow-sm)}
 #trainGarage .g-sc.on small{color:var(--navy);font-weight:800}
+/* 搭乘集章：印章簿（場景列下面，照 App GarageStampBook：手機 2 欄、寬螢幕 4 欄；已蓋實線框、沒蓋虛線框＋灰縮圖）與「選一款車」卡。 */
+#trainGarage .g-stamps{margin:0 0 16px}
+#trainGarage .g-stamps>h2{margin:0 0 4px;font-size:15px;font-weight:800;letter-spacing:1px;line-height:1.4}
+#trainGarage .g-stamps-note{margin:0 0 10px;font-size:12px;line-height:1.5;color:var(--g-muted)}
+#trainGarage .g-st-set{display:flex;flex-direction:column;gap:8px;margin-bottom:10px;padding:12px;border:1.5px solid var(--g-btn-bd);border-radius:10px;background:var(--g-card);box-shadow:var(--shadow-1)}
+#trainGarage .g-st-head b{display:block;font-size:14px;font-weight:800;color:var(--ink-strong)}
+#trainGarage .g-st-head small{display:block;margin-top:2px;font-size:12px;line-height:1.5;color:var(--g-muted)}
+#trainGarage .g-st-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+@media(max-width:600px){#trainGarage .g-st-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+#trainGarage .g-st-slot{display:flex;flex-direction:column;gap:2px;min-width:0;min-height:104px;padding:8px 10px;border:1.5px dashed var(--line);border-radius:8px}
+#trainGarage .g-st-slot.on{padding:7.5px 9.5px;border:2px solid var(--navy);background:var(--paper)}
+#trainGarage .g-st-img{display:flex;justify-content:center;height:44px}
+#trainGarage .g-st-img img{width:auto;max-width:100%;height:44px;object-fit:contain}
+#trainGarage .g-st-slot:not(.on) img{filter:grayscale(1);opacity:.35}
+#trainGarage .g-st-slot b{font-size:13px;font-weight:800;line-height:1.35;color:var(--g-muted);overflow-wrap:anywhere}
+#trainGarage .g-st-slot.on b{color:var(--ink-strong)}
+#trainGarage .g-st-slot small{font-size:11px;line-height:1.4;color:var(--g-muted);font-variant-numeric:tabular-nums}
+#trainGarage .g-st-slot.on small{color:var(--g-ink)}
+#trainGarage .g-st-slot.on .g-st-n{color:var(--navy);font-weight:700}
+#trainGarage .g-st-foot{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px}
+#trainGarage .g-st-foot strong{font-size:13px;font-weight:900;color:var(--navy);font-variant-numeric:tabular-nums}
+#trainGarage .g-st-foot span{font-size:12px;line-height:1.5;color:var(--g-muted)}
+#trainGarage .g-st-foot .g-st-claimed{font-weight:700}
+#trainGarage .g-st-full{margin:0;font-size:13px;font-weight:700;line-height:1.5;color:var(--g-ink)}
+#trainGarage .g-st-pick{min-height:44px;border:0;border-radius:8px;background:var(--red);color:var(--g-on-red);font-size:15px;font-weight:800;letter-spacing:2px;box-shadow:var(--shadow-red)}
+#trainGarage .g-pick-desc{margin-top:4px;margin-bottom:0;font-size:13px;line-height:1.6;color:var(--g-muted)}
+#trainGarage .g-pick-list{display:flex;flex-direction:column;gap:8px}
+#trainGarage .g-pick-car{display:flex;align-items:center;gap:10px;min-height:56px;padding:6px 10px;border:1.5px solid var(--g-btn-bd);border-radius:8px;background:var(--g-card);text-align:left}
+#trainGarage .g-pick-car img{flex:none;width:72px;height:48px;object-fit:contain}
+#trainGarage .g-pick-car b{flex:1;min-width:0;font-size:15px;font-weight:800;color:var(--ink-strong);overflow-wrap:anywhere}
+#trainGarage .g-pick-car i{font-style:normal;font-size:22px;font-weight:800;color:var(--navy)}
 /* 兌換視窗：疊在整個車庫上（車庫其他部分 inert），卡片最寬 420；標題是 PanelHeader，主鈕紅底、停用改淡底，「關閉」是底線文字。 */
-#trainGarage .g-redeem,#trainGarage .g-about{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:24px max(16px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));background:var(--g-scrim)}
-#trainGarage .g-redeem-card,#trainGarage .g-about-card{width:100%;max-width:420px;max-height:100%;overflow:auto;display:flex;flex-direction:column;gap:12px;padding:0 0 10px;border:var(--g-card-bdw) solid var(--g-card-bd);border-radius:16px;background:var(--paper);box-shadow:var(--shadow-navy)}
-#trainGarage .g-redeem-card>:not(h2),#trainGarage .g-about-card>:not(h2){margin-left:18px;margin-right:18px}
-#trainGarage .g-redeem-card:focus,#trainGarage .g-about-card:focus{outline:none}
-#trainGarage .g-redeem h2,#trainGarage .g-about h2{margin:0;padding:13px 18px;background:var(--g-hdr);color:var(--g-hdr-ink);border-bottom:1.5px solid var(--g-hdr-line);font-size:16px;font-weight:800;letter-spacing:3px;line-height:1.4}
+#trainGarage .g-redeem,#trainGarage .g-about,#trainGarage .g-pick{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:24px max(16px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));background:var(--g-scrim)}
+#trainGarage .g-redeem-card,#trainGarage .g-about-card,#trainGarage .g-pick-card{width:100%;max-width:420px;max-height:100%;overflow:auto;display:flex;flex-direction:column;gap:12px;padding:0 0 10px;border:var(--g-card-bdw) solid var(--g-card-bd);border-radius:16px;background:var(--paper);box-shadow:var(--shadow-navy)}
+#trainGarage .g-redeem-card>:not(h2),#trainGarage .g-about-card>:not(h2),#trainGarage .g-pick-card>:not(h2){margin-left:18px;margin-right:18px}
+#trainGarage .g-redeem-card:focus,#trainGarage .g-about-card:focus,#trainGarage .g-pick-card:focus{outline:none}
+#trainGarage .g-redeem h2,#trainGarage .g-about h2,#trainGarage .g-pick h2{margin:0;padding:13px 18px;background:var(--g-hdr);color:var(--g-hdr-ink);border-bottom:1.5px solid var(--g-hdr-line);font-size:16px;font-weight:800;letter-spacing:3px;line-height:1.4}
 /* 介紹（train-garage-intros.js）：兌換視窗、場景頁的介紹卡、車款詳情各一段，比下面那行灰字說明大一號、用內文色。 */
 #trainGarage .g-redeem-intro,#trainGarage .g-about-text{margin-top:4px;margin-bottom:0;font-size:14px;line-height:1.75;color:var(--g-ink)}
 #trainGarage .g-car-intro{margin:12px 0 6px;font-size:14px;line-height:1.75}
@@ -162,7 +193,7 @@ html[data-theme=dark] #trainGarage{--g-hdr:var(--paper-tr);--g-hdr-ink:var(--ink
 #trainGarage .g-redeem-card[data-state=done] .g-redeem-msg{font-weight:800;color:var(--ink-strong)}
 #trainGarage .g-redeem-go{min-height:48px;border:0;border-radius:8px;background:var(--red);color:var(--g-on-red);font-size:16px;font-weight:800;letter-spacing:2px;box-shadow:var(--shadow-red)}
 #trainGarage .g-redeem-go:disabled{background:var(--line-faint);color:var(--g-muted);box-shadow:none;cursor:default}
-#trainGarage .g-redeem-close,#trainGarage .g-about-close{align-self:center;padding:0 12px;border:0;background:none;color:var(--navy);font-size:14px;font-weight:700;text-decoration:underline;text-underline-offset:4px}
+#trainGarage .g-redeem-close,#trainGarage .g-about-close,#trainGarage .g-pick-close{align-self:center;padding:0 12px;border:0;background:none;color:var(--navy);font-size:14px;font-weight:700;text-decoration:underline;text-underline-offset:4px}
 #trainGarage .g-stage-foot{flex-direction:column;align-items:stretch;padding:0 12px 12px;gap:8px}
 #trainGarage .g-stage-foot>span{max-width:none;text-align:center;line-height:1.5}
 #trainGarage .g-controls{justify-content:center;flex-wrap:wrap}

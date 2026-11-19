@@ -85,3 +85,63 @@ export function canCollect(itemId, owned, balance, chips) {
   if (balance < cost) return { ok: false, why: 'not_enough', cost };
   return { ok: true, cost };
 }
+
+// ── 搭乘集章（2026-11-19 定案，規格 native 主樹 build/ride-stamps-1119/搭乘集章-提案.html）──────────────
+// 規則在 chips.stamps：{ cars: [{ id, sys, match? }], sets: [{ id, cars: [章 id…], reward?: 'pick' }], names: {…} }。
+//   ・cars 依序比對，第一個命中的就是這一趟的章：sys 要相同；有 match 的再拿班表的車種名（台鐵 carName，例如「自強(3000障)」）
+//     當正規式比對，沒有 match＝這個系統每一班都算（高鐵全是 700T）。都沒命中＝這一趟不蓋章（專車、觀光列車）。
+//   ・章對照放在讀的那一端（伺服器只存每一趟的系統、車次、車種名）：規則檔改了對照，舊趟次照新對照重算。
+// 沒有 chips.stamps＝功能關著（上線開關就是規則檔，同 chips.items）。
+export const STAMP_ID_RE = /^[a-z0-9_-]{1,40}$/;
+const stampReMem = new Map();
+function stampRe(src) {
+  if (!stampReMem.has(src)) {
+    let re = null;
+    try { re = new RegExp(src); } catch (e) { re = null; }
+    stampReMem.set(src, re);
+  }
+  return stampReMem.get(src);
+}
+export function stampsOn(chips) {
+  const s = chips && chips.stamps;
+  return !!s && Array.isArray(s.cars) && Array.isArray(s.sets);
+}
+// 一趟（sys、班表車種名）蓋哪個章；不蓋回 null。match 寫壞（不是合法正規式）的那一條當成沒列。
+export function stampOfRide(sys, car, chips) {
+  if (!stampsOn(chips)) return null;
+  for (const c of chips.stamps.cars) {
+    if (!c || !STAMP_ID_RE.test(String(c.id)) || c.sys !== sys) continue;
+    if (c.match == null) return c.id;
+    const re = stampRe(String(c.match));
+    if (re && re.test(String(car == null ? '' : car))) return c.id;
+  }
+  return null;
+}
+// 錢包裡的章：rides 是這個人的搭乘紀錄 [{ trip_date, train_no, sys, car }]（伺服器依乘車日、車次排好）。
+// 回 [{ id, n, first: { day, train } }]，照規則檔 cars 的順序，只列蓋到的；first 是最早的那一趟。
+export function stampsView(rides, chips) {
+  if (!stampsOn(chips)) return [];
+  const got = new Map();
+  for (const r of rides || []) {
+    const id = stampOfRide(r.sys, r.car, chips);
+    if (!id) continue;
+    const s = got.get(id);
+    if (s) s.n += 1;
+    else got.set(id, { id, n: 1, first: { day: String(r.trip_date), train: String(r.train_no) } });
+  }
+  const order = [...new Set(chips.stamps.cars.map(c => c && c.id))];
+  return order.filter(id => got.has(id)).map(id => got.get(id));
+}
+// 能不能領一組的獎勵車。view 是 stampsView 的結果，claimed 是已領過的組 id，owned 是已有的兌換品 id。
+// 獎勵車只能從 chips.items 現在有列價格的車款裡挑（itemPrice 不是 null）、而且還沒有。
+export function canClaimSet(setId, itemId, view, claimed, owned, chips) {
+  const set = stampsOn(chips) ? chips.stamps.sets.find(s => s && s.id === setId && STAMP_ID_RE.test(String(s.id))) : null;
+  if (!set) return { ok: false, why: 'unknown_set' };
+  if (set.reward !== 'pick') return { ok: false, why: 'no_reward' };
+  const have = new Set((view || []).map(s => s.id));
+  if (!(Array.isArray(set.cars) && set.cars.length && set.cars.every(id => have.has(id)))) return { ok: false, why: 'incomplete' };
+  if ((claimed || []).includes(setId)) return { ok: false, why: 'claimed' };
+  if (itemPrice(itemId, chips) == null) return { ok: false, why: 'unknown_item' };
+  if ((owned || []).includes(itemId)) return { ok: false, why: 'already' };
+  return { ok: true };
+}

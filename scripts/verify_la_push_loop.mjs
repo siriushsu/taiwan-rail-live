@@ -224,8 +224,9 @@ async function tickHalf() {
   const rs = await env.DELAY_DB.prepare("SELECT name FROM pragma_table_info('la_bindings')").all();
   const cols = (rs.results || []).map(r => r.name).sort();
   const WANT = ['token', 'uid', 'sys', 'train_no', 'stops', 'sta_map', 'stop_codes',
-    'journey_state', 'last_idx', 'last_obs_idx', 'last_delay', 'last_notice', 'last_stopping', 'apns_env', 'fail_streak', 'bound_at', 'expire_at'].sort();
-  ok('SCHEMA 本機 D1 的 la_bindings 欄位集合與 schema/0003＋0004/0005/0006/0007/0008/0012 一致(套漏補丁會讓整批斷言以「沒推」假綠)',
+    'journey_state', 'last_idx', 'last_obs_idx', 'last_delay', 'last_notice', 'last_stopping', 'apns_env', 'fail_streak', 'bound_at', 'expire_at',
+    'last_conn'].sort();   // last_conn:跟這趟(0026)上一發的接續判斷
+  ok('SCHEMA 本機 D1 的 la_bindings 欄位集合與 schema/0003＋0004/0005/0006/0007/0008/0012/0026 一致(套漏補丁會讓整批斷言以「沒推」假綠)',
     JSON.stringify(cols) === JSON.stringify(WANT),
     `實際=${JSON.stringify(cols)}${JSON.stringify(cols) === JSON.stringify(WANT) ? '' : ` 期望=${JSON.stringify(WANT)}`}`);
 
@@ -239,7 +240,7 @@ async function tickHalf() {
   // 這條因此要重建【文件宣告的建庫程序】本身(0003 建表 ＋ 所有「全環境都要跑」的補丁),
   // 而不是只讀 0003——只讀 0003 會讓這條在規矩改變的當下變成必然紅,然後被人改成寫死實測值
   // (心得34:把環境條件寫成產品規格)。ALL_ENV_PATCHES 是唯一要維護的清單,漏登記就會紅。
-  const ALL_ENV_PATCHES = ['0007_la_last_stopping.sql', '0008_la_apns_env.sql', '0012_la_journey_handoff.sql'];
+  const ALL_ENV_PATCHES = ['0007_la_last_stopping.sql', '0008_la_apns_env.sql', '0012_la_journey_handoff.sql', '0026_la_trip_conn.sql'];
   let sqlCols = [];
   try {
     const sql = readFileSync(`${WT}/schema/0003_live_activity.sql`, 'utf8');
@@ -286,6 +287,14 @@ const CONTRACT_KEYS_EXPECT = ['arrivalDate', 'delaySec', 'departedDate', 'nextSt
   'stopping', 'prevStop', 'trainNoOverride', 'kindOverride', 'sysOverride', 'colorOverride', 'transferWaiting',
   'tick', 'carModelOverride', 'plateLeft', 'plateRight'];
 const CONTRACT_KEYS_SORTED = CONTRACT_KEYS_EXPECT.slice().sort();
+// 跟這趟(AI 串聯行程 P3,2026-11-17):content-state 尾端多 16 個 Optional 欄位,一般跟車與收卡那發一律送 null
+// (值的驗收在 scripts/verify_la_trip.mjs)。這份 Swift(app/ios 的舊 App)沒有這些欄位:JSONDecoder 對多出來的
+// key 不理會,所以上面 PSWIFT 仍只比原本 17 個;下面 P1／P4 比的是後端實際送出的集合＝原本＋這些,不多不少。
+// P4(同日)再加公告五欄 impact…impactLeg,規矩相同。
+const TRIP_KEYS_EXPECT = ['legIndex', 'legCount', 'conn', 'connSlack', 'nextSys', 'nextNo', 'nextKind', 'nextDep',
+  'rebookSys', 'rebookNo', 'rebookKind', 'rebookDep', 'rebookArr', 'missedSys', 'missedNo', 'missedKind',
+  'impact', 'impactSys', 'impactState', 'impactUntil', 'impactLeg'];
+const CS_KEYS_SORTED = [...CONTRACT_KEYS_EXPECT, ...TRIP_KEYS_EXPECT].sort();
 ok('PSWIFT(跨行程契約)Swift ContentState 的屬性集合 === 後端 content-state 的契約欄位集合',
   JSON.stringify(swiftProps.slice().sort()) === JSON.stringify(CONTRACT_KEYS_SORTED),
   `swift=${JSON.stringify(swiftProps.slice().sort())} expect=${JSON.stringify(CONTRACT_KEYS_SORTED)}`);
@@ -370,8 +379,8 @@ ok('PNOTICE1(把關1)worker.js 的 LA_NOTICE_* 告知常數恰好 1 個——出
     // 🔴 修復輪次1(Important9):欄位集合照 Swift ContentState 契約獨立驗(design.md §5.1),
     // 不是照實作目前送什麼反推——這樣才抓得到「少送一個欄位」或「多送一個沒人要的欄位」。
     const csKeys = Object.keys(body.aps['content-state']).sort();
-    const CONTRACT_KEYS = CONTRACT_KEYS_SORTED;
-    ok('P1(Important9)content-state 欄位集合與 Swift ContentState 契約完全一致(不多不少)',
+    const CONTRACT_KEYS = CS_KEYS_SORTED;
+    ok('P1(Important9)content-state 欄位集合與 Swift ContentState 契約＋跟這趟欄位完全一致(不多不少)',
       JSON.stringify(csKeys) === JSON.stringify(CONTRACT_KEYS), JSON.stringify(csKeys));
     // 🔴 工項 A:notice 只在【上游整批失效的台鐵列】才可以有值。高鐵本來就沒有即時資料,
     // 掛「即時資料中斷」是說謊。這條是「斷線才送」的反面守衛(正面在 P36)。
@@ -490,15 +499,15 @@ ok('PNOTICE1(把關1)worker.js 的 LA_NOTICE_* 告知常數恰好 1 個——出
     ok('P4(B-I3 關鍵)收卡推播帶 dismissal-date=now(不帶的話系統仍會留著卡片)',
       aps4['dismissal-date'] === mockNowSec, String(aps4['dismissal-date']));
     ok('P4(B-I3)收卡推播打的是這一列自己的 token', apnsCalls4[0].url.endsWith('/3/device/' + T), apnsCalls4[0].url);
-    ok('P4(B-I3)收卡推播的 content-state 欄位集合仍符合 Swift 契約(不多不少)',
-      JSON.stringify(Object.keys(aps4['content-state']).sort()) === JSON.stringify(CONTRACT_KEYS_SORTED),
+    ok('P4(B-I3)收卡推播的 content-state 欄位集合仍符合 Swift 契約＋跟這趟欄位(不多不少)',
+      JSON.stringify(Object.keys(aps4['content-state']).sort()) === JSON.stringify(CS_KEYS_SORTED),
       JSON.stringify(Object.keys(aps4['content-state']).sort()));
     ok('P4(B-I3)收卡推播的 nextStop＝終點站', aps4['content-state'].nextStop === stops[stops.length - 1].name, String(aps4['content-state'].nextStop));
   } else {
     for (const n of ['P4(B-I3 關鍵)收卡推播 event=end(不是 update——update 收不掉鎖屏卡片)',
       'P4(B-I3 關鍵)收卡推播帶 dismissal-date=now(不帶的話系統仍會留著卡片)',
       'P4(B-I3)收卡推播打的是這一列自己的 token',
-      'P4(B-I3)收卡推播的 content-state 欄位集合仍符合 Swift 契約(不多不少)',
+      'P4(B-I3)收卡推播的 content-state 欄位集合仍符合 Swift 契約＋跟這趟欄位(不多不少)',
       'P4(B-I3)收卡推播的 nextStop＝終點站']) ok(n, false, `(收卡推播數=${apnsCalls4.length},結構性略過)`);
   }
   const row4 = await getRow(T);

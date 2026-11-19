@@ -21,7 +21,8 @@
     "passMonthly": { "points": 300, "from": "2026-12" },
     "scenes": ["south-coast", "shifen", "viaduct", "alishan", "duoliang", "crossing", "guanghua", "taipei-metro", "wenhu", "airport-mrt", "ntpc-metro", "ntpc-lrt", "taichung-metro", "kaohsiung-metro", "kaohsiung-lrt", "thsr", "hsinchu", "tainan", "taichung-old", "chiayi", "baoan", "jiji", "dongshan", "kaohsiung-old", "haixian", "shengxing", "taipei-under"],
     "events": [],
-    "evergreen": ["tra_sched|南迴線", "tra_sched|臺東線"]
+    "evergreen": ["tra_sched|南迴線", "tra_sched|臺東線"],
+    "stamps": {"note": "搭乘集章（2026-11-19 定案）：判定合格的每一趟照 cars 依序比對、第一個命中的就是那一趟的章（sys 要相同；有 match 的拿班表車種名當正規式比，沒有 match＝那個系統每一班都算），都沒命中＝不蓋（專車、觀光列車）。sets 是一組一組的章，reward 'pick'＝蓋滿可以從 items 開賣中的車款自選一款、不扣點數；沒有 reward＝只蓋章。names 是組名與不是車款的章（例如區間車通用章）的四語名稱，車款的章用車庫的車款名。拿掉整個 stamps＝功能關著。純函式在 scripts/bounty_chips_core.mjs 的 stampOfRide／stampsView／canClaimSet，契約見 docs/bounty/contract-v3.md 3.0.1 節。", "cars": [{"id": "emu3000", "sys": "tra_sched", "match": "\\(3000|110[KM]"}, {"id": "temu2000", "sys": "tra_sched", "match": "\\(普"}, {"id": "e1000", "sys": "tra_sched", "match": "\\(PP"}, {"id": "temu1000", "sys": "tra_sched", "match": "\\(太"}, {"id": "dr3100", "sys": "tra_sched", "match": "\\(D\\d"}, {"id": "juguang", "sys": "tra_sched", "match": "莒光"}, {"id": "local", "sys": "tra_sched", "match": "^區間"}, {"id": "700t", "sys": "thsr_sched"}], "sets": [{"id": "tc4", "cars": ["emu3000", "temu2000", "e1000", "temu1000"], "reward": "pick"}, {"id": "daily", "cars": ["local", "700t", "juguang", "dr3100"]}], "names": {"tc4": {"zh": "台鐵自強四款", "en": "Four TRA Tze-Chiang trains", "ja": "台鉄自強号 4 車種", "ko": "타이완철도 쯔창호 4종"}, "daily": {"zh": "日常通勤", "en": "Everyday rides", "ja": "日常の通勤", "ko": "일상 통근"}, "local": {"zh": "區間車", "en": "Local train", "ja": "区間車", "ko": "로컬 열차"}}}
   },
   "dwellReward": {
     "coveredMultiplier": 0.5

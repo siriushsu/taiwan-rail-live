@@ -35,6 +35,8 @@ const outbound = [];
 globalThis.fetch = async (u) => { outbound.push(String(u)); throw new Error('offline: ' + String(u)); };
 
 const RULES = JSON.parse(readFileSync('data/bounty_rules.json', 'utf8'));
+// 集章（chips.stamps，2026-11-19）在 verify_bounty_stamps.mjs 驗；這裡驗場景兌換與錢包其餘欄位，所以拿掉 stamps，錢包形狀照舊。
+delete RULES.chips.stamps;
 const SCN = RULES.chips.scenes;           // 場景清單（讀規則檔，不寫字面）
 const R = [];
 const ok = (n, p, msg = '') => { R.push({ n, p }); console.log(`${p ? '  ok ' : 'FAIL '} ${n}${msg ? ' — ' + msg : ''}`); };

@@ -353,5 +353,49 @@ world.lists['tra-list'] = savedTra;
 }
 world.lists['tra-list'] = savedTra;
 
+// 24. P4 結構化欄位：schema、站名清單進提示、新版整理流程、舊 revision 仍可讀
+{
+  const fresh2 = openTestDb();
+  const env4 = { DELAY_DB: fresh2.DELAY_DB, ANTHROPIC_API_KEY: 'test-key' };
+  const NEW = ['line', 'fromStation', 'toStation', 'trainClass', 'fromAt', 'untilAt'];
+  const impactNew = { scope: '基隆=彰化 對號列車', state: '停駛', from: '12:00', until: '預計 10/24 18:00 恢復', trains: [],
+    line: 'WL', fromStation: '基隆', toStation: '彰化', trainClass: '對號', fromAt: '2026-10-24T12:00:00+08:00', untilAt: '2026-10-24T18:00:00+08:00' };
+  world.claudeCalls.length = 0;
+  world.claude = () => claudeReply({ ...entry('颱風停駛', '停駛', traUrl('aa01')), impacts: [impactNew] });
+  await railAiDetect(env4, { now: T0, fetch: fakeFetch });
+  await railAiSummarize(env4, { now: T0, fetch: fakeFetch });
+  const calls = world.claudeCalls;
+  const schema = calls[0].body.output_config.format.schema;
+  const imp = schema.properties.impacts.items;
+  check('P4 schema 是合法 JSON（可序列化）、impacts 的 required 含六個新欄位與五個舊欄位',
+    JSON.stringify(JSON.parse(JSON.stringify(schema))) === JSON.stringify(schema)
+    && NEW.every(k => imp.required.includes(k) && imp.properties[k]) && ['scope', 'state', 'from', 'until', 'trains'].every(k => imp.required.includes(k))
+    && imp.additionalProperties === false && imp.required.length === Object.keys(imp.properties).length);
+  check('P4 trainClass 是 對號／非對號／全部 三選一', JSON.stringify(imp.properties.trainClass.enum) === JSON.stringify(['對號', '非對號', '全部']));
+  const traCall = calls.find(c => c.body.messages[0].content.includes('系統：tra'));
+  const ntmCall = calls.find(c => c.body.messages[0].content.includes('系統：ntmetro'));
+  const traP = traCall.body.messages[0].content, ntmP = ntmCall.body.messages[0].content;
+  check('P4 台鐵提示附台鐵站名清單（線代號＋站名），不附別系統的', traP.includes('<station_list system="tra">') && traP.includes('WL（縱貫線（含山線））：基隆') && traP.includes('臺東') && !traP.includes('南港、台北、板橋'));
+  check('P4 新北捷提示只附線名、不附台鐵站名', ntmP.includes('<station_list system="ntmetro">') && ntmP.includes('淡海輕軌') && !ntmP.includes('臺東'));
+  check('P4 系統提示說明新欄位規則', traCall.body.system.includes('站名只能用') || traCall.body.system.includes('只能用清單裡的站名'));
+  check('P4 系統提示：impacts 只列影響行駛或上下車的事項，附屬服務（自行車、行李、停車場…）不列',
+    traCall.body.system.includes('會影響列車行駛或乘客上下車的事項') && ['自行車', '行李', '停車場', '售票', '商店', '站內設施'].every(w => traCall.body.system.includes(w))
+    && traCall.body.system.includes('附屬服務一律不列進 impacts'));
+  check('P4 單站事項起迄填同一站（提示與 schema 說明都有）', traCall.body.system.includes('fromStation、toStation 都填那一站')
+    && imp.properties.fromStation.description.includes('只涉及一站') && imp.properties.toStation.description.includes('只涉及一站時填同一站'));
+  const tp = traP.indexOf('<station_list'), srcAt = traP.indexOf('<source');
+  check('P4 站名清單在原文之前、原文沒被清單擠掉（原文仍完整附上）', tp > 0 && tp < srcAt && traP.includes('加開 3 列'));
+  const api2 = await railAiStatus(new Request('https://railisland.tw/api/rail-status'), env4, T0 + 60e3);
+  const j2 = await api2.json();
+  check('P4 新欄位原樣經 /api/rail-status 吐出', NEW.every(k => j2.systems.find(x => x.id === 'tra').impacts[0][k] === impactNew[k]));
+  // 舊 revision（沒有新欄位）照常讀
+  const old = openTestDb();
+  old.db.prepare('INSERT INTO rail_ai_revisions (at_ms, changed, systems, cost_usd, meta) VALUES (?, ?, ?, ?, ?)')
+    .run(T0, '["tra"]', JSON.stringify({ tra: { ...entry('舊版停駛', '停駛'), id: 'tra', label: '台鐵', updatedAt: T0, model: 'x' } }), 0.1, '{}');
+  const r3 = await railAiStatus(new Request('https://railisland.tw/api/rail-status'), { DELAY_DB: old.DELAY_DB }, T0 + 60e3);
+  const j3 = await r3.json();
+  check('P4 舊 revision（沒有新欄位）仍可讀、impacts 原樣', r3.status === 200 && j3.systems[0].impacts[0].scope === '基隆=彰化' && j3.systems[0].impacts[0].line === undefined);
+}
+
 console.log(fails ? `\n${fails} 項失敗` : '\n全部通過');
 process.exit(fails ? 1 : 0);

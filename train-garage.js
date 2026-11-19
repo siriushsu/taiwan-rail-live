@@ -220,7 +220,7 @@
     b.querySelector('path').setAttribute('d',fs?FS_PATH.on:FS_PATH.off);requestDraw();
   }
   // Esc／返回手勢：兌換視窗開著先關它，再來是車款選單、場景頁；全畫面時先退全畫面、不關車庫。瀏覽器自己退出全畫面時同一下可能再送一次 cancel，那一下也不關。
-  const backOut=()=>{if(aboutOpen){closeAbout();return true;}if(redeemScene){closeRedeem();return true;}if(closeStageCars(true))return true;if(frameBack){closeFrame();return true;}if(fs){setFullscreen(false);return true;}return performance.now()-fsLeftAt<400;};
+  const backOut=()=>{if(aboutOpen){closeAbout();return true;}if(pickSet){closePick();return true;}if(redeemScene){closeRedeem();return true;}if(closeStageCars(true))return true;if(frameBack){closeFrame();return true;}if(fs){setFullscreen(false);return true;}return performance.now()-fsLeftAt<400;};
   // 開場景頁到 scene（開著就就地換座，先記下離開那座最後看的車），車照 pickCar。時段從記著的天色選擇起（自動＝台灣時間；日出併進黃昏那顆），
   // 開著時手動選的留到離開；呼叫的人接著 showDetail 載入這座。
   function openFrame(scene){
@@ -485,13 +485,58 @@
     // 舊伺服器回的是籌碼（沒有 unit:'point'）：網頁只做點數制，一律當暫時無法兌換。
     // storageBlocked：網頁只有送出前寫 pending 會寫不進去；這時四格都等，不能再開別座。
     return {uid,scenes,sale:new Set(!c||c.unit==='point'?scenes:[]),points:!c||c.unit==='point',loadState:w.loadState(),action,stored:!!action&&redeemStored,storageBlocked:action?.phase==='STORAGE_FAILURE',
-      ledger:c&&{balance:num(c.balance),nextCost:num(c.nextCost),unlocked:c.unlocked.map(u=>String(u&&u.scene)),items:Array.isArray(c.items)?c.items.map(x=>String(x&&x.item)):[]}};
+      ledger:c&&{balance:num(c.balance),nextCost:num(c.nextCost),unlocked:c.unlocked.map(u=>String(u&&u.scene)),items:Array.isArray(c.items)?c.items.map(x=>String(x&&x.item)):[],stamps:stampsOf(c)}};
   }
   const isItem=id=>id.startsWith('train:');
+  // ── 搭乘集章（契約 v3 3.0.1；照 App GarageStamps.swift 與 railcore WalletStamps.kt）：chips-me 的 stamps＋規則檔 chips.stamps 排成印章簿，
+  // 缺一邊整本不出（＝功能關著）。蓋滿有獎勵的組（reward:'pick'）可以從開賣中、還沒有的兌換車選一款，走同一個兌換視窗與狀態機，
+  // 目標字串 stamp:<組>:<兌換品>（只在前端用），送 POST /api/stamp-claim、不扣點數。
+  const STAMP_SET_RE=/^[a-z0-9_-]{1,40}$/;
+  const isStamp=id=>id.startsWith('stamp:');
+  const stampParts=id=>{const m=/^stamp:([a-z0-9_-]{1,40}):(train:[^:]+)$/.exec(id);return m?[m[1],m[2]]:null;};
+  // chips-me 的 stamps：{cars:[{id,n,first:{day,train}}],claimed:[組]}；形狀不對當沒有。
+  function stampsOf(c){
+    const s=c?.stamps;if(!s||typeof s!=='object'||!Array.isArray(s.cars))return null;
+    return {cars:s.cars.filter(x=>x&&typeof x.id==='string').map(x=>({id:x.id,n:num(x.n)??0,day:String(x.first?.day??''),train:String(x.first?.train??'')})),
+      claimed:Array.isArray(s.claimed)?s.claimed.map(String):[]};
+  }
+  // 每組 {set,slots:[{id,stamp|null}],stamped,picks,claimed,canClaim}，照規則檔的順序。
+  function stampBook(ctx){
+    const s=ctx?.ledger?.stamps,r=host.wallet.stampRules?.();
+    if(!s||!r||!Array.isArray(r.sets)||!r.sets.length)return null;
+    const by=new Map(s.cars.map(x=>[x.id,x]));
+    return r.sets.filter(x=>x&&STAMP_SET_RE.test(String(x.id))&&Array.isArray(x.cars)).map(set=>{
+      const slots=set.cars.map(id=>({id:String(id),stamp:by.get(String(id))||null})),stamped=slots.filter(x=>x.stamp).length,picks=set.reward==='pick',claimed=s.claimed.includes(set.id);
+      return {set,slots,stamped,picks,claimed,canClaim:picks&&slots.length>0&&stamped===slots.length&&!claimed};
+    });
+  }
+  // 這組蓋滿後可以選的車：規則檔 chips.items 有列價格（開賣中）、車庫有這款、還沒換到，照規則檔的順序（同 App stampClaimChoices）。
+  function stampChoices(ctx,set){
+    if(!stampBook(ctx)?.find(x=>x.set.id===set)?.canClaim)return [];
+    const owned=new Set(ctx.ledger.items);
+    return (host.wallet.itemIds?.()||[]).filter(item=>!owned.has(item)&&itemPrice(item)!=null);
+  }
+  // 章名：車款章用車庫的車款名；local 這類不是車款的章與組名用規則檔 names（zh／en／ja／ko），那一語缺就用繁中。
+  const stampLang=()=>{const l=host.lang();return l==='zh-TW'?'zh':l;};
+  const stampRuleName=id=>{const m=host.wallet.stampRules?.()?.names?.[id];return m&&(m[stampLang()]||m.zh)||id;};
+  const stampName=id=>{const row=rows.find(r=>r.id===id);return row?tr(row.model.name):stampRuleName(id);};
+  const nf=n=>new Intl.NumberFormat(host.lang()).format(n);
+  const stampDay=v=>{const p=String(v).split('-');return p.length===3?p[1]+'/'+p[2]:String(v);};
+  // 領獎勵車的狀態（同 App WalletController.stampState）：不看餘額；這組要能領、這款要開賣中而且還沒有。換到了算 UNLOCKED。
+  function stampState(ctx,target){
+    const p=stampParts(target);if(!p)return 'UNAVAILABLE';
+    const a=ctx.action;
+    if(a&&a.scene===target&&ctx.stored)return a.phase==='PENDING'?'PENDING':a.phase==='AUTH_REQUIRED'?'AUTH_REQUIRED':'FAILED';
+    if(ctx.ledger?.items.includes(p[1]))return 'UNLOCKED';
+    if(ctx.loadState==='AUTH_REQUIRED'||ctx.loadState==='WRONG_ACCOUNT')return 'AUTH_REQUIRED';
+    if(ctx.loadState!=='READY'||!ctx.ledger||ctx.storageBlocked)return 'WAITING';
+    return stampChoices(ctx,p[0]).includes(p[1])?'CAN_REDEEM':'UNAVAILABLE';
+  }
   // 車款的價格是規則檔的固定價（collection() 放在 goal.need），不看兌換順序。
   const itemPrice=item=>{const n=rows.find(r=>r.rule.id===item)?.goal.need;return Number.isInteger(n)&&n>0?n:null;};
   function sceneState(ctx,scene){
     if(isItem(scene))return itemState(ctx,scene);
+    if(isStamp(scene))return stampState(ctx,scene);
     if(ctx.ledger?.unlocked.includes(scene))return 'UNLOCKED';
     if(!ctx.sale.has(scene))return 'UNAVAILABLE';
     const a=ctx.action,l=ctx.ledger;
@@ -519,8 +564,8 @@
   }
   // 回 {unlocked,status,message,button,text,enabled}：status 是場景格第二行；button 是主按鈕做什麼，text 為 null 就不畫主按鈕。
   function redeemView(ctx,scene){
-    const item=isItem(scene),state=sceneState(ctx,scene),l=ctx.ledger,action=ctx.action,balance=l?.balance??null,cost=item?itemPrice(scene):l?.nextCost??null;
-    const status=state==='UNLOCKED'?T(item?'已入庫':'已解鎖'):state==='CAN_REDEEM'?T('用 {cost} 點兌換',{cost}):state==='NOT_ENOUGH'?T('還差 {n} 點',{n:cost-balance}):
+    const stamp=isStamp(scene),item=isItem(scene)||stamp,state=sceneState(ctx,scene),l=ctx.ledger,action=ctx.action,balance=l?.balance??null,cost=stamp?null:item?itemPrice(scene):l?.nextCost??null;
+    const status=state==='UNLOCKED'?T(item?'已入庫':'已解鎖'):state==='CAN_REDEEM'?(stamp?T('免費領走'):T('用 {cost} 點兌換',{cost})):state==='NOT_ENOUGH'?T('還差 {n} 點',{n:cost-balance}):
       state==='PENDING'?T('兌換處理中…'):state==='FAILED'?T('結果待確認'):state==='AUTH_REQUIRED'?T('需要登入'):state==='WAITING'?T(ctx.storageBlocked?'結果待確認':ctx.loadState==='FAILED'?'讀取失敗':'讀取中…'):T('暫時無法兌換');
     const costLine=(balance,cost)=>T(item?'目前 {balance} 點，這款要 {cost} 點。':'目前 {balance} 點，這座要 {cost} 點。',{balance,cost});
     const balanceLine=balance!=null&&cost!=null?costLine(balance,cost):null;
@@ -529,29 +574,30 @@
     const byState=message=>{
       switch(state){
         case 'UNLOCKED':return item?V(true,message??T('這款車已經入庫。'),'',null,false):V(true,message??T('這座場景已經解鎖。'),'VIEW',T('看場景'),true);
-        case 'CAN_REDEEM':return V(false,message??balanceLine,'REDEEM',T('用 {cost} 點兌換',{cost}),true);
+        case 'CAN_REDEEM':return stamp?V(false,message??T('蓋滿這組的獎勵：不扣點數，一組只能領一款。'),'REDEEM',T('免費領走'),true):V(false,message??balanceLine,'REDEEM',T('用 {cost} 點兌換',{cost}),true);
         case 'NOT_ENOUGH':return V(false,message??balanceLine,'REDEEM',short(balance,cost),false);
         case 'AUTH_REQUIRED':return V(false,message??T('需要登入才能兌換。'),'',null,false);
         case 'WAITING':return ctx.loadState==='FAILED'?V(false,message??T('讀取失敗，請稍後再試。'),'RELOAD',T('重新讀取'),true):V(false,message??T('讀取中…'),'',null,false);
-        default:return V(false,T('暫時無法兌換。'),'',null,false);
+        // 領獎勵車：伺服器說領過了、還沒蓋滿之後重讀，這組就不能領了（UNAVAILABLE），把伺服器的原因留著。
+        default:return V(false,(stamp?message:null)??T('暫時無法兌換。'),'',null,false);
       }
     };
     const a=action?.scene===scene&&!(TERMINAL.has(action.phase)&&action.requestId===redeemAck)?action:null;
-    if(!a)return action&&action.scene!==scene&&OPEN.has(action.phase)&&state!=='UNLOCKED'?V(false,T(isItem(action.scene)?'另一款車的兌換還沒確認，請先處理那一款。':'另一座場景的兌換還沒確認，請先處理那一座。'),'',null,false):byState(null);
+    if(!a)return action&&action.scene!==scene&&OPEN.has(action.phase)&&state!=='UNLOCKED'?V(false,T(isItem(action.scene)||isStamp(action.scene)?'另一款車的兌換還沒確認，請先處理那一款。':'另一座場景的兌換還沒確認，請先處理那一座。'),'',null,false):byState(null);
     switch(a.phase){
       case 'PENDING':return V(false,T('兌換處理中…'),'',T('兌換處理中…'),false);
       case 'RETRYABLE_FAILURE':return V(false,T(a.error==='bounty_paused'?'懸賞暫停中，兌換結果還沒確認。稍後重試，不會重複扣。':'還沒確認兌換結果。重試會沿用同一筆兌換，不會重複扣。'),'RETRY',T('重試'),true);
       case 'AUTH_REQUIRED':return V(false,T('需要登入才能兌換。'),'',null,false);
       case 'STORAGE_FAILURE':return V(false,T('這台裝置的儲存寫入失敗，兌換結果還沒確認。'),'RETRY_STORAGE',T('重試儲存'),true);
-      case 'SUCCEEDED':return byState(a.cost!=null&&a.balance!=null?T(item?'已入庫！用了 {cost} 點，還剩 {balance} 點。':'已解鎖！用了 {cost} 點，還剩 {balance} 點。',{cost:a.cost,balance:a.balance}):T(item?'這款車已經入庫。':'這座場景已經解鎖。'));
-      case 'ALREADY':return byState(T(item?'這款車之前就換過了，這次沒有扣除。':'這座場景之前就解鎖了，這次沒有扣除。'));
+      case 'SUCCEEDED':if(stamp)return byState(T('已入庫！這次沒有扣點數。'));return byState(a.cost!=null&&a.balance!=null?T(item?'已入庫！用了 {cost} 點，還剩 {balance} 點。':'已解鎖！用了 {cost} 點，還剩 {balance} 點。',{cost:a.cost,balance:a.balance}):T(item?'這款車已經入庫。':'這座場景已經解鎖。'));
+      case 'ALREADY':if(stamp)return byState(T('這組的獎勵之前就領過了，一組只能領一次。'));return byState(T(item?'這款車之前就換過了，這次沒有扣除。':'這座場景之前就解鎖了，這次沒有扣除。'));
       case 'NOT_ENOUGH':{
         const line=a.balance!=null&&a.cost!=null?costLine(a.balance,a.cost):balanceLine;
         return state==='CAN_REDEEM'?byState(line):V(false,line,'REDEEM',short(a.balance,a.cost)??short(balance,cost),false);
       }
       case 'CONFLICT_REFRESH':return V(false,T('點數剛有變動，正在重新讀取…'),'',null,false);
       case 'CONFLICT_READY':return byState(T('已讀到最新點數，確認後再按一次兌換。'));
-      default:return byState(T('兌換沒有完成。'));
+      default:return byState(T(stamp&&a.error==='already'?'你已經有這款車了，換一款吧。':stamp&&a.error==='incomplete'?'這組還沒蓋滿，還不能領。':'兌換沒有完成。'));
     }
   }
   // 關了頁面又回來、上次送出的還沒確認：那一座顯示「結果待確認」＋重試，沿用同一個 requestId（同 App 重開時的 pending）。
@@ -580,6 +626,12 @@
     if(!b||b.ok!==true||b.item!==item||!whole(b.cost)||!whole(b.balance)||!Array.isArray(b.items))return false;
     const ids=b.items.map(x=>x&&x.item);return ids.includes(item)&&new Set(ids).size===ids.length;
   }
+  // 領車的 200：ok、是這組這款、items 含這款且不重複、stamps 的 claimed 含這組（同 App parseStampClaimSuccess）。
+  function stampClaimOk(b,[set,item]){
+    if(!b||b.ok!==true||b.set!==set||b.item!==item||!Array.isArray(b.items))return false;
+    const ids=b.items.map(x=>x&&x.item),st=stampsOf(b);
+    return ids.includes(item)&&new Set(ids).size===ids.length&&!!st&&st.claimed.includes(set);
+  }
   function beginRedeem(ctx,scene){
     if(ctx.action&&OPEN.has(ctx.action.phase))return;
     const id=crypto.randomUUID?crypto.randomUUID():[...crypto.getRandomValues(new Uint8Array(16))].map(b=>b.toString(16).padStart(2,'0')).join('');
@@ -593,11 +645,16 @@
   async function sendRedeem(p){
     const w=host.wallet,base={uid:p.uid,scene:p.scene,requestId:p.requestId};
     redeemAction={...base,phase:'PENDING'};renderWallet();
-    const item=isItem(p.scene),{status,body}=await (item?w.collect(p.scene,p.requestId):w.redeem(p.scene,p.requestId));
+    const item=isItem(p.scene),st=stampParts(p.scene),{status,body}=await (st?w.stampClaim(st[0],st[1],p.requestId):item?w.collect(p.scene,p.requestId):w.redeem(p.scene,p.requestId));
     if(redeemAction?.requestId!==p.requestId||w.uid()!==p.uid)return; // 回來時人換了，或這筆已經被取代
     const e=body&&typeof body==='object'?body.error:undefined,set=(phase,extra)=>{redeemAction={...base,phase,...extra};},done=()=>{w.pending.clear();redeemStored=false;};
+    // 領獎勵車（3.0.1）：200 換到；409 claimed＝這組領過了；409 already（已經有這款）、incomplete（還沒蓋滿）當失敗並重讀，畫面回到伺服器的狀態。
+    if(st&&status===200&&stampClaimOk(body,st)){set('SUCCEEDED',{cost:0,balance:null});done();w.patch({items:body.items,stamps:body.stamps});reloadWallet();}
+    else if(st&&status===409&&e==='claimed'){set('ALREADY',{error:e});done();const l=w.ledger(),s=stampsOf(l);if(l&&s&&!s.claimed.includes(st[0]))w.patch({stamps:{...l.stamps,claimed:[...s.claimed,st[0]]}});reloadWallet();}
+    else if(st&&status===409&&(e==='already'||e==='incomplete')){set('FAILED',{error:e});done();reloadWallet();}
+    else if(st&&status===409&&e==='conflict'){set('CONFLICT_REFRESH');done();reloadWallet();}
     // 車款只動餘額與 items：場景的下一座價格不受影響。
-    if(item&&status===200&&collectOk(body,p.scene)){set('SUCCEEDED',{cost:body.cost,balance:body.balance});done();w.patch({balance:body.balance,items:body.items});reloadWallet();}
+    else if(item&&status===200&&collectOk(body,p.scene)){set('SUCCEEDED',{cost:body.cost,balance:body.balance});done();w.patch({balance:body.balance,items:body.items});reloadWallet();}
     else if(item&&status===409&&e==='already'){set('ALREADY');done();const l=w.ledger(),had=Array.isArray(l?.items)?l.items:[];if(l&&!had.some(x=>x?.item===p.scene))w.patch({items:[...had,{item:p.scene}]});reloadWallet();}
     else if(item&&status===409&&e==='not_enough'){set('NOT_ENOUGH',{cost:num(body.cost),balance:num(body.balance)});done();if(num(body.balance)!=null)w.patch({balance:num(body.balance)});}
     else if(item&&status===409&&e==='conflict'){set('CONFLICT_REFRESH');done();reloadWallet();}
@@ -620,8 +677,56 @@
     else if(kind==='RELOAD')reloadWallet();
     else if(kind==='VIEW')goScene(redeemScene);
   }
+  // 印章簿：每組一張卡，格子照規則檔的順序；已蓋的實線框寫第一次的日期車次與搭過幾次，沒蓋的虛線框、縮圖變灰。
+  // HTML 沒變就不重建（host 每次重畫護照都會 refresh，重建會把「選一款車」鈕的焦點弄丟）。
+  let stampsHtml='';
+  function showStamps(){
+    const box=$('.g-stamps'),ctx=walletCtx(),book=ctx&&stampBook(ctx);
+    box.hidden=!book;if(!book){stampsHtml='';closePick();return;}
+    const sep=tr('、');
+    const html=book.map(s=>{
+      const missing=s.slots.filter(x=>!x.stamp).map(x=>stampName(x.id));
+      const slots=s.slots.map(x=>{const name=stampName(x.id),row=rows.find(r=>r.id===x.id),st=x.stamp;
+        const lines=st?`<small>${esc(tr('{day} · {train} 次',{day:stampDay(st.day),train:st.train}))}</small><small class="g-st-n">${esc(T('搭過 {n} 次',{n:st.n}))}</small>`:`<small>${esc(tr('還沒搭過'))}</small>`;
+        return `<div class="g-st-slot${st?' on':''}" data-stamp="${esc(x.id)}"><span class="g-st-img" aria-hidden="true">${row?`<img src="${esc(row.model.thumbnail)}" alt="" loading="lazy" width="320" height="200">`:''}</span><b>${esc(name)}</b>${lines}</div>`;}).join('');
+      const foot=missing.length?`<span>${esc(tr('還差{names}',{names:missing.join(sep)}))}</span>`:s.claimed?`<span class="g-st-claimed">${esc(tr('已領過獎勵車'))}</span>`:'';
+      const choices=s.canClaim?stampChoices(ctx,s.set.id):[];
+      const claim=!s.canClaim?'':choices.length?`<p class="g-st-full">${esc(tr('蓋滿了！選一款兌換車，不扣點數。'))}</p><button class="g-st-pick" type="button" data-stamp-pick="${esc(s.set.id)}" aria-haspopup="dialog">${esc(tr('選一款車'))}</button>`:`<p class="g-st-full">${esc(tr('蓋滿了！開賣中的兌換車你都有了。'))}</p>`;
+      return `<div class="g-st-set" data-set="${esc(s.set.id)}"><div class="g-st-head"><b>${esc(stampRuleName(s.set.id))}</b><small>${esc(s.picks?T('蓋滿 {n} 個，送一款兌換車自選',{n:s.slots.length}):tr('只蓋章，不換車'))}</small></div>
+        <div class="g-st-grid">${slots}</div><div class="g-st-foot"><strong>${esc(`${nf(s.stamped)} / ${nf(s.slots.length)}`)}</strong>${foot}</div>${claim}</div>`;
+    }).join('');
+    if(html!==stampsHtml){stampsHtml=html;$('.g-stamps-sets').innerHTML=html;}
+    if(pickSet)showPick();
+  }
+  // 「選一款車」：tc4 蓋滿後列出開賣中、還沒有的兌換車；點一款就關這張、開同一個兌換視窗（免費領走）。卡片樣式同介紹卡。
+  let pickSet='',pickOpener=null;
+  function openPick(set,opener){
+    pickSet=set;pickOpener=opener;setFullscreen(false);
+    $('.g-top').inert=$('.g-main').inert=$('.g-sf').inert=true;$('.g-pick').hidden=false;showPick();
+    $('.g-pick-card').focus({preventScroll:true});
+  }
+  function showPick(){
+    const ctx=walletCtx(),s=stampBook(ctx)?.find(x=>x.set.id===pickSet);
+    $('.g-pick-desc').textContent=tr('「{set}」蓋滿了，從開賣中的兌換車選一款，不扣點數。一組只能領一次。',{set:stampRuleName(pickSet)});
+    const items=s?stampChoices(ctx,pickSet):[],key=items.join();
+    const list=$('.g-pick-list');if(list.dataset.key===key)return;list.dataset.key=key;
+    list.innerHTML=items.map(item=>{const row=rows.find(r=>r.rule.id===item);if(!row)return '';
+      return `<button class="g-pick-car" type="button" data-item="${esc(item)}"><img src="${esc(row.model.thumbnail)}" alt="" width="72" height="45"><b>${esc(tr(row.model.name))}</b><i aria-hidden="true">›</i></button>`;}).join('');
+  }
+  function closePick(keepInert=false){
+    if(!pickSet)return;
+    pickSet='';$('.g-pick').hidden=true;$('.g-pick-list').dataset.key='';
+    if(keepInert)return;
+    $('.g-top').inert=$('.g-main').inert=!!frameBack;$('.g-sf').inert=false;
+    if(pickOpener?.isConnected)pickOpener.focus({preventScroll:true});pickOpener=null;
+  }
+  // 選了一款：兌換視窗關掉時焦點回到印章簿的「選一款車」鈕。
+  function choosePick(item){
+    const set=pickSet,opener=pickOpener;if(!set||!STAMP_SET_RE.test(set))return;
+    closePick(true);pickOpener=null;openRedeem(`stamp:${set}:${item}`,opener);
+  }
   function showScenes(){
-    restorePending();
+    restorePending();showStamps();
     const box=$('.g-scenes'),ctx=walletCtx();
     box.hidden=!ctx||!ctx.scenes.length;
     if(box.hidden){if(redeemScene)closeRedeem();return;}
@@ -642,13 +747,17 @@
   function showRedeem(){
     const ctx=walletCtx();if(!ctx){closeRedeem();return;}
     const v=redeemView(ctx,redeemScene);
-    if(isItem(redeemScene)){const row=rows.find(r=>r.rule.id===redeemScene),name=row?tr(row.model.name):'';
+    const sp=stampParts(redeemScene);
+    if(sp){const row=rows.find(r=>r.rule.id===sp[1]),name=row?tr(row.model.name):'';
+      $('.g-redeem h2').textContent=v.unlocked?name:tr('領走「{name}」',{name});
+      $('.g-redeem-desc').textContent=tr('蓋滿印章簿這一組的獎勵：不扣點數，換到就永久收進車庫。');}
+    else if(isItem(redeemScene)){const row=rows.find(r=>r.rule.id===redeemScene),name=row?tr(row.model.name):'';
       $('.g-redeem h2').textContent=v.unlocked?name:tr('兌換「{name}」',{name});
       $('.g-redeem-desc').textContent=tr('用點數兌換，換到就永久收進車庫。');}
     else{const place=scenePlace(redeemScene);
       $('.g-redeem h2').textContent=v.unlocked?tr(place):tr('解鎖「{place}」',{place:tr(place)});
       $('.g-redeem-desc').textContent=tr('永久解鎖這座場景。解鎖後在場景頁上方點它就能看。');}
-    const intro=$('.g-redeem-intro');intro.textContent=isItem(redeemScene)?introOf('cars',rows.find(r=>r.rule.id===redeemScene)?.id):introOf('scenes',redeemScene);intro.hidden=!intro.textContent;
+    const intro=$('.g-redeem-intro');intro.textContent=sp?introOf('cars',rows.find(r=>r.rule.id===sp[1])?.id):isItem(redeemScene)?introOf('cars',rows.find(r=>r.rule.id===redeemScene)?.id):introOf('scenes',redeemScene);intro.hidden=!intro.textContent;
     $('.g-redeem-acct').innerHTML=host.wallet.accountLine();
     const msg=$('.g-redeem-msg'),go=$('.g-redeem-go');msg.hidden=!v.message;msg.textContent=v.message||'';
     go.hidden=!v.text;go.textContent=v.text||'';go.disabled=!v.enabled;go.dataset.do=v.button;
@@ -735,7 +844,7 @@
     showGrid();
   }
   function build() {
-    setFullscreen(false);data();resize?.disconnect();visibility?.disconnect();for(const g of gestures)g.stop();gestures=[];inView=true;gridKey='';redeemScene='';redeemOpener=null;aboutOpen=false;aboutOpener=null;
+    setFullscreen(false);data();resize?.disconnect();visibility?.disconnect();for(const g of gestures)g.stop();gestures=[];inView=true;gridKey='';redeemScene='';redeemOpener=null;aboutOpen=false;aboutOpener=null;pickSet='';pickOpener=null;stampsHtml='';
     // 換語言重建時場景頁一起關掉，回到點之前那一格。
     if(frameBack){mode=frameBack;frameBack='';frameScene='';period=pickedPeriod();resetView();keepFrameCar();}
     dialog.classList.remove('g-sf-open');
@@ -748,6 +857,7 @@
       <button class="mt-g-depot" type="button" data-mt-g="depot" hidden><span><b>${esc(tr('軌島機務段'))}</b><small>${esc(tr('六股車隊：排班、看車、親手發車'))}</small></span><i aria-hidden="true">›</i></button>
       <div class="g-demo" hidden><span>${esc(tr('展示模式・不計入收藏'))}</span><button class="g-demo-off"></button></div>
       <section class="g-scenes" hidden aria-labelledby="gScenesTitle"><div class="g-scenes-bar"><h2 id="gScenesTitle">${esc(tr('車庫場景'))}</h2><span class="g-scenes-head"></span></div><div class="g-scenes-acct"></div><div class="g-scenes-list"></div></section>
+      <section class="g-stamps" hidden aria-labelledby="gStampsTitle" data-i18n-skip><h2 id="gStampsTitle">${esc(tr('印章簿'))}</h2><p class="g-stamps-note">${esc(tr('懸賞錄程判定合格的每一趟，照班表的車種蓋一個章。'))}</p><div class="g-stamps-sets"></div></section>
       <div class="g-filters"><div class="g-tabs">${[['all','全部車款'],['owned','已入庫'],['pending','待收集']].map(([id,text])=>`<button data-filter="${id}" aria-pressed="${filter===id}">${esc(tr(text))}</button>`).join('')}</div>
       <label class="g-picker"><span>${esc(tr('選擇車款'))}</span><select class="g-model-select"></select></label></div>
       <div class="g-empty" hidden><p class="g-empty-text"></p><button class="g-reset">${esc(tr('查看所有車款'))}</button><button class="g-demo-start">${esc(tr('看看展示車庫'))}</button></div>
@@ -766,6 +876,7 @@
       <div class="g-sf-icons" role="group" aria-label="${esc(tr('列車與視角控制'))}"><button class="g-sf-play g-sf-icon" type="button"></button><button class="g-sf-out g-sf-icon" type="button" aria-label="${esc(tr('縮小場景'))}">−</button><button class="g-sf-in g-sf-icon" type="button" aria-label="${esc(tr('放大場景'))}">＋</button><button class="g-sf-reset g-sf-icon" type="button" aria-label="${esc(tr('重設視角'))}">⌂</button></div></div>
       <p class="g-sf-caption"></p></div></section>
       <div class="g-redeem" hidden><div class="g-redeem-card" role="dialog" aria-modal="true" aria-labelledby="gRedeemTitle" tabindex="-1"><h2 id="gRedeemTitle"></h2><p class="g-redeem-intro" hidden></p><p class="g-redeem-desc"></p><div class="g-redeem-acct"></div><p class="g-redeem-msg" role="status"></p><button class="g-redeem-go" type="button"></button><button class="g-redeem-close" type="button">${esc(tr('關閉'))}</button></div></div>
+      <div class="g-pick" hidden><div class="g-pick-card" role="dialog" aria-modal="true" aria-labelledby="gPickTitle" tabindex="-1"><h2 id="gPickTitle">${esc(tr('選一款車'))}</h2><p class="g-pick-desc"></p><div class="g-pick-list"></div><button class="g-pick-close" type="button">${esc(tr('關閉'))}</button></div></div>
       <div class="g-about" hidden><div class="g-about-card" role="dialog" aria-modal="true" aria-labelledby="gAboutTitle" tabindex="-1"><h2 id="gAboutTitle"></h2><p class="g-about-text"></p><button class="g-about-close" type="button">${esc(tr('關閉'))}</button></div></div>`;
 
     // 頂列實高給 CSS 當內容的 scroll-margin-top（見 train-garage.css「避開 sticky 頂列」那條）。
@@ -802,6 +913,9 @@
     $('.g-redeem').onclick=e=>{if(e.target===e.currentTarget)closeRedeem();};
     $('.g-sf-about').onclick=e=>openAbout(e.currentTarget);$('.g-about-close').onclick=closeAbout;
     $('.g-about').onclick=e=>{if(e.target===e.currentTarget)closeAbout();};
+    $('.g-stamps').onclick=e=>{const b=e.target.closest('[data-stamp-pick]');if(b)openPick(b.dataset.stampPick,b);};
+    $('.g-pick-list').onclick=e=>{const b=e.target.closest('[data-item]');if(b)choosePick(b.dataset.item);};
+    $('.g-pick-close').onclick=()=>closePick();$('.g-pick').onclick=e=>{if(e.target===e.currentTarget)closePick();};
     $('.g-fs').onclick=()=>setFullscreen(!fs);
     $('.g-zoom-in').onclick=()=>setZoom(zoom*1.2);$('.g-zoom-out').onclick=()=>setZoom(zoom/1.2);
     // 場景頁的鈕跟舞台同一套動作。
@@ -833,7 +947,7 @@
   }
   function close() {
     if(!dialog?.open)return;
-    closeAbout();closeRedeem();setFullscreen(false);
+    closeAbout();closePick();closeRedeem();setFullscreen(false);
     if(dialog.classList.contains('g-legacy')){
       dialog.removeAttribute('open');dialog.classList.remove('g-legacy');
       for(const [el,value] of legacyBackground)value===null?el.removeAttribute('aria-hidden'):el.setAttribute('aria-hidden',value);
@@ -844,7 +958,7 @@
   document.addEventListener('focusin',e=>{if(dialog?.open&&dialog.classList.contains('g-legacy')&&!dialog.contains(e.target))$('.g-close').focus({preventScroll:true});});
   document.addEventListener('keydown',e=>{
     // 兌換視窗、場景頁的 Esc 在按鍵這一下就處理掉：Chrome 擋 modal dialog 的 cancel 要有新的使用者操作，連按幾次之後擋不住，車庫會整個關掉。
-    if(dialog?.open&&(aboutOpen||redeemScene||frameBack)&&e.key==='Escape'){e.preventDefault();backOut();return;}
+    if(dialog?.open&&(aboutOpen||pickSet||redeemScene||frameBack)&&e.key==='Escape'){e.preventDefault();backOut();return;}
     if(!dialog?.open||!dialog.classList.contains('g-legacy'))return;
     if(e.key==='Escape'){e.preventDefault();if(!backOut())close();return;}
     if(e.key!=='Tab')return;

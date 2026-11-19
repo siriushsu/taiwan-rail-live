@@ -6059,6 +6059,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="stamps1119"><span class="d">11/19</span><span>車庫新增印章簿：懸賞錄程判定合格的每一趟照車種蓋一個章，集滿一組可以免費選一款兌換車</span></li>
         <li data-cl-of="farparks1119"><span class="d">11/19</span><span>全台山海與離島的遠景更細緻。中正紀念堂正面朝向自由廣場，兩側牌樓可看穿，園內和總統府旁誤畫的公寓也已修正</span></li>
         <li data-cl-of="followrain1119"><span class="d">11/19</span><span>新地景跟車會遇到當地的雨，進隧道雨絲漸停，拉遠可以看見雨中的山霧</span></li>
         <li data-cl-of="heritagetemples1119"><span class="d">11/19</span><span>地景補上 29 間古蹟廟宇，依實景重畫各殿位置、天井與屋頂，從彰化孔廟到金門奎閣都能拉近看</span></li>
@@ -6066,7 +6067,6 @@
         <li data-cl-of="places1119"><span class="d">11/19</span><span>地景補上廟宇、校園、百貨、圖書館與遊具。政大跑道恢復藍色，隧道進山，墓地白格也已移除。「觀看 → 視角」可從多良、牡丹、彰化與鹿野取景</span></li>
         <li data-cl-of="cksgate1119"><span class="d">11/19</span><span>電腦地景地圖的中正紀念堂：四周圍牆畫回白牆藍瓦，自由廣場牌樓改成五門藍瓦牌樓，不再像一排怪房子</span></li>
         <li data-cl-of="openingmusic1119"><span class="d">11/19</span><span>電腦首頁開場的六段畫面不分白天晚上都會輪流出現；登入的人開場音樂不會再播到一半突然停掉</span></li>
-        <li data-cl-of="landscapeload1119"><span class="d">11/19</span><span>電腦地景地圖讀取更穩：圖磚卡住會自動重抓，不再整區停在模糊的遠景、換版後不會拿到舊資料；右下角的資料來源改成最多兩行，不再橫向捲動；來源多到放不下時收成 ⓘ 鈕，點一下看全文</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -6100,6 +6100,7 @@
         <li data-cl="weatherapp1023"><span class="d">10/23</span><span>修正 App 颱風資訊整份重複顯示，改為各系統公告；補上新北環狀線、三鶯線 10/23 約 15 分鐘班距，淡海與安坑仍待確認</span></li>
         <li data-cl="weather1022"><span class="d">10/22</span><span>新增颱風期間全台鐵道營運提醒與官方來源，明確標示停駛、調整班距及待確認資訊；地圖有車不代表實際開行；開啟颱風公告時跟車卡暫時隱藏</span></li>
         <li class="grp">路網與車站</li>
+        <li data-cl="stamps1119"><span class="d">11/19</span><span>車庫新增印章簿：懸賞錄程判定合格的每一趟照車種蓋一個章，集滿一組可以免費選一款兌換車</span></li>
         <li data-cl="farparks1119"><span class="d">11/19</span><span>全台山海與離島的遠景更細緻。中正紀念堂正面朝向自由廣場，兩側牌樓可看穿，園內和總統府旁誤畫的公寓也已修正</span></li>
         <li data-cl="followrain1119"><span class="d">11/19</span><span>新地景跟車會遇到當地的雨，進隧道雨絲漸停，拉遠可以看見雨中的山霧</span></li>
         <li data-cl="heritagetemples1119"><span class="d">11/19</span><span>地景補上 29 間古蹟廟宇，依實景重畫各殿位置、天井與屋頂，從彰化孔廟到金門奎閣都能拉近看</span></li>
@@ -7661,7 +7662,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1119d：古蹟廟宇的實景位置與分殿屋面。
 // v1119e：地景跟車的當地雨霧、隧道遮雨與手機繪圖負載調節。
 // v1119g：電腦署名列放不下兩行時收成 ⓘ。
-const BUILD = 'v1119g';
+// v1119h：車庫印章簿（搭乘集章，ride_log＋chips.stamps）；Worker 行程跟這趟的接續判斷與整段提醒、路線受營運公告影響的線路表。
+const BUILD = 'v1119h';
 // v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 // 有播電腦首頁開場、又是第一次來（RI_HOME_OPENING.fresh）：揭幕後開新地景（開場影片就是新地景錄的）；只這一趟，不寫地景偏好
@@ -24646,6 +24648,10 @@ const garageWallet = {
   redeem: (scene, requestId) => garageWalletPost('api/garage-redeem', { scene, requestId }),
   // 車款兌換（契約 v3 POST /api/garage-collect）：回應的處理照場景那條（train-garage.js sendRedeem）。
   collect: (item, requestId) => garageWalletPost('api/garage-collect', { item, requestId }),
+  // 搭乘集章（契約 v3 3.0.1）：規則檔 chips.stamps（沒有＝功能關著，印章簿不出）、開賣中兌換車的順序、集滿領車 POST /api/stamp-claim。
+  stampRules: () => { const st = bountyRulesMem && bountyRulesMem.chips && bountyRulesMem.chips.stamps; return st && typeof st === 'object' ? st : null; },
+  itemIds: () => { const it = bountyRulesMem && bountyRulesMem.chips && bountyRulesMem.chips.items; return it && typeof it === 'object' ? Object.keys(it) : []; },
+  stampClaim: (set, item, requestId) => garageWalletPost('api/stamp-claim', { set, item, requestId }),
   wrongAccount: () => bountyOnWrongAccount(),
   accountLine: () => bountyAccountLine(),
   pending: {

@@ -133,3 +133,30 @@ export function laJwtReset() {
   _laJwt = null; _laJwtAt = 0; _laJwtKey = '';
   return true;
 }
+
+// ── 跟這趟（AI 串聯行程 P3）的接續判斷。本尊在原生 railcore `TripFollowVerdict`（tripplan/TripFollow.kt），
+//    Android 通知與 App 前景也用同一份；這裡逐字照抄，verify_la_trip.mjs 用同一組數字釘住兩邊。
+// 保守裕度（分）＝floor((接續發車 − 前段預估到站)/60) − 步行分（整分進位）− 2，可以是負的。
+// 公式就是公車轉乘助手（BusTransfer connectionVerdict）與規劃器 TripTransfer 的那一條。
+export function laTripSlack(depSec, arriveSec, walkSec) {
+  return Math.floor((Number(depSec) - Number(arriveSec)) / 60) - Math.ceil(Number(walkSec) / 60) - 2;
+}
+// 4 分以上接得上、0～3 偏緊、負的可能接不上。
+export function laTripTone(slack) { return slack >= 4 ? 'ok' : slack >= 0 ? 'tight' : 'miss'; }
+// 改搭：預估 readySec 到轉乘站時，第一個「最晚到站時刻」還來得及的（rebook 依 latest 由早到晚）；都趕不上＝-1。
+export function laTripPick(rebook, readySec) {
+  if (!Array.isArray(rebook)) return -1;
+  return rebook.findIndex(r => r && Number(r.latest) >= Number(readySec));
+}
+// 這一段（下車站 endAt＋目前誤點）接下一段 legs[0] 的判斷；沒有下一段或沒有接續資料＝null。
+// 可能接不上時順便挑改搭（rebook 的索引，-1＝都趕不上）。
+export function laTripVerdict(state, delaySec) {
+  const next = state && Array.isArray(state.legs) ? state.legs[0] : null;
+  const c = next && next.conn;
+  if (!c) return null;
+  const ready = Number(state.endAt) + Number(delaySec || 0);
+  const slack = laTripSlack(c.dep, ready, c.walkSec);
+  const tone = laTripTone(slack);
+  const pick = tone === 'miss' ? laTripPick(next.rebook, ready) : -1;
+  return { tone, slack, conn: c, ready, pick, rebook: pick >= 0 ? next.rebook[pick] : null };
+}
