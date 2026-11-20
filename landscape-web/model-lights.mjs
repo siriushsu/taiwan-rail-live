@@ -6,8 +6,9 @@ export function createModelLights() {
   const active = new Set(), originals = new WeakMap();
   let hour=12, calendar={weekday:0}, darkness=0;
   function update(entry) {
-    const level=lightLevel(entry.hours,hour,calendar.weekday,calendar.monthlyMonday);
     const {material,source,authored}=entry;
+    // 模型自己做了夜燈、又查不到固定時段的，夜燈照原樣整夜亮。
+    const level=authored && !entry.hours.length ? 1 : lightLevel(entry.hours,hour,calendar.weekday,calendar.monthlyMonday);
     if (authored) {
       material.emissive.copy(source.emissive);
       material.emissiveIntensity=source.emissiveIntensity*level;

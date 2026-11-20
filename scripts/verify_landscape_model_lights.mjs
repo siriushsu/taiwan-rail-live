@@ -1,7 +1,7 @@
 // 對本機 dev_server（圖磚可用 LANDSCAPE_TILES 指向本機倉）實際載入模型與材質。
 import assert from 'node:assert/strict';
 import {chromium,webkit} from 'playwright';
-import {lightCalendar,lightLevel,modelHours} from '../rail-3d/environment/model-hours.js';
+import {lightCalendar,lightLevel,modelHours,exteriorLevel} from '../rail-3d/environment/model-hours.js';
 function level(id,hour,day,name='') {
   const cal=lightCalendar(2026,11,day);
   return lightLevel(modelHours(id,name),hour,cal.weekday,cal.monthlyMonday);
@@ -11,14 +11,20 @@ assert.equal(level('taipei-main-v1',2,14),.12);
 assert.equal(level('taipei-city-hall-bus',.99,16),1); // 週日跨到週一
 assert.equal(level('taipei-city-hall-bus',1,16),.12);
 assert.equal(level('tfam',20,14),1);
-assert.equal(level('tfam',20,13),.12);
+assert.equal(level('tfam',20,13),exteriorLevel); // 閉館後外觀照明留到 22 時
+assert.equal(level('tfam',22,13),.12);
+assert.equal(level('tfam',14.9,16),.12); // 休館日白天不算外觀照明時段
+assert.equal(level('npm-main-hall',19.5,20),exteriorLevel);
 assert.equal(level('keelung-tower',19,23),1);
-assert.equal(level('keelung-tower',19,30),.12);
-assert.equal(level('tamsui-fort-san-domingo',16,2),.12);
+assert.equal(level('keelung-tower',19,30),exteriorLevel); // 每月最後一個週一休館
+assert.equal(level('tamsui-fort-san-domingo',16,2),exteriorLevel); // 每月第一個週一休館
+assert.equal(level('tamsui-fort-san-domingo',22,2),.12);
 assert.equal(level('taipei101-landmark-v1',23,19),.12);
 assert.equal(level('taipei-stadium',18,19),1);
 assert.equal(level('taipei-stadium',12,19),.12);
 assert.equal(level('undocumented',2,19),.36);
+assert.equal(level('taipei-main-v1',2,14),.12); // 車站收班後不適用外觀照明
+assert.equal(lightLevel(modelHours('tra-x','不存在的站'),20,5),.36);
 
 const base=process.env.BASE_URL || 'http://127.0.0.1:5179/';
 const www=new URL(base);
@@ -59,7 +65,7 @@ for(const [name,engine] of Object.entries({chromium,webkit})){
           const samples=[],prev=renderer.getRenderTarget(),previousClear=renderer.autoClear;
           try {
             renderer.autoClear=true;renderer.setRenderTarget(target);
-            for(const h of [20,21,2,12]){
+            for(const h of [20,21,22,2,12]){
               api.setTime(h);renderer.render(scene,cam);
               const raw=new Uint8Array(160*160*4);renderer.readRenderTargetPixels(target,0,0,160,160,raw);
               let sum=0;for(let i=0;i<raw.length;i+=4)sum+=raw[i]+raw[i+1]+raw[i+2];
@@ -86,20 +92,22 @@ for(const [name,engine] of Object.entries({chromium,webkit})){
         target.dispose();api.setTime(state.simSec/3600);return results;
       },id);
       console.log(name,id,results);
-      for(const [evening,close,late,day] of results){
+      for(const [evening,exterior,close,late,day] of results){
         assert.ok(evening>day*1.15 && late>day, id+' 夜間在可見像素上有投光');
         if(id==='presidential-office')assert.ok(Math.abs(late-evening)<evening*.01);
         if(id==='taipei-main-v1')assert.ok(late<evening*.65);
-        if(id==='national-theater')assert.ok(close<evening*.65 && Math.abs(close-late)<late*.01);
+        if(id==='national-theater')assert.ok(exterior<evening*.9 && exterior>close*1.2 && close<evening*.65 && Math.abs(close-late)<late*.01,
+          '兩廳院閉館後先降一階、22 時後才轉暗：'+[evening,exterior,close,late]);
       }
     }
-    // 利用網站正在播放的時鐘，跨過 21:00 那一分鐘的前後邊界。
-    for (const [minute,open] of [[1259,true],[1260,false],[1259,true]]) {
+    // 利用網站正在播放的時鐘，跨過 21:00（閉館）與 22:00（外觀照明結束）那一分鐘的前後邊界。
+    for (const [minute,open] of [[1259,'open'],[1260,'exterior'],[1319,'exterior'],[1320,'closed'],[1259,'open']]) {
       await page.evaluate(m=>{setSimSec(m*60);M.raw.triggerRepaint();},minute);
       await page.waitForFunction(open=>{
         const st=[...railIslandLandscapeWeb.api().tiles.values()].flatMap(t=>t.stations||[]).find(s=>s.id==='national-theater');
         const solid=st?.far.children.find(m=>m.material.customProgramCacheKey().includes('facade-wash'));
-        return solid && (open ? solid.material.emissiveIntensity>.9 : solid.material.emissiveIntensity<.2);
+        const v=solid?.material.emissiveIntensity;
+        return solid && (open==='open' ? v>.9 : open==='exterior' ? v>.55 && v<.8 : v<.2);
       },open,{timeout:15000});
     }
     await page.evaluate(()=>{M.raw.jumpTo({center:[121.564,25.0377],zoom:16.5,pitch:45});setSimSec(2*3600);});

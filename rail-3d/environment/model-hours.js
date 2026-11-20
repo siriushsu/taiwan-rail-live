@@ -46,6 +46,10 @@ function inWindow(week,day,minute) {
   if (Array.isArray(span[0])) return span.some(([open,close])=>minute>=open && minute<close);
   return minute>=span[0] && minute<span[1];
 }
+// 場館閉館後與休館日，外觀照明仍留到 22 時，比開放時暗一階；車站照首末班車，不適用。
+const venueWeeks = new Set(venueHours.values());
+export const exteriorLevel = .7;
+const exteriorFrom = 15*60, exteriorUntil = 22*60;
 // 凌晨仍可能有前一個營運日的末班；每個場館的結束時間為不含邊界。
 export function lightLevel(schedules,hour,weekday,monthlyMonday='') {
   if (!schedules.length) return .36;
@@ -53,6 +57,7 @@ export function lightLevel(schedules,hour,weekday,monthlyMonday='') {
   for (const week of schedules)
     if ((monthlyMondayClosures.get(week)!==monthlyMonday && inWindow(week,weekday,minute)) ||
         inWindow(week,(weekday+6)%7,minute+1440)) return 1;
+  if (minute>=exteriorFrom && minute<exteriorUntil && schedules.some(week=>venueWeeks.has(week))) return exteriorLevel;
   return .12;
 }
 
