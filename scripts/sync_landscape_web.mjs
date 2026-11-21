@@ -40,7 +40,8 @@ const PATCHES = [
   ["const $ = id => document.getElementById(id), status = t => { $('status').textContent = t; };", "const $ = id => H.el(id), status = t => { $('status').textContent = t; H.status(t); };"],
   ["import { createRideUg } from './ride/ride-ug.js';", "import { createRideUg } from '../host-stubs.js';"],
   ["import { createTrainsLayer } from './trains/trains-layer.js';", "import { createTrainsLayer } from '../host-stubs.js';"],
-  ["new Worker('./tile.worker.js', { type: 'module' })", "new Worker(new URL('./tile.worker.js', import.meta.url), { type: 'module' })"],
+  // worker 從自己的網址讀 tw2 開關（shared/tw2.mjs）。網站開機會把網址參數抹掉，所以改帶網站交給 engine 的 H.params（?ls.tw2=… → tw2）裡 tw2 與 x2* 那幾個；路徑改成相對 engine/
+  ["new Worker('./tile.worker.js' + location.search, { type: 'module' })", "new Worker(new URL('./tile.worker.js?' + new URLSearchParams([...params].filter(([k]) => k === 'tw2' || k.startsWith('x2'))), import.meta.url), { type: 'module' })"],
   ['camera.far = fsF ? Math.max(120000, fsReach() * 1.3) : 120000; camera.updateProjectionMatrix();', 'camera.far = fsF ? Math.max(120000, fsReach() * 1.3) : 120000; camera.updateProjectionMatrix(); H.camera(camera, origin);'],
   ["addEventListener('resize', () => {", 'H.onResize(() => {'],
   ['  requestAnimationFrame(frame);\n}\nrequestAnimationFrame(frame);',
@@ -64,17 +65,19 @@ function patchMain(src) {
 }
 
 // 網站道路使用 road-ribbons.mjs。上游修改道路時先比對兩邊，避免同步時覆寫新的畫法。
+// 雜湊鎖的是 T7 4d2b666 的 roadRibbons（到 streetObjects 之前）；這一版的標線、T 型墩、護欄兩段、跨水的橋（rbrg）已經搬進 road-ribbons.mjs。
 function patchRoads(src) {
-  const from = src.indexOf('function roadRibbons('), to = src.indexOf('const buffers =', from);
+  const from = src.indexOf('function roadRibbons('), to = src.indexOf('async function streetObjects(', from);
   if (from < 0 || to < from || createHash('sha256').update(src.slice(from, to)).digest('hex') !==
-      '679cec8389591fe6ae92f2b476202dae70de35c4006342df49e6f14921a09ec3') {
+      '128083dd4b2849b0c2678e7c6796b455bbcf2d8cc63507896cd5dcf72d17d0df') {
     throw Error('上游道路網格已變動，請比對網站的 road-ribbons.mjs');
   }
   const withoutRibbons = src.slice(0, from) + src.slice(to);
   const replacements = [
     ["import { edgeRuns, edgeKeep, keepSpans } from './shared/deck-lines.mjs';", "import { roadRibbons } from '../road-ribbons.mjs';"],
     ['deck, pier, side)), flat:', 'deck, pier, side, 0, roads.roads)), flat:'],
-    ['0, 0, rdMode))', '0, 0, rdMode, roads.roads))'],
+    // 人行道要看附近有沒有房子：bNearOf 留在 worker，連同建物一起傳進網站的道路網格
+    ['0, 0, rdMode, TW2.walk ? t.buildings : null))', '0, 0, rdMode, roads.roads, TW2.walk ? t.buildings : null, bNearOf))'],
   ];
   return replacements.reduce((text, [old, replacement]) => {
     if (text.split(old).length !== 2) throw Error('tile.worker.js 道路入口對不到：' + old);
@@ -110,13 +113,17 @@ const placesMain = [
   ["tm('render', drawFrame);", "tm('render', () => H.drawWeather(drawFrame));"],
   ["loader.load(src, t => {","loader.load(src, async t => { await patchNightTexture(t,u,b);"],
   ['new DataView(treeBuf), n = Math.floor(treeBuf.byteLength / 10 * LIMIT.trees)', 'withTunnelTrees(treeBuf, r.trees, LIMIT.trees), n = T.byteLength / 10'],
-  ["const rd = await lampRoads;", "const [rd,tunnels] = await Promise.all([lampRoads,tunnelDetail(url)]);"],
-  ["lampPositions(rd.roads, local", "lampPositions(surfaceRoads(rd.roads,tunnels), local"],
+  // 路燈不立在隧道裡：T7 f222a01 起路燈在 worker 的 base 工作算（placesWorker 那邊同一套），這兩條是 lampw=0 照舊在主執行緒算的那條路
+  ["const rd = base.lamp ? null : await lampRoads;", "const [rd, tunnels] = base.lamp ? [null, null] : await Promise.all([lampRoads, tunnelDetail(url)]);"],
+  ["tileLamps(rd.roads, railP(rails), local, lampOpt)", "tileLamps(surfaceRoads(rd.roads, tunnels), railP(rails), local, lampOpt)"],
   ['if (r.roads.n && P28.rd)', "for (const hall of r.heritage||[]) { const mesh=addMesh(g,geom(hall),fieldMaterial,{cast:true});modelLights.bind(mesh,modelHours(hall.id));mesh.name='heritage-'+hall.id;bytes+=geomBytes(mesh.geometry); }\n  if (r.temples?.n) { const m = addMesh(g,geom(r.temples),fieldMaterial,{cast:true}); modelLights.bind(m, []); m.name='temple-halls';bytes+=geomBytes(m.geometry); }\n  if (r.fields?.n) { const m = addMesh(g, geom(r.fields), fieldMaterial, { cast: false }); m.name = 'campus-sports'; bytes += geomBytes(m.geometry); }\n  if (r.roads.n && P28.rd)"],
   ['const roadMat =', 'const fieldMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .97, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });\nconst roadMat ='],
 ];
 const placesWorker = [
-  ["import { roadRibbons }", "import { placeDetail, applyPlaceBuildings, fieldMesh, templeMesh, reviewedTempleMeshes } from '../places.mjs';\nimport { surfaceRoads } from '../tunnel-roads.mjs';\nimport { roadRibbons }"],
+  ["import { roadRibbons }", "import { placeDetail, tunnelDetail, applyPlaceBuildings, fieldMesh, templeMesh, reviewedTempleMeshes } from '../places.mjs';\nimport { surfaceRoads } from '../tunnel-roads.mjs';\nimport { roadRibbons }"],
+  // worker 算路燈（base 工作）：跟主執行緒原本一樣扣掉隧道段
+  ["const lampRoads = lamp ? jget(url + 'roads.json', vf?.j).then(r => r.ok ? r.json() : null).catch(() => null) : null;", "const lampRoads = lamp ? jget(url + 'roads.json', vf?.j).then(r => r.ok ? r.json() : null).catch(() => null) : null, lampTunnels = lamp ? tunnelDetail(url) : null;"],
+  ["if (rd?.roads) lamps = T('lamps', () => tileLamps(rd.roads, lamp.tracks", "const tunnels = await lampTunnels; if (rd?.roads) lamps = T('lamps', () => tileLamps(surfaceRoads(rd.roads, tunnels), lamp.tracks"],
   ['[tb, bj, sf] =', '[tb, bj, sf, detail] ='],
   ['t.roads = roads.context;', 'roads.roads = surfaceRoads(roads.roads,t.detail?.tunnels); t.roads = roads.context;'],
   ['t = { terrain: new Uint8Array(tb)', 't = { detail, terrain: new Uint8Array(tb)'],
@@ -124,11 +131,13 @@ const placesWorker = [
   ["const built = T('build'", "const fields = fieldMesh(t.detail, groundAt), temples=templeMesh(t.detail,groundAt),heritage=reviewedTempleMeshes(t.detail,groundAt); const built = T('build'"],
 ];
 // near 的兩種路面模式都要帶回運動場。
+// T7 f222a01 起平面路那個出口前面多了 street（tw2 道路線第二包），兩個出口各對一次。
+const NEAR_OUT = ['return { buildings: built, roads:', 'return { ...(street ? { street } : {}), buildings: built, roads:'];
 const placeJob = src => {
-  if (src.split('return { buildings: built, roads:').length !== 3) throw Error('近景建物出口變更');
+  if (NEAR_OUT.some(o => src.split(o).length !== 2)) throw Error('近景建物出口變更');
   const shop = src.includes('shopfrontsOf(url, vf)])') ? 'shopfrontsOf(url, vf)' : 'shopfrontsOf(url)';
   src = patchPlaces(src, [[shop+'])',shop+', placeDetail(url)])']]);
-  return patchPlaces(src, placesWorker).replaceAll('return { buildings: built, roads:', 'return { buildings: built, fields, temples, heritage, trees:t.detail?.tunnels?.trees, roads:');
+  return patchPlaces(patchPlaces(src, placesWorker), NEAR_OUT.map(o => [o, o.replace('buildings: built, roads:', 'buildings: built, fields, temples, heritage, trees:t.detail?.tunnels?.trees, roads:')]));
 };
 const placesFacades = [
   ['color = rgb(isMetal ? (b.style.roofMetal','color = rgb(b.sceneRoof || (isMetal ? (b.style.roofMetal'],
@@ -159,8 +168,19 @@ const patchLandmarksBuildings = src => hook(src, 'buildings.worker.js', [
   ['function buildOne(b) {', 'function buildOne(b) {\n    if (LANDMARK_TYPES.has(b.type)) return buildLandmark(b, { quad, tri, box, vert, rgb, shade, THREE, Z4, WHITE, P_DECK, P_TILE, P_PLAIN });'],
 ]);
 
+// tw2 開關：主執行緒讀網站交給 engine 的參數（H.params，網址 ?ls.tw2=…），worker 沒有 host、照讀自己的網址（上面 Worker 那條帶過去）
+// 物件裡的註解 esbuild 會留著，而 engine/ 會進公開快照：「// 第 N 輪（…）」括號裡上游記的採用紀錄整段拿掉
+const dropRoundNotes = src => {
+  const re = /(\/\/ 第 \d+ 輪)（[^）\n]*）/g, n = src.match(re)?.length ?? 0;
+  if (n < 1) throw Error('shared/tw2.mjs 對不到「// 第 N 輪（…）」註解，上游改寫法了要重看');
+  return src.replace(re, '$1');
+};
+const patchTw2 = src => dropRoundNotes(hook(src, 'shared/tw2.mjs', [
+  ["export const TW2 = parseTw2(globalThis.location?.search || '');", "export const TW2 = parseTw2(globalThis.__LANDSCAPE_HOST__ ? '?' + globalThis.__LANDSCAPE_HOST__.params : globalThis.location?.search || '');"],
+]));
 const patched = new Map([
   ['shared/fx3.mjs',patchLand(show(WEB+'/shared/fx3.mjs').toString('utf8'))],
+  ['shared/tw2.mjs', patchTw2(show(WEB + '/shared/tw2.mjs').toString('utf8'))],
   ['buildings.worker.js', patchLandmarksBuildings(patchPlaces(show(WEB + '/buildings.worker.js').toString('utf8'), placesFacades))],
   ['main.js', "import { presidentialFacade } from '../presidential-facade.mjs';\nimport { createModelLights } from '../model-lights.mjs';\nimport { modelHours } from '../../rail-3d/environment/model-hours.js';\nimport { shadeRainGround, shadeRainRail, shadeRainSky, shareMist, weatherBudget } from '../follow-rain.mjs';\nimport { patchNightTexture } from '../night-tunnels.mjs';\nimport { tunnelDetail } from '../places.mjs';\nimport { surfaceRoads, withTunnelTrees } from '../tunnel-roads.mjs';\n" + patchPlaces(patchMain(show(WEB + '/main.js').toString('utf8')), placesMain)],
   ['tile.worker.js', placeJob(patchLandmarksTile(patchRoads(show(WEB + '/tile.worker.js').toString('utf8'))))],

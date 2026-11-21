@@ -17,13 +17,18 @@ import { NIGHT_SKY_GLSL, MOON_FALLBACK_DIR, CITY_GLOW, createStars, cityGlow, NI
 import { moonAt } from "./shared/sky-ephem.mjs";
 import { createBloom } from "./shared/night-bloom.mjs";
 import { parseFx3, fx3FacadePatch, fx3GroundPatch, fx3SimplePatch, fx3LandPatch, LAND_CLASSES } from "./shared/fx3.mjs";
+import { TW2 } from "./shared/tw2.mjs";
+import { tonePatch, toneGround } from "./shared/tw2-tone.mjs";
+import { towerLines, towerSolid, spanLines, turbineMesh, rotorGeo, ocsGeo } from "./shared/tw2-infra.mjs";
+import { bridgeGeo, inClear, platGeo } from "./shared/tw2-bridge.mjs";
 import { parseFx2, installChunks, frameUniforms, applyLight, facadePatch, groundPatch, simplePatch, createContactAO, createHeightShade, shadePatch } from "./shared/fx2.mjs";
 import { aeroIndex, loadAero, aeroUniforms, aeroGroundPatch, aeroNoTree, AERO_KEY } from "./integration/airports.js";
 import { createRideUg } from "../host-stubs.js";
 import { createTrainsLayer } from "../host-stubs.js";
-import { nightFlags, lampPositions, createLampMaterial, lampPoints, nightGroundPatch, nightRoadPatch, nightMidPatch, FAR_NIGHT, farNightK } from "./shared/night-city.mjs";
+import { nightFlags, tileLamps, createLampMaterial, lampPoints, nightGroundPatch, nightRoadPatch, nightMidPatch, FAR_NIGHT, farNightK } from "./shared/night-city.mjs";
+import { createStreet } from "./shared/street-mesh.mjs";
 import { createRailHl } from "./shared/rail-hl.mjs";
-import { VSHA, fspec, fetchV, fetchI, jget, hex16 } from "./shared/fetch-v.mjs";
+import { VSHA, fspec, fetchV, jget, hex16 } from "./shared/fetch-v.mjs";
 const H = globalThis.__LANDSCAPE_HOST__, coarse = matchMedia("(pointer:coarse)").matches, params = H.params;
 const $ = (id) => H.el(id), status = (t) => {
   $("status").textContent = t;
@@ -46,7 +51,7 @@ const P28 = { fSide: 0, fWin: 1, fBasic: 0, rd: 1, rdLines: 1, rdFar: 0, rdStep:
 for (const k of Object.keys(P28)) if (params.has(k)) P28[k] = +params.get(k);
 if (params.get("ui") === "0") document.body.classList.add("noui");
 const DATA = params.get("data") || "/tiles/", FAR_M = TILE_M * 4;
-const LIMIT = coarse ? { near: 700, mid: 2600, far: 11e3, maxNear: 6, maxMid: 24, loads: 2, shadow: 2048, trees: 0.55, extraR: 350, shadowMove: 0.2, shadowGap: 400, adapt: 1, prMin: 1.5, stage: 1, maxMidMove: 16, still: 10, stillKB: 4096, stillLoads: 4, late: 1, lo: 2.5, loR: 1e3, chunk: 4 } : { near: 1100, mid: 4200, far: 16e3, maxNear: 12, maxMid: 60, loads: 3, shadow: 4096, trees: 1, extraR: 700, shadowMove: 0.04, shadowGap: 0, adapt: 0, prMin: 1, stage: 0, maxMidMove: 60, still: 0, stillKB: 4096, stillLoads: 0, late: 0, lo: 0, loR: 1e3, chunk: 2 };
+const LIMIT = coarse ? { near: 700, mid: 2600, far: 11e3, maxNear: 6, maxMid: 24, loads: 2, shadow: 2048, trees: 0.55, extraR: 350, shadowMove: 0.2, shadowGap: 400, adapt: 1, prMin: 1.5, stage: 1, maxMidMove: 16, still: 10, stillKB: 4096, stillLoads: 4, late: 1, lo: 2.5, loR: 1e3, chunk: 4, mvpr: 1 } : { near: 1100, mid: 4200, far: 16e3, maxNear: 12, maxMid: 60, loads: 3, shadow: 4096, trees: 1, extraR: 700, shadowMove: 0.04, shadowGap: 0, adapt: 0, prMin: 1, stage: 0, maxMidMove: 60, still: 0, stillKB: 4096, stillLoads: 0, late: 0, lo: 0, loR: 1e3, chunk: 2, mvpr: 0 };
 for (const k of Object.keys(LIMIT)) if (params.has(k)) LIMIT[k] = +params.get(k);
 const prFixed = parseFloat(params.get("pr")) || 0;
 for (const k of Object.keys(LIMIT)) if (params.has(k)) LIMIT[k] = +params.get(k);
@@ -99,7 +104,7 @@ const vstat = {}, bin = async (u, spec, n = 0) => {
 const loader = new THREE.TextureLoader(), tex = (u, srgb, mip = true, spec, n = 0) => bin(u, spec, n).then((b) => new Promise((ok, no) => {
   const src = URL.createObjectURL(new Blob([b], { type: u.endsWith(".jpg") ? "image/jpeg" : "image/png" }));
   loader.load(src, async (t) => {
-    await patchNightTexture(t,u,b);
+    await patchNightTexture(t, u, b);
     URL.revokeObjectURL(src);
     if (srgb) t.colorSpace = THREE.SRGBColorSpace;
     t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
@@ -152,10 +157,11 @@ status("讀索引…");
 const store = await jget(DATA + "store.json").then((r) => r.ok ? r.json() : null).catch(() => null);
 const SV = {
   root: (name) => store?.root?.find((r) => r[0] === name)?.[2]?.slice(0, 16),
-  tile: (id) => (store?.tiles?.[id] || store?.ride?.[id])?.[0],
+  tile: (id) => store?.tiles?.[id]?.[0],
+  ride: (id) => store?.ride?.[id]?.[0],
   far: (dir, id) => (dir ? store?.farLod?.[dir]?.blocks?.[id] : store?.far?.[id])?.[0]
 };
-const ROOTV = { "shopfronts-index.json": SV.root("shopfronts-index.json"), "aero-index.json": SV.root("aero-index.json") };
+const ROOTV = { "shopfronts-index.json": SV.root("shopfronts-index.json"), "aero-index.json": SV.root("aero-index.json"), "bridges-index.json": SV.root("bridges-index.json") };
 const ixRaw = {}, index = await json(DATA + "index.json", ixRaw, SV.root("index.json"));
 const VER = await hex16(ixRaw.text), vspec = (files, name) => fspec(files, name) || { v: VER };
 ixRaw.text = null;
@@ -184,10 +190,15 @@ const tileId = (i, j) => `E${i}_N${j}`, farId = (i, j) => `F${i}_${j}`;
 const origin = { e: 0, n: 0 };
 const view = { e: 0, n: 0, dist: 520, az: 2.2, pitch: 0.5 };
 const aeroSet = await aeroIndex(DATA, ROOTV["aero-index.json"]);
-const worker = new Worker(new URL("./tile.worker.js", import.meta.url), { type: "module" }), waiting = /* @__PURE__ */ new Map();
+const WK = Math.max(1, Math.min(4, +params.get("wk") || Math.max(2, Math.min(3, (navigator.hardwareConcurrency || 4) - 2)))), mkWorker = () => new Worker(new URL("./tile.worker.js?" + new URLSearchParams([...params].filter(([k]) => k === "tw2" || k.startsWith("x2"))), import.meta.url), { type: "module" }), workers = Array.from({ length: WK }, mkWorker), waiting = /* @__PURE__ */ new Map();
 let jobId = 0;
+const workerOf = (url) => {
+  let h = 0;
+  for (let i = 0; i < url.length; i++) h = h * 31 + url.charCodeAt(i) | 0;
+  return workers[(h >>> 0) % WK];
+};
 const jobStat = {}, wNow = () => performance.timeOrigin + performance.now();
-worker.onmessage = ({ data }) => {
+const onWorkerMsg = ({ data }) => {
   prof.cur.nMsg = (prof.cur.nMsg || 0) + 1;
   const w = waiting.get(data.id);
   waiting.delete(data.id);
@@ -201,11 +212,14 @@ worker.onmessage = ({ data }) => {
   if (data.error) w.no(Error(data.error));
   else w.ok(r);
 };
-worker.onerror = (e) => status("worker 失敗：" + (e.message || e));
+for (const w of workers) {
+  w.onmessage = onWorkerMsg;
+  w.onerror = (e) => status("worker 失敗：" + (e.message || e));
+}
 const job = (type, args) => new Promise((ok, no) => {
   const id = ++jobId;
   waiting.set(id, { ok, no, type, post: wNow() });
-  worker.postMessage({ id, type, vsha: VSHA.on, ...args });
+  workerOf(args.url || "").postMessage({ id, type, vsha: VSHA.on, ...args });
 });
 const SKY_GLSL = `
 vec3 skyColor(vec3 d, vec3 sun) {
@@ -370,6 +384,7 @@ function setTime(h) {
     const on = 1 - smooth(-0.025, -5e-3, sunDir.y);
     lampMat.uniforms.uNight.value = on;
     lampMat.visible = on > 0;
+    if (street) street.setNight(on > 0);
   }
   {
     stationLitOn.v = 1 - smooth(-0.025, -5e-3, sunDir.y);
@@ -457,6 +472,7 @@ vec2 gRot(vec2 p, float a){ float c = cos(a), s = sin(a); return vec2(c * p.x - 
     if (HS2) shadePatch(sh, HS2, FX2.T.hd);
     aeroGroundPatch(sh);
     shadeRainGround(sh);
+    if (TW2.tone) toneGround(sh, TW2);
     if (FS.on) sh.fragmentShader = fxRep(sh.fragmentShader, "    wc = mix(wc, sat * 2.2, .22);", "    wc = mix(wc, sat * 2.2, .22 * (1. - uFsSea * smoothstep(40., 150., sd)));");
   };
   m.customProgramCacheKey = () => "land-ground-2" + AERO_KEY + FXKEY + P24KEY + (NC.glow ? "-n64" + (NC.far ? "f" : "") : "") + (FX2.ground || FX2.ao || HS2 ? FX2.key : "") + (FX3.ground || FX3.land ? FX3.key : "");
@@ -555,6 +571,7 @@ float rN(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); re
   rc = mix(rc, vec3(.58, .58, .57), steel);
   float rRough = mix(.95, .32, steel), rMetal = steel * .85;
   diffuseColor.rgb = rc;`).replace("#include <roughnessmap_fragment>", "float roughnessFactor = rRough;").replace("#include <metalnessmap_fragment>", "float metalnessFactor = rMetal;");
+  if (TW2.yard) sh.fragmentShader = sh.fragmentShader.replace("float uHalfGauge = vRail3.z;", "float yd = step(5., vRail3.z), uHalfGauge = vRail3.z - 10. * yd;").replace("rc = mix(rc, vec3(.58, .58, .57), steel);", "rc = mix(rc, vec3(.29, .245, .2) * (.7 + .6 * grain), yd * (1. - tie) * .6); rc = mix(rc, mix(vec3(.58, .58, .57), vec3(.42, .27, .18), yd), steel); steel *= 1. - .75 * yd;");
   shadeRainRail(sh);
 };
 const RHL = createRailHl({ params, DATA, index, TILE_M, scene, origin, shared, jv: SV.tile });
@@ -563,8 +580,10 @@ const fieldMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, rough
 const roadMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88, metalness: 0, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -6 });
 const simpleMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 });
 const roadFlatMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88, metalness: 0, side: THREE.DoubleSide, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -3 });
-if (NC.glow) nightRoadPatch(roadFlatMat, shared.uNight);
-if (NC.glow) nightRoadPatch(roadMat, shared.uNight);
+const LAMPW = params.get("lampw") !== "0", railP = (rails) => (rails?.tracks || []).map((tk) => tk.p || []);
+const poolGlow = TW2.pole && NC.lamp ? { k: TW2.num("glowk", 0.55), uD: { value: 0 } } : null;
+if (NC.glow) nightRoadPatch(roadFlatMat, shared.uNight, poolGlow);
+if (NC.glow) nightRoadPatch(roadMat, shared.uNight, poolGlow);
 if (NC.mid) nightMidPatch(simpleMat, shared.uNight);
 if (FX2.any) simplePatch(simpleMat, FX2, HS2);
 if (HS2) for (const m of [roadMat, roadFlatMat, railMat]) {
@@ -575,12 +594,26 @@ if (HS2) for (const m of [roadMat, roadFlatMat, railMat]) {
   };
   m.customProgramCacheKey = () => (key ? key.call(m) : "") + "-hs121";
 }
+if (TW2.yline || TW2.lane || TW2.xing || TW2.walk) {
+  const ob = roadFlatMat.onBeforeCompile, key = roadFlatMat.customProgramCacheKey;
+  roadFlatMat.onBeforeCompile = (sh, r) => {
+    if (ob) ob.call(roadFlatMat, sh, r);
+    sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nattribute vec2 aMk; varying vec2 vMk;").replace("#include <begin_vertex>", "#include <begin_vertex>\nvMk = aMk;");
+    sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nvarying vec2 vMk;").replace("#include <color_fragment>", `#include <color_fragment>
+  if (vMk.y > 0.) { float fw = fwidth(vMk.x), on = 1. - step(vMk.y, fract(vMk.x)), a = mix(on, vMk.y, smoothstep(.2, .45, fw)); if (a < .01) discard; diffuseColor.a *= a; }`);
+  };
+  roadFlatMat.customProgramCacheKey = () => (key ? key.call(roadFlatMat) : "") + "-tw2rd";
+}
+if (TW2.tone) for (const m of [roadMat, roadFlatMat]) tonePatch(m, TW2);
 if (FX3.far) fx3SimplePatch(simpleMat, FX3);
 const farGeom = (g) => {
   if (FX3.far) g.setAttribute("aFar", g.attributes.normal);
   return g;
 };
 const lampMat = NC.lamp ? createLampMaterial(scene.fog.density, NC.lmix ? blackTex : null) : null;
+const lampOpt = lampMat ? { mix: NC.lmix, ...TW2.pole ? { arm: TW2.num("arm", 2.4) } : {} } : null;
+const street = TW2.mtree || TW2.pole || TW2.sig || TW2.moto ? createStreet({ coarse, LIMIT, lampUniform: lampMat?.uniforms.uNight, fogDensity: scene.fog.density, treeSlots: mtSlots }) : null;
+if (street) window.__tw2street = { stat: () => ({ ...street.stat(), mtree: [...tiles.values()].map((t) => t.near?.treeMesh?.userData.mt).filter(Boolean).map((M) => M.a) }) };
 const wallMat = new THREE.MeshStandardMaterial({ color: 9408136, roughness: 0.92, metalness: 0, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
 let ugPortalMat = null, lxMat = null;
 const treeMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 });
@@ -790,14 +823,6 @@ function groundAt(e, n) {
   return 0;
 }
 const place = (group, e0, n0) => group.position.set(e0 - origin.e, 0, -(n0 - origin.n));
-const lampDeck = (groundAt2) => (r, x, y) => {
-  let best = null;
-  for (let i = 0; i < r.pts.length - 1; i++) {
-    const a = r.pts[i], b = r.pts[i + 1], dx = b[0] - a[0], dy = b[1] - a[1], f = Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / (dx * dx + dy * dy || 1))), d = Math.hypot(x - a[0] - dx * f, y - a[1] - dy * f);
-    if (!best || d < best.d) best = { d, h: (a[2] || 0) + ((b[2] || 0) - (a[2] || 0)) * f };
-  }
-  return best && best.h > 0.3 ? groundAt2(x, y) + best.h : null;
-};
 function addMesh(parent, g, m, { cast = true, receive = true } = {}) {
   const mesh = new THREE.Mesh(g, m);
   mesh.castShadow = cast;
@@ -860,11 +885,20 @@ function drainStage() {
 async function loadTile(id, ti, tj, n = 0) {
   const url = DATA + id + "/", e0 = ti * TILE_M, n0 = tj * TILE_M, t = { id, ti, tj, e0, n0, lod: 1, state: "loading", near: null, group: new THREE.Group(), bytes: 0, geomBytes: 0, texBytes: 0, calls: 0 };
   tiles.set(id, t);
-  const jv = SV.tile(id), lampRoads = lampMat ? json(url + "roads.json", null, jv).catch(() => null) : null;
+  const jv = SV.tile(id), lampRoads = lampMat && !LAMPW ? json(url + "roads.json", null, jv).catch(() => null) : null;
   const t0 = performance.now(), [meta, rails, stations] = await Promise.all([json(url + "tile.json", null, jv), json(url + "rails.json", null, jv), json(url + "stations.json", null, jv)]), V = (name) => vspec(meta.files, name);
   t.vf = { "terrain.bin": V("terrain.bin"), "rtin.bin": V("rtin.bin"), j: jv, ri: ROOTV };
-  const [base, tSat, tMask] = await Promise.all([job("base", { url, lo: LIMIT.lo, skip: SKIP, mid: P24.rtin === "mid", rtin: P24.rtin !== "calc" && (index.tiles[id]?.version || 0) >= 9, ...FX3.far ? { far: FX3.farW } : {}, vf: t.vf, rn: n }), tex(url + "sat.jpg", true, true, V("sat.jpg"), n), tex(url + "mask.png", false, false, V("mask.png"), n)]);
-  const tHarbor = meta.hasHarbor ? await tex(url + "harbor.png", false, false, V("harbor.png"), n) : blackTex, tFarm = FX.farm && meta.hasFarm ? await tex(url + "farm.png", false, false, V("farm.png"), n) : blackTex, tLand = landSet?.has(id) ? await tex(url + "land.png", false, false, { v: landVer }, n) : blackTex, aero = aeroSet.has(id) ? await loadAero(url, (u, s, m) => tex(u, s, m, { v: aeroSet.v || VER }, n), jv).catch(() => null) : null;
+  const PAR = params.get("par") !== "0", soft = (p) => (p?.catch?.(() => {
+  }), p);
+  const pHarbor = PAR && meta.hasHarbor ? soft(tex(url + "harbor.png", false, false, V("harbor.png"), n)) : null, pFarm = PAR && FX.farm && meta.hasFarm ? soft(tex(url + "farm.png", false, false, V("farm.png"), n)) : null, pLand = PAR && landSet?.has(id) ? soft(tex(url + "land.png", false, false, { v: landVer }, n)) : null, pAero = PAR && aeroSet.has(id) ? soft(loadAero(url, (u, s, m) => tex(u, s, m, { v: aeroSet.v || VER }, n), jv).catch(() => null)) : null;
+  const pStn = PAR && P24.stn ? stations.map((s) => {
+    const lod = s.lods.far || s.lods.near;
+    return soft(bin(url + lod.file, V(lod.file), n));
+  }) : null;
+  const [base, tSat, tMask] = await Promise.all([job("base", { url, lo: LIMIT.lo, skip: SKIP, mid: P24.rtin === "mid", rtin: P24.rtin !== "calc" && (index.tiles[id]?.version || 0) >= 9, ...FX3.far ? { far: FX3.farW } : {}, ...lampOpt && LAMPW ? { lamp: { ...lampOpt, tracks: railP(rails) } } : {}, vf: t.vf, rn: n }), tex(url + "sat.jpg", true, true, V("sat.jpg"), n), tex(url + "mask.png", false, false, V("mask.png"), n)]);
+  const tHarbor = meta.hasHarbor ? await (pHarbor || tex(url + "harbor.png", false, false, V("harbor.png"), n)) : blackTex, tFarm = FX.farm && meta.hasFarm ? await (pFarm || tex(url + "farm.png", false, false, V("farm.png"), n)) : blackTex, tLand = landSet?.has(id) ? await (pLand || tex(url + "land.png", false, false, { v: landVer }, n)) : blackTex, aero = aeroSet.has(id) ? pAero ? await pAero : await loadAero(url, (u, s, m) => tex(u, s, m, { v: aeroSet.v || VER }, n), jv).catch(() => null) : null;
+  const tw2Pl = tw2PlatIx ? await tw2PlatIx.then((ix) => ix?.tiles?.[id] ? jget(url + "platforms.json", jv).then((r) => r.ok ? r.json() : null).catch(() => null) : null) : null;
+  const tw2Br = TW2.btype && tw2Btype ? await tw2Btype.then((ix) => ix?.tiles?.[id] & 3 ? jget(url + "bridges.json", jv).then((r) => r.ok ? r.json() : null).catch(() => null) : null) : null;
   if (!tiles.has(id)) return;
   t.meta = meta;
   t.tLand = tLand;
@@ -891,13 +925,15 @@ async function loadTile(id, ti, tj, n = 0) {
     t.simpleLo = base.simpleLo?.n ? addMesh(t.group, farGeom(geom(base.simpleLo)), simpleMat) : null;
     if (t.simpleLo) t.simpleLo.visible = false;
   });
+  if (TW2.ocs || TW2.lrt) t.tw2Tracks = rails.tracks;
   tm("tile.rail", () => {
     const pos = [], nor = [], rl = [], idx = [], rc = RHL?.band ? [] : null;
     let n2 = 0;
-    const SEC = RHL?.band ? RHL.band.SEC : [[-2.6, -0.62], [-1.7, -0.17], [1.7, -0.17], [2.6, -0.62]];
+    const SEC0 = RHL?.band ? RHL.band.SEC : [[-2.6, -0.62], [-1.7, -0.17], [1.7, -0.17], [2.6, -0.62]];
     for (const tr of rails.tracks) {
       if (tr.kind === 2) continue;
-      const rcol = rc && RHL.band.color(tr), m = tr.p.length / 4, P = (i) => [tr.p[i * 4], tr.p[i * 4 + 1], tr.p[i * 4 + 2], tr.p[i * 4 + 3]], hg = tr.gauge / 2e3, s0 = Math.floor(tr.p[3] / 600) * 600;
+      const yd = TW2.yard && !RHL?.band && tr.kind !== 1 && (tr.service === "yard" || tr.service === "siding" || tr.service === "spur"), SEC = yd ? TW2_YARD_SEC : SEC0;
+      const rcol = rc && RHL.band.color(tr), m = tr.p.length / 4, P = (i) => [tr.p[i * 4], tr.p[i * 4 + 1], tr.p[i * 4 + 2], tr.p[i * 4 + 3]], hg = tr.gauge / 2e3 + (yd ? 10 : 0), s0 = Math.floor(tr.p[3] / 600) * 600;
       for (let i = 0; i < m; i++) {
         const p = P(i), a = i > 0 ? P(i - 1) : tr.pre || p, b = i < m - 1 ? P(i + 1) : tr.post || p, l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, nx = -(b[1] - a[1]) / l, ny = (b[0] - a[0]) / l;
         for (let s = 0; s < 3; s++) {
@@ -941,12 +977,13 @@ async function loadTile(id, ti, tj, n = 0) {
       t.mat.bore.a[i].set(item.p[0], item.p[1], Math.cos(item.angle), Math.sin(item.angle));
       t.mat.bore.b[i].set(item.p[2], item.halfWidth, grade, 1);
     });
+    const rPiers = tw2Br?.clear?.length ? rails.piers.filter((q) => !inClear(tw2Br.clear, q.p[0], q.p[1])) : rails.piers;
     if (segs.length || rails.piers.length || portals.length) {
       const g = new THREE.Group();
       g.rotation.x = -Math.PI / 2;
       t.group.add(g);
       t.structures = createRailStructures(g, { track: false });
-      t.structures.set(segs, rails.piers, 2, portals);
+      t.structures.set(segs, rPiers, 2, portals);
       g.traverse((o) => {
         if (o.isMesh) {
           o.castShadow = o.receiveShadow = true;
@@ -959,6 +996,26 @@ async function loadTile(id, ti, tj, n = 0) {
         }
       });
     }
+  });
+  if (tw2Pl?.plats?.length) tm("tile.tw2plat", () => {
+    const r = platGeo(tw2Pl.plats);
+    if (!r.tris) return;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(r.pos, 3));
+    geo.setAttribute("normal", new THREE.BufferAttribute(r.nor, 3));
+    geo.setAttribute("color", new THREE.BufferAttribute(r.col, 3, true));
+    geo.computeBoundingSphere();
+    t.tw2Plat = addMesh(t.group, geo, tw2BrMat);
+  });
+  if (tw2Br?.bridges?.length) tm("tile.tw2br", () => {
+    const r = bridgeGeo(tw2Br.bridges);
+    if (!r.tris) return;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(r.pos, 3));
+    geo.setAttribute("normal", new THREE.BufferAttribute(r.nor, 3));
+    geo.setAttribute("color", new THREE.BufferAttribute(r.col, 3, true));
+    geo.computeBoundingSphere();
+    t.tw2Bridge = addMesh(t.group, geo, tw2BrMat);
   });
   if (rails.walls?.length) tm("tile.walls", () => {
     const pos = [], nor = [], idx = [];
@@ -988,15 +1045,32 @@ async function loadTile(id, ti, tj, n = 0) {
     if (g.n) t.lx = addMesh(t.group, geom(g), lxMat ||= levelCrossingMaterial(THREE));
   });
   t.stations = [];
-  for (const s of P24.stn ? stations : []) {
-    const lod = s.lods.far || s.lods.near, buf = await bin(url + lod.file, V(lod.file), n), g = tm("tile.station", () => modelLights.group(s, lod, parts => stationGroup(buf, lod, s, parts), stationSolid, stationGlass));
+  for (const [k, s] of (P24.stn ? stations : []).entries()) {
+    const lod = s.lods.far || s.lods.near, buf = await (pStn ? pStn[k] : bin(url + lod.file, V(lod.file), n)), g = tm("tile.station", () => modelLights.group(s, lod, (parts) => stationGroup(buf, lod, s, parts), stationSolid, stationGlass));
     t.group.add(g);
     t.stations.push({ id: s.id, name: s.name, far: g, near: s.lods.far && !P24.stnFar ? s.lods.near : null, at: s.at });
   }
-  if (lampRoads) {
-    const [rd, tunnels] = await Promise.all([lampRoads,tunnelDetail(url)]);
-    if (rd) tm("tile.lamps", () => {
-      const p = lampPoints(lampPositions(surfaceRoads(rd.roads,tunnels), local, { deckAt: lampDeck(local), mix: NC.lmix }), lampMat);
+  if (base.lamp || lampRoads) {
+    const [rd, tunnels] = base.lamp ? [null, null] : await Promise.all([lampRoads, tunnelDetail(url)]);
+    if (base.lamp || rd) tm("tile.lamps", () => {
+      const L = base.lamp || tileLamps(surfaceRoads(rd.roads, tunnels), railP(rails), local, lampOpt), p = lampPoints(L, lampMat);
+      if (L.pole) {
+        const P = L.pole, o = new Float32Array(P.length / 6 * 7);
+        for (let k = 0, q = 0; k < P.length; k += 6, q += 7) {
+          o.set(P.subarray(k, k + 6), q);
+          o[q + 6] = local(P[k], P[k + 1]);
+        }
+        t.poles = o;
+      }
+      if (L.pool) {
+        const P = L.pool, o = new Float32Array(P.length / 2 * 3);
+        for (let k = 0, q = 0; k < P.length; k += 2, q += 3) {
+          o[q] = P[k];
+          o[q + 1] = P[k + 1];
+          o[q + 2] = local(P[k], P[k + 1]);
+        }
+        t.pools = o;
+      }
       if (p) {
         t.group.add(p);
         t.lamps = p.geometry.attributes.position.count;
@@ -1049,6 +1123,49 @@ async function loadTile(id, ti, tj, n = 0) {
   total.buildMs += performance.now() - t0;
   shadowDirty = true;
 }
+function mtExtras(t, mesh, tr, T, n, lp) {
+  const nb = Math.floor(T.byteLength / 10), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), col = new THREE.Color(), lin = (v) => Math.pow(v / 255, 2.2), tone = (v) => v * 3.1 / (1 + v * 2.3), hh01 = (x, y) => {
+    const s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+    return s - Math.floor(s);
+  };
+  const em = [], ec = [], xy = [];
+  for (let k = 0; k < tr.length; k += 4) {
+    const x = tr[k], y = tr[k + 1], z = tr[k + 2], u = hh01(x, y);
+    if (u >= LIMIT.trees) continue;
+    if (lp && LAND_NO_TREE.has(lp[(Math.min(511, Math.max(0, Math.floor((TILE_M - y) / 2.5))) * 512 + Math.min(511, Math.max(0, Math.floor(x / 2.5)))) * 4] & 63)) continue;
+    if (aeroNoTree(t.aero, x, y)) continue;
+    const o = Math.floor(hh01(y * 0.7, x * 1.3) * nb) * 10, rad = nb ? Math.min(3, Math.max(1.7, T.getUint8(o + 4) * 0.02)) : 2.4, hh = nb ? Math.min(9, Math.max(5.5, T.getUint8(o + 5) * 0.05)) : 7, s = nb ? T.getUint8(o + 6) / 256 : u, kk = 0.62 + 0.34 * (s * 7.3 % 1);
+    const rgb = nb ? [T.getUint8(o + 7), T.getUint8(o + 8), T.getUint8(o + 9)] : [52, 74, 40];
+    q.setFromAxisAngle(up, u * 6.283);
+    m4.compose(new THREE.Vector3(x, z - 0.2, -y), q, new THREE.Vector3(rad, hh * 0.55, rad));
+    em.push(...m4.elements);
+    col.setRGB((tone(lin(rgb[0])) * 0.6 + 0.016) * kk, (tone(lin(rgb[1])) * 0.6 + 0.034) * kk, (tone(lin(rgb[2])) * 0.6 + 0.01) * kk);
+    ec.push(col.r, col.g, col.b);
+    xy.push(x, y);
+  }
+  if (!mesh.instanceColor) mesh.setColorAt(0, col.setRGB(1, 1, 1));
+  mesh.userData.mt = { n, E: xy.length / 2, a: 0, xy: new Float32Array(xy), em: new Float32Array(em), ec: new Float32Array(ec), om: mesh.instanceMatrix.array.slice(0, n * 16), oc: mesh.instanceColor.array.slice(0, n * 3) };
+}
+function mtSlots(t, inR) {
+  const mesh = t.near?.treeMesh, M = mesh?.userData.mt;
+  if (!M) return;
+  const act = [];
+  for (let k = 0; k < M.E; k++) if (inR(M.xy[k * 2], M.xy[k * 2 + 1], k)) act.push(k);
+  if (act.length === M.a && act.length === 0) return;
+  const h = Math.ceil(M.n * 0.5), A = mesh.instanceMatrix.array, C = mesh.instanceColor.array;
+  A.set(M.om.subarray(0, h * 16), 0);
+  C.set(M.oc.subarray(0, h * 3), 0);
+  act.forEach((k, i) => {
+    A.set(M.em.subarray(k * 16, k * 16 + 16), (h + i) * 16);
+    C.set(M.ec.subarray(k * 3, k * 3 + 3), (h + i) * 3);
+  });
+  A.set(M.om.subarray(h * 16, M.n * 16), (h + act.length) * 16);
+  C.set(M.oc.subarray(h * 3, M.n * 3), (h + act.length) * 3);
+  mesh.instanceMatrix.needsUpdate = true;
+  mesh.instanceColor.needsUpdate = true;
+  M.a = act.length;
+  shadowDirty = true;
+}
 async function loadNear(t, rn = 0) {
   t.near = "loading";
   const url = DATA + t.id + "/", V = (name) => vspec(t.meta.files, name), [r, treeBuf] = await Promise.all([job("near", { url, chunk: LIMIT.chunk, skip: SKIP, lines: P28.rdLines, farStep: P28.rdFar > 0 ? P28.rdStep : 0, deck: P28.rdDeck, pier: P28.rdPier, side: P28.rdSide, rdMode: P28.rdMode, ...FX3.worker ? { fx3: FX3.worker } : {}, inner: P28.fSide && !P28.fBasic && P28.fInner ? 1 : 0, vf: t.vf, rn }), bin(url + "trees.bin", V("trees.bin"), rn)]);
@@ -1062,16 +1179,19 @@ async function loadNear(t, rn = 0) {
       if (AO2) m.layers.enable(AO2.LAYER);
       bytes += geomBytes(m.geometry);
     }
-    for(const hall of r.heritage||[]){
-      const mesh=addMesh(g,geom(hall),fieldMaterial,{cast:true});
+    for (const hall of r.heritage || []) {
+      const mesh = addMesh(g, geom(hall), fieldMaterial, { cast: true });
       modelLights.bind(mesh, modelHours(hall.id));
-      mesh.name="heritage-"+hall.id;
-      bytes+=geomBytes(mesh.geometry);
+      mesh.name = "heritage-" + hall.id;
+      bytes += geomBytes(mesh.geometry);
     }
     if (r.temples?.n) {
-    const m = addMesh(g,geom(r.temples),fieldMaterial,{cast:true}); modelLights.bind(m, []); m.name="temple-halls";bytes+=geomBytes(m.geometry);
-  }
-  if (r.fields?.n) {
+      const m = addMesh(g, geom(r.temples), fieldMaterial, { cast: true });
+      modelLights.bind(m, []);
+      m.name = "temple-halls";
+      bytes += geomBytes(m.geometry);
+    }
+    if (r.fields?.n) {
       const m = addMesh(g, geom(r.fields), fieldMaterial, { cast: false });
       m.name = "campus-sports";
       bytes += geomBytes(m.geometry);
@@ -1085,7 +1205,7 @@ async function loadNear(t, rn = 0) {
       roadRange(m);
     }
     if (r.flat?.n && P28.rd) {
-      const m = addMesh(g, geom(r.flat), roadFlatMat, { cast: false });
+      const m = addMesh(g, geom(r.flat, r.flat.mk ? { aMk: new THREE.BufferAttribute(r.flat.mk, 2) } : {}), roadFlatMat, { cast: false });
       m.renderOrder = 1;
       bytes += geomBytes(m.geometry);
       m.userData.nMain = r.flat.nMain;
@@ -1096,8 +1216,9 @@ async function loadNear(t, rn = 0) {
   });
   const T = withTunnelTrees(treeBuf, r.trees, LIMIT.trees), n = T.byteLength / 10;
   let treeMesh = null;
-  if (n) tm("near.trees", () => {
-    const mesh = treeMesh = new THREE.InstancedMesh(treeLo, treeMat, n), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), col = new THREE.Color(), lin = (v) => Math.pow(v / 255, 2.2), tone = (v) => v * 3.1 / (1 + v * 2.3);
+  const mtE = TW2.mtree && r.street?.trees ? r.street.trees.length / 4 : 0;
+  if (n || mtE) tm("near.trees", () => {
+    const mesh = treeMesh = new THREE.InstancedMesh(treeLo, treeMat, n + mtE), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), col = new THREE.Color(), lin = (v) => Math.pow(v / 255, 2.2), tone = (v) => v * 3.1 / (1 + v * 2.3);
     const lp = FX3.land && t.tLand !== blackTex ? landPixels(t.tLand) : null;
     let kept = 0;
     for (let i0 = 0; i0 < n; i0++) {
@@ -1116,11 +1237,25 @@ async function loadNear(t, rn = 0) {
     mesh.frustumCulled = false;
     g.add(mesh);
     bytes += n * (64 + 12);
+    if (mtE) {
+      mtExtras(t, mesh, r.street.trees, T, n, lp);
+      bytes += mtE * (64 + 12);
+    }
   });
+  if (tw2Infra) {
+    const ix = await tw2Infra;
+    if (ix?.tiles?.[t.id]) {
+      const d = await jget(url + "infra.json", SV.tile(t.id)).then((r2) => r2.ok ? r2.json() : null).catch(() => null);
+      if (d) bytes += tw2InfraBuild(t, g, d);
+    }
+  }
+  if (t.tw2Tracks) bytes += tw2OcsBuild(t, g);
   try {
-    for (const st of t.stations) {
+    const pNs = params.get("par") !== "0" ? t.stations.map((st) => st.near ? ((p) => (p.catch(() => {
+    }), p))(bin(url + st.near.file, V(st.near.file), rn)) : null) : null;
+    for (const [k, st] of t.stations.entries()) {
       if (!st.near) continue;
-      const sb = await bin(url + st.near.file, V(st.near.file), rn), sg = tm("near.station", () => modelLights.group(st, st.near, parts => stationGroup(sb, st.near, st, parts), stationSolid, stationGlass));
+      const sb = await (pNs ? pNs[k] : bin(url + st.near.file, V(st.near.file), rn)), sg = tm("near.station", () => modelLights.group(st, st.near, (parts) => stationGroup(sb, st.near, st, parts), stationSolid, stationGlass));
       g.add(sg);
       st.nearG = sg;
       bytes += sg.userData.bytes;
@@ -1142,7 +1277,7 @@ async function loadNear(t, rn = 0) {
     return;
   }
   t.group.add(g);
-  t.near = { group: g, bytes, trees: n, treeMesh, staged: !stageOn(), fine: false, buildings: { count: t.meta.counts.buildings, verts: r.buildings.verts, tris: r.buildings.rawVerts / 3, bytes: r.buildings.bytes, rawBytes: r.buildings.rawBytes, ms: Math.round(r.buildings.ms) } };
+  t.near = { group: g, bytes, trees: n, treeMesh, staged: !stageOn(), fine: false, ...r.street ? { street: r.street } : {}, buildings: { count: t.meta.counts.buildings, verts: r.buildings.verts, tris: r.buildings.rawVerts / 3, bytes: r.buildings.bytes, rawBytes: r.buildings.rawBytes, ms: Math.round(r.buildings.ms) } };
   t.geomBytes += bytes;
   if (stageOn()) {
     hold(g);
@@ -1684,7 +1819,7 @@ function schedule() {
     if (t.near?.treeMesh) {
       const m = t.near.treeMesh, here = w.d === 0;
       m.geometry = here ? treeHi : treeLo;
-      m.count = here ? t.near.trees : Math.ceil(t.near.trees * 0.5);
+      m.count = (here ? t.near.trees : Math.ceil(t.near.trees * 0.5)) + (TW2.mtree ? m.userData.mt?.a || 0 : 0);
     }
     if (!near && t.near && t.near !== "loading" && w.d > nearR * 1.5 + 300) dropNear(t);
   }
@@ -1705,6 +1840,8 @@ function schedule() {
   nightSelect();
   BO.sweep();
   updateExtras();
+  if (street && street.update(tiles.values(), view)) shadowDirty = true;
+  if (poolGlow) poolGlow.uD.value = Math.hypot(view.dist, TW2.num("poolr", coarse ? 300 : 450) * 0.8);
   if (Math.hypot(e - origin.e, n - origin.n) > 12e3) {
     origin.e = Math.floor(e / TILE_M) * TILE_M;
     origin.n = Math.floor(n / TILE_M) * TILE_M;
@@ -1881,6 +2018,7 @@ function rideUI() {
     b.classList.toggle("on", k === "ride" ? ride.on && ride.name === v : k === "cam" ? ride.on && ride.cam === v : k === "pause" ? ride.on && ride.paused : false);
   }
 }
+let userT = -1e9;
 {
   const pts = /* @__PURE__ */ new Map();
   let last = null;
@@ -1910,6 +2048,7 @@ function rideUI() {
     const dx = e.clientX - p.x, dy = e.clientY - p.y;
     p.x = e.clientX;
     p.y = e.clientY;
+    userT = performance.now();
     if (ride.on) {
       if (pts.size === 1) {
         ride.yaw = Math.max(-60, Math.min(60, ride.yaw + dx * 0.15));
@@ -1939,6 +2078,7 @@ function rideUI() {
   });
   canvas.addEventListener("wheel", (e) => {
     e.preventDefault();
+    userT = performance.now();
     if (ride.on) return;
     if (e.ctrlKey) view.pitch += e.deltaY * 4e-3;
     else view.dist *= Math.exp(e.deltaY * 11e-4);
@@ -1998,7 +2138,7 @@ $("time").value = hour;
   origin.n = Math.floor(o.n / TILE_M) * TILE_M;
   setView(o);
 }
-const rideUg = await createRideUg({ DATA, renderer, scene, camera, tiles });
+const rideUg = await createRideUg({ DATA, renderer, scene, camera, tiles, sv: SV });
 const trains = await createTrainsLayer({ THREE, scene, origin, params, tileReady: (e, n) => tiles.get(tileId(Math.floor(e / TILE_M), Math.floor(n / TILE_M)))?.state === "ready" });
 if (params.get("ride") && !params.get("bench")) {
   await rideStart(params.get("ride"), params.get("cam") || "front", +(params.get("s0") || 0));
@@ -2095,7 +2235,139 @@ const drawFrame = () => {
 window.__n64 = { NC, draw: drawFrame, bloom: !!bloom };
 const fx2Size = new THREE.Vector2();
 window.__fx2 = { FX2, AO2, HS2 };
-function frame(now) {
+const MVPR = LIMIT.mvpr || 0, MV_ANY = params.has("bench"), mv = { p: new THREE.Vector3(1e9, 0, 0), q: new THREE.Quaternion(), until: 0, low: false };
+function mvprStep(now) {
+  const moved = mv.p.distanceToSquared(camera.position) > 1e-6 || 1 - Math.abs(mv.q.dot(camera.quaternion)) > 1e-9;
+  mv.p.copy(camera.position);
+  mv.q.copy(camera.quaternion);
+  if (moved && (MV_ANY || performance.now() - userT < 300)) mv.until = now + 250;
+  const low = now < mv.until;
+  if (low !== mv.low) {
+    mv.low = low;
+    renderer.setPixelRatio(low ? Math.min(MVPR, pixelRatio) : pixelRatio);
+  }
+}
+const rest = { on: params.get("rest") !== "0", until: 0, at: 0, hour: NaN, drawn: 0, skipped: 0, why: [0, 0, 0, 0, 0, 0, 0, 0] };
+const restGap = () => {
+  const tanHalf = 1 / camera.projectionMatrix.elements[5];
+  if (stars && stars.points.visible && view.pitch - Math.atan(tanHalf) < 0.12) return 0;
+  renderer.getDrawingBufferSize(fx2Size);
+  return Math.max(33, Math.min(250, 385 * 2 * view.dist * tanHalf / fx2Size.y));
+};
+window.__rest = rest;
+const tw2Infra = TW2.pylon || TW2.wind ? jget(DATA + "infra-index.json", SV.root("infra-index.json")).then((r) => r.ok ? r.json() : null).catch(() => null) : null, tw2Rotors = /* @__PURE__ */ new Set();
+const tw2PylonCol = new THREE.Color(TW2.num("pylonc", 0.06), TW2.num("pylonc", 0.06) * 1.03, TW2.num("pylonc", 0.06) * 1.08), tw2LineMat = new THREE.LineBasicMaterial({ color: tw2PylonCol }), tw2PylonMat = new THREE.MeshBasicMaterial({ color: tw2PylonCol, side: THREE.DoubleSide }), tw2TurbMat = new THREE.MeshStandardMaterial({ color: 12896458, roughness: 0.7, metalness: 0, side: THREE.DoubleSide });
+const tw2RotorGeo = (() => {
+  const r = rotorGeo(), geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(r.pos, 3));
+  geo.setAttribute("normal", new THREE.BufferAttribute(r.nor, 3));
+  sharedGeo.add(geo);
+  return geo;
+})();
+const TW2_WIND_FACE = Math.PI / 2 - 0.52;
+const TW2_YARD_SEC = [[-1.85, -0.4], [-1.4, -0.17], [1.4, -0.17], [1.85, -0.4]];
+const tw2PlatIx = TW2.plat ? jget(DATA + "platforms-index.json", SV.root("platforms-index.json")).then((r) => r.ok ? r.json() : null).catch(() => null) : null;
+const tw2Btype = TW2.btype ? jget(DATA + "bridges-index.json", SV.root("bridges-index.json")).then((r) => r.ok ? r.json() : null).catch(() => null) : null, tw2BrMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0, side: THREE.DoubleSide });
+const tw2OcsMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(TW2.num("ocsc", 0.2), TW2.num("ocsc", 0.2) * 1.02, TW2.num("ocsc", 0.2) * 1.05), side: THREE.DoubleSide });
+function tw2OcsBuild(t, g) {
+  const lines = [], solid = [];
+  if (!ocsGeo(t.tw2Tracks, lines, solid, TW2.num("ocsp", 0), { main: TW2.ocs, lrt: TW2.lrt }) && !lines.length) return 0;
+  let bytes = 0;
+  if (lines.length) {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(lines), 3));
+    geo.computeBoundingSphere();
+    const ls = new THREE.LineSegments(geo, tw2LineMat);
+    ls.matrixAutoUpdate = false;
+    g.add(ls);
+    bytes += lines.length * 4;
+  }
+  if (solid.length) {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(solid), 3));
+    geo.computeBoundingSphere();
+    const m = new THREE.Mesh(geo, tw2OcsMat);
+    m.matrixAutoUpdate = false;
+    g.add(m);
+    bytes += solid.length * 4;
+  }
+  return bytes;
+}
+function tw2InfraBuild(t, g, d) {
+  const [ti, tj] = t.id.slice(1).split("_N").map(Number), cl = (v) => Math.max(0, Math.min(TILE_M - 0.01, v)), gz = (x, y) => x >= 0 && x < TILE_M && y >= 0 && y < TILE_M ? gridAt(t.h, FINE_N, FINE_STEP, x, y) : groundAt(ti * TILE_M + x, tj * TILE_M + y) || gridAt(t.h, FINE_N, FINE_STEP, cl(x), cl(y));
+  let bytes = 0;
+  if (TW2.pylon && (d.towers.length || d.spans.length)) {
+    const out = [];
+    for (const w of d.towers) towerLines(out, w[0], w[1], gz(w[0], w[1]), w[2], w[3], w[4], w[5]);
+    for (const s of d.spans) spanLines(out, s, gz(s[0], s[1]), gz(s[5], s[6]));
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(out), 3));
+    geo.computeBoundingSphere();
+    const ls = new THREE.LineSegments(geo, tw2LineMat);
+    ls.matrixAutoUpdate = false;
+    g.add(ls);
+    bytes += out.length * 4;
+    if (d.towers.length && TW2.num("pylons", 1)) {
+      const sp = [];
+      for (const w of d.towers) towerSolid(sp, w[0], w[1], gz(w[0], w[1]), w[2], w[3], w[4], w[5]);
+      const sg = new THREE.BufferGeometry();
+      sg.setAttribute("position", new THREE.BufferAttribute(new Float32Array(sp), 3));
+      sg.computeBoundingSphere();
+      const sm = new THREE.Mesh(sg, tw2PylonMat);
+      sm.matrixAutoUpdate = false;
+      g.add(sm);
+      bytes += sp.length * 4;
+    }
+  }
+  if (TW2.wind && d.wind.length) {
+    const pos = [], nor = [], hubs = [];
+    for (const w of d.wind) {
+      const face = TW2_WIND_FACE + (w[4] - 0.5) * 0.3;
+      hubs.push({ c: turbineMesh(pos, nor, w[0], w[1], gz(w[0], w[1]), w[2], w[3], face), r: w[3], phi: Math.atan2(Math.cos(face), -Math.sin(face)), seed: w[4] });
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(pos), 3));
+    geo.setAttribute("normal", new THREE.BufferAttribute(new Float32Array(nor), 3));
+    geo.computeBoundingSphere();
+    const m = new THREE.Mesh(geo, tw2TurbMat);
+    m.castShadow = true;
+    m.matrixAutoUpdate = false;
+    g.add(m);
+    const rot = new THREE.InstancedMesh(tw2RotorGeo, tw2TurbMat, hubs.length);
+    rot.frustumCulled = false;
+    rot.userData.hubs = hubs;
+    g.add(rot);
+    tw2Rotors.add({ t, g, rot });
+    tw2Spin(performance.now(), rot);
+    bytes += pos.length * 8 + hubs.length * 64;
+  }
+  return bytes;
+}
+const tw2M4 = new THREE.Matrix4(), tw2Q = new THREE.Quaternion(), tw2Q2 = new THREE.Quaternion(), tw2Y = new THREE.Vector3(0, 1, 0), tw2Z = new THREE.Vector3(0, 0, 1), tw2P = new THREE.Vector3(), tw2S = new THREE.Vector3();
+function tw2Spin(now, only) {
+  const turn = (rot) => {
+    for (const [i, h] of rot.userData.hubs.entries()) {
+      tw2Q.setFromAxisAngle(tw2Y, h.phi);
+      tw2Q2.setFromAxisAngle(tw2Z, now / 1e3 * (6.2832 / (3.6 + h.r * 0.025)) + h.seed * 6.2832);
+      tw2Q.multiply(tw2Q2);
+      tw2M4.compose(tw2P.set(h.c[0], h.c[1], h.c[2]), tw2Q, tw2S.set(h.r, h.r, h.r));
+      rot.setMatrixAt(i, tw2M4);
+    }
+    rot.instanceMatrix.needsUpdate = true;
+  };
+  if (only) return turn(only);
+  for (const r of tw2Rotors) {
+    if (r.t.near === "loading") continue;
+    if (!tiles.has(r.t.id) || r.t.near?.group !== r.g) {
+      tw2Rotors.delete(r);
+      continue;
+    }
+    turn(r.rot);
+  }
+}
+function frame(now, still = false) {
+  if (tw2Rotors.size) tw2Spin(now);
+  const renders0 = renderer.info.render.frame, busy0 = stageQ.length > 0 || unculled.length > 0 || envDirty || shadowDirty;
   const dt = now - lastT;
   lastT = now;
   frameT0 = performance.now();
@@ -2121,6 +2393,7 @@ function frame(now) {
   roadFarCheck();
   facadeFarCheck();
   fsFade();
+  if (MVPR) mvprStep(now);
   {
     const mem = renderer.info.memory, g0 = mem.geometries, x0 = mem.textures, p0 = renderer.info.programs?.length || 0;
     if (stageQ.length || unculled.length) {
@@ -2148,7 +2421,19 @@ function frame(now) {
       }
     }
     if (RHL) RHL.update(renderer, camera, view, night);
-    tm("render", () => H.drawWeather(drawFrame));
+    {
+      const why = !rest.on ? 1 : !still ? 2 : busy0 ? 3 : hour !== rest.hour ? 4 : renderer.shadowMap.needsUpdate ? 5 : renderer.info.render.frame !== renders0 ? 6 : pending() > 0 ? 7 : 0;
+      if (why) {
+        rest.why[why]++;
+        rest.until = now + 150;
+        rest.hour = hour;
+      }
+      if (now < rest.until || now - rest.at >= restGap()) {
+        rest.at = now;
+        rest.drawn++;
+        tm("render", () => H.drawWeather(drawFrame));
+      } else rest.skipped++;
+    }
     if (mem.geometries > g0) prof.cur.upGeo = mem.geometries - g0;
     if (mem.textures > x0) prof.cur.upTex = mem.textures - x0;
     const p1 = renderer.info.programs?.length || 0;
@@ -2260,14 +2545,14 @@ async function bench(name = "badouzi", secondsPerLeg = 6) {
         if (isRide) {
           ride.s = Math.min(ride.route.lengthM, ride.s0 + ride.kmh / 3.6 * secondsPerLeg * (k - 1 + t));
           rideCamera();
-          const [mv, mn] = rideMissing();
-          miss.vis.push(mv);
+          const [mv2, mn] = rideMissing();
+          miss.vis.push(mv2);
           miss.near.push(mn);
-          miss.maxVis = Math.max(miss.maxVis, mv);
+          miss.maxVis = Math.max(miss.maxVis, mv2);
           miss.maxNear = Math.max(miss.maxNear, mn);
-          if (mv && miss.firstVisS == null) miss.firstVisS = +ride.s.toFixed(0);
+          if (mv2 && miss.firstVisS == null) miss.firstVisS = +ride.s.toFixed(0);
           const L = line.at(-1);
-          L.miss = Math.max(L.miss || 0, mv);
+          L.miss = Math.max(L.miss || 0, mv2);
           L.missNear = Math.max(L.missNear || 0, mn);
         } else Object.assign(view, { e: lerp(a.e, b.e, s), n: lerp(a.n, b.n, s), dist: Math.exp(lerp(Math.log(a.dist), Math.log(b.dist), s)), az: a.az + da * s, pitch: lerp(a.pitch, b.pitch, s) });
         applyView();

@@ -2,6 +2,9 @@
 import { ShapeUtils, Vector2 } from './engine/vendor/three.module.js';
 
 import {appendHeritageHall} from './heritage-geometry.mjs';
+import { TW2 } from './engine/shared/tw2.mjs';
+import { tw2Building } from './engine/shared/tw2-temple.mjs';
+import { orientedBox } from './engine/kit-building-appearance.js';
 import { appendStructures } from './place-structures.mjs';
 function regionReader(path) {
   const directory = new URL(path,import.meta.url), chunks = new Map();
@@ -35,16 +38,50 @@ export async function placeDetail(url) {
   return places || tunnels ? {...places,tunnels} : null;
 }
 
+// tw2 temple 開著時，一般廟宇改由地景引擎的廟宇規則畫：templeSolids 不畫，被它取代的原建物留著。
+// 逐座審過的廟（heritageHalls）照舊。被 templeSolids 蓋住一半以上的建物才算「為了廟拿掉的」，
+// 圖磚沒標成廟的那些（透天、公寓…）沿用這裡認出的廟，標成廟再套一次引擎規則，高度取蓋住它的殿頂。
+const inRing = (x, y, r) => { let c = false; for (let i = 0, j = r.length - 1; i < r.length; j = i++) { const [xi, yi] = r[i], [xj, yj] = r[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; };
+function templeCover(ring, solids) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const [x, y] of ring) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+  const st = Math.max(.5, Math.sqrt((x1 - x0) * (y1 - y0)) / 12); let n = 0, k = 0, top = 0;
+  for (let x = x0 + st / 2; x < x1; x += st) for (let y = y0 + st / 2; y < y1; y += st) {
+    if (!inRing(x, y, ring)) continue; n++;
+    const s = solids.find(s => inRing(x, y, s[0][0])); if (s) { k++; top = Math.max(top, s[2]); }
+  }
+  return { f: n ? k / n : 0, top };
+}
+function useEngineTemples(buildings, detail) {
+  const solids = detail.templeSolids, keep = new Set(detail.suppressed);
+  for (const b of buildings) {
+    const id = String(b.id).split('#')[0];
+    if (!keep.has(id) || !b.rings?.[0]) continue;
+    const c = templeCover(b.rings[0], solids);
+    if (c.f < .5) continue;
+    keep.delete(id);
+    if (b.tw2T) continue;
+    const t = tw2Building({ ...b, type: 'temple', roof: 'temple', h: c.top || b.h, floors: 1, addon: 0 }, TW2, orientedBox);
+    Object.assign(b, t, { tw2TempleFrom: 'place' });
+  }
+  detail.suppressed = [...keep];
+}
+
 export function applyPlaceBuildings(buildings, detail) {
+  // 圖磚把有分件的建物拆成 原 id#0、#1…（m82v 起），場館資料仍以原 id 記
+  const whole = id => String(id).split('#')[0];
+  if (TW2.temple && detail?.templeSolids?.length && detail.suppressed) useEngineTemples(buildings, detail);
   if (detail?.suppressed) {
     const skip=new Set(detail.suppressed);
-    for (let i=buildings.length-1;i>=0;i--) if (skip.has(buildings[i].id)) buildings.splice(i,1);
+    for (let i=buildings.length-1;i>=0;i--) if (skip.has(buildings[i].id) || skip.has(whole(buildings[i].id))) buildings.splice(i,1);
   }
   if (detail?.additional?.length) buildings.push(...detail.additional);
   if (!detail?.buildings) return;
   for (const b of buildings) {
-    const p = detail.buildings[b.id];
+    const p = detail.buildings[b.id] || detail.buildings[whole(b.id)];
     if (!p) continue;
+    // 地景引擎 tw2 已依來源類別畫成體育館拱頂、看台、圓槽、溫室或棚架的，保留那個造型
+    if (b.tw2Gym || b.tw2Stand || b.tw2Tank || b.tw2Gh || b.canopy && b.tw2Roof) continue;
     const mall = p.k === 'mall';
     // 原有有憑據的層數、高度、屋形優先；只有估製透天／公寓才換掉假設的樓型。
     if (b.illustrative && (p.h || p.levels)) {
@@ -102,7 +139,7 @@ export function fieldMesh(detail, groundAt) {
 
 // 各殿、門、廊各用自己的建物外框與地盤高程；天井留空。近景輸出有法線的牆與瓦頂。
 export function templeMesh(detail, groundAt) {
-  if (!detail?.templeSolids?.length) return null;
+  if (!detail?.templeSolids?.length || TW2.temple) return null;
   const pos=[],col=[],nor=[],tints=new Map();
   for (const [rings,bottom,top,hex,anchor] of detail.templeSolids||[]) {
     if (!rings[0]?.length) continue;

@@ -31,11 +31,11 @@ export async function fetchI(u, init) {
     clearTimeout(tm);
   }
 }
+export const jget = (u, v) => v ? fetchI(u + "?v=" + v) : fetchI(u, JSON_INIT);
 export const fspec = (files, name) => {
   const f = files?.[name];
   return f?.sha256 ? { v: f.sha256.slice(0, 16), bytes: f.bytes, sha: f.sha256 } : null;
 };
-export const jget = (u, v) => v ? fetchI(u + "?v=" + v) : fetchI(u, JSON_INIT);
 export const vurl = (u, spec, n = 0) => u + "?v=" + spec.v + (n > 0 ? "&r=" + n : "");
 export async function sha256hex(data) {
   const h = new Uint8Array(await crypto.subtle.digest("SHA-256", data));

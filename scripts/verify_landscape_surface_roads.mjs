@@ -1,6 +1,9 @@
 // node scripts/verify_landscape_surface_roads.mjs
 import assert from 'node:assert/strict';
-import { roadRibbons } from '../landscape-web/road-ribbons.mjs';
+// 這支量網站自己的道路畫法（沿圖資收線的黃線、橋面與護欄）：地景引擎的 tw2 標線、T 型墩全關（tw2=0），tw2 那套的畫面另外實拍看。
+// shared/tw2.mjs 載入時就讀 location.search，所以要在匯入道路網格之前設好。
+globalThis.location = { search: '?tw2=0' };
+const { roadRibbons } = await import('../landscape-web/road-ribbons.mjs');
 import { surfaceMarkings } from '../landscape-web/surface-markings.mjs';
 import { COARSE_N, encodeTerrain } from '../landscape-web/engine/shared/terrain.mjs';
 

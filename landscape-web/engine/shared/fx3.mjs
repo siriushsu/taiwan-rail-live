@@ -1,3 +1,5 @@
+import { TW2 } from "./tw2.mjs";
+import { ST, STM, ST_CAND } from "./tw2-roof.mjs";
 export const FX3_ALL = ["roof", "facade", "ground", "glass", "far", "land"];
 export const FX3_CHEAP = ["roof", "facade", "glass", "far"];
 export function parseFx3(params, coarse) {
@@ -101,6 +103,44 @@ vec3 twRoof3(vec3 base, vec2 p, float L, float W, float code, float sd, float an
   }
   return c;
 }`;
+const f2 = (x) => (+x).toFixed(4);
+const TW2_GLSL = `
+vec2 tw2Cand(float k){ ${ST_CAND.map(([a, b], i) => `if (k < ${i + 1}.5) return vec2(${a}., ${b}.);`).join(" ")} return vec2(0.); }
+vec2 tw2Stair(float k, float L, float W){ return k > 8.5 ? vec2(0.) : tw2Cand(k) * vec2(L - ${f2(ST.l / 2 + STM)}, W - ${f2(ST.w / 2 + STM)}); }
+vec2 tw2Tu(float L, float W){ return vec2(min(8., 2. * (L - 4.6)), min(6., 2. * W - 3.)); }
+`;
+const TW2_HS = `vec2(${f2(ST.l / 2)}, ${f2(ST.w / 2)})`;
+function tw2Roof(src) {
+  let s = src;
+  const need = (a, b) => {
+    if (!s.includes(a)) throw Error("試作 tw2 屋頂著色器對不上：" + a.slice(0, 60));
+    s = s.replace(a, b);
+  };
+  if (TW2.stair || TW2.heli) {
+    need("vec3 twRoof3(", TW2_GLSL + "vec3 twRoof3(");
+    need(
+      "if (stair) { float st = step(abs(p.x), 2.) * step(abs(p.y), 1.7); cov *= 1. - st; shd *= 1. - st; }",
+      `{ float w4 = vRn.w, sk = mod(w4, 16.), st = 0.; vec2 sc = tw2Stair(sk, L, W);
+      if (sk > .5) st = step(abs(p.x - sc.x), ${TW2_HS}.x + .3) * step(abs(p.y - sc.y), ${TW2_HS}.y + .3);
+      if (mod(floor(w4 / 32.), 2.) > .5) { vec2 hA = tw2Tu(L, W) * .5 + .3; st = max(st, step(abs(p.x), hA.x) * step(abs(p.y), hA.y)); }
+      cov *= 1. - st; shd *= 1. - st; }`
+    );
+  }
+  if (TW2.heli) {
+    const a = s.indexOf("    if (code > 3.5 && code < 4.5 && L > 7. && W > 7.) {"), b = s.indexOf("      for (int t = 0; t < 2; t++) { vec2 tc = vec2(side * (L - 2.6)");
+    if (a < 0 || b < 0) throw Error("試作 tw2 停機坪段對不上");
+    s = s.slice(0, a) + `    if (code > 3.5 && code < 4.5 && L > 7. && W > 7.) {   // 大樓：停機坪（試作 tw2 heli）、冷卻水塔兩座
+      float w4 = vRn.w, sk = mod(w4, 16.), pad = mod(floor(w4 / 16.), 2.), yo = mod(floor(w4 / 64.), 4.) - 1., ps = mod(floor(w4 / 256.), 2.) > .5 ? 1. : -1.;
+      float R = min(min(6., W - 1.2), sk > 8.5 ? (L - 2.8) * .5 : L - 2.8); vec2 hc = vec2(ps * (L - R - .8), yo * (W - R - .8)); float dr = length(p - hc);
+      float ring = (1. - smoothstep(.2 - aa, .2 + aa, abs(dr - R * .84))) * mid; vec2 hq = (p - hc) / (R * .3);
+      float H = max(step(abs(abs(hq.x) - .55), .14) * step(abs(hq.y), .8), step(abs(hq.x), .55) * step(abs(hq.y), .12)) * mid;
+      if (pad > .5) { float m = max(ring, H) * .8; add = mix(add, mix(vec3(.85, .62, .1), c, .35), m); cov = max(cov, m); c = mix(c, vec3(.2, .21, .21), (1. - smoothstep(R * .95, R, dr)) * .3); }
+      float tsd = pad > .5 ? -ps : side;
+` + s.slice(b).replace("vec2 tc = vec2(side * (L - 2.6)", "vec2 tc = vec2(tsd * (L - 2.6)");
+  }
+  return s;
+}
+const ROOF_GLSL_TW2 = TW2.stair || TW2.heli ? tw2Roof(ROOF_GLSL) : ROOF_GLSL;
 export function fx3FacadePatch(sh, F) {
   let s = sh.fragmentShader;
   const need = (a, b) => {
@@ -108,7 +148,7 @@ export function fx3FacadePatch(sh, F) {
     s = s.replace(a, b);
   };
   if (F.roof) {
-    need("void twFacade(out vec3 col,", ROOF_GLSL + "\nvoid twFacade(out vec3 col,");
+    need("void twFacade(out vec3 col,", ROOF_GLSL_TW2 + "\nvoid twFacade(out vec3 col,");
     need(
       "else if (part < 5.5) { float n = twN2(vSV.xy * .9) * .6 + twN2(vSV.xy * 4.) * .4; col = base * mix(.78, 1.06, n); rough = .93; }",
       `else if (part < 5.5) { float n = twN2(vSV.xy * .9) * .6 + twN2(vSV.xy * 4.) * .4; col = base * mix(.78, 1.06, n); rough = .93;
@@ -120,6 +160,11 @@ export function fx3FacadePatch(sh, F) {
       { float sdM = dot(base, vec3(91., 37., 13.)), pch = twH3(vec3(floor(vSV.x * 6. / 2.4), floor(vSV.y * 3.), sdM)); col *= .82 + .32 * pch;
         col = mix(col, vec3(.16, .07, .03) * (.7 + .6 * twN2(vSV.xy * 9.)), step(.8, twH3(vec3(sdM, 3., 1.))) * smoothstep(.45, .8, twN2(vSV.xy * vec2(3., 1.4) + sdM)) * .7); } }`
     );
+  }
+  if (TW2.tank) {
+    need("else if (part < 8.5) { col = base; metal = .92; rough = .24; }", `else if (part < 8.5) { col = base; metal = .92; rough = .24;
+      if (dot(base, vec3(.3, .59, .11)) > .45) { float v = vSV.y, band = smoothstep(.5, .56, v) * (1. - smoothstep(.68, .74, v));
+        col = base * (.94 + .1 * twH3(vec3(floor(v * 14.), 3., 7.))) + .04 * smoothstep(.8, 1., v); col = mix(col, vec3(.70, .80, .93), band * .65); metal = .5; rough = .3; } }`);
   }
   if (F.facade) {
     need("  // 樓層飾帶\n", `  // 第 116 包（fx3 facade）：樓板線、凹陽台、雨遮、窗下水痕、騎樓；依透天／公寓／華廈／大樓不同配方
@@ -158,6 +203,7 @@ export function fx3FacadePatch(sh, F) {
   }
   // 樓層飾帶
 `);
+    if (TW2.arcade) need("if (k < .5 && commercial && !fQuiet && (fTH || fLow || F < 12.)) {", "if (k < .5 && commercial && !fQuiet && (fTH || fLow || F < 12.) && vRn.y < 14.5) {");
   }
   if (F.glass && s.includes("col = mix(col, gIn, glass);")) {
     need("col = mix(col, gIn, glass);", `{ float pu = fract(cu * (1. + cw)), pxC = px / max(bw / (1. + cw), .3), fdG = 1. - smoothstep(.04, .25, pxC);
@@ -179,10 +225,11 @@ export function fx3GroundPatch(sh, F) {
   s = s.replace(a, `{ float nr3 = 1. - smoothstep(200., 1600., dist);
     if (nr3 > .001 && uSize < 2000.) {
       // 人行道：建物輪廓外擴約 3.5 m（遮罩四個方向各取一次的最大值），扣掉輪廓本身
-      vec2 o3 = vec2(3.5 / uSize, 0.); float fo = max(max(texture2D(tMask, uvM + o3).r, texture2D(tMask, uvM - o3).r), max(texture2D(tMask, uvM + o3.yx).r, texture2D(tMask, uvM - o3.yx).r));
-      float walk = smoothstep(.12, .45, fo) * (1. - smoothstep(.3, .65, foot)) * (1. - veg * .8);
+      // 試作 tw2（walk）：外擴縮到 apron（預設 1.5 m）、改無磚縫的水泥色；植生多的地方（草地、山坡、農村）整圈不畫。人行道改由道路那層沿路畫（road-marks.mjs）
+      vec2 o3 = vec2(${TW2.walk ? (+TW2.num("apron", 1.5)).toFixed(2) : "3.5"} / uSize, 0.); float fo = max(max(texture2D(tMask, uvM + o3).r, texture2D(tMask, uvM - o3).r), max(texture2D(tMask, uvM + o3.yx).r, texture2D(tMask, uvM - o3.yx).r));
+      float walk = smoothstep(.12, .45, fo) * (1. - smoothstep(.3, .65, foot)) * (1. - veg * .8)${TW2.walk ? " * (1. - smoothstep(.22, .42, veg))" : ""};
       vec2 tq = abs(fract(P / .5) - .5); float jn = smoothstep(.43, .49, max(tq.x, tq.y)) * (1. - smoothstep(.02, .07, pxm));
-      vec3 swC = vec3(.2, .195, .185) * (.88 + .2 * gH(floor(P / .5))) * (1. - .3 * jn);
+      vec3 swC = ${TW2.walk ? "vec3(.165, .162, .155) * (.94 + .1 * gN(P / 1.7).x)" : "vec3(.2, .195, .185) * (.88 + .2 * gH(floor(P / .5))) * (1. - .3 * jn)"};
       // 空地分類：草地、裸土、柏油、水泥；邊界加雜訊再切，不再是 10 m 的糊色塊
       // 第 117 包：10 m 影像內插後的分類邊界是一格一格的——加大、加一層更大的雜訊抖動邊界（不是格線方向）、邊界放寬成柔邊、類別之間的色差縮小
       float lumS = dot(sat, vec3(.3, .59, .11)), warm = (sat.r - sat.b) / (lumS + .03), n3 = gN(P / 4.3).x * .45 + gN(P / 1.3).x * .25 + gN(P / 11.7 + 3.1).x * .3;
@@ -308,8 +355,12 @@ vec3 lCol(float c, float s, float ang, float rn, vec2 P, float px, vec3 satL, ve
     return mix(g, land * clamp(lg * 1.3 / max(lLum(land), 1e-3), .5, 1.1), .5); }
   if (c > ${LC.sand} - .5 && c < ${LC.sand} + .5) { vec3 g = lTint(vec3(.27, .245, .2), satL, .7) * (1. + .15 * ((gN(P / .3).x - .5) * fdF + (n2 - .5))); return mix(g, land * clamp(lLum(g) / max(lLum(land), 1e-3), .6, 1.2), .35); }   // 沙灘、礫石灘：顏色跟影像走（花蓮的礫石灘是灰的、西部沙灘偏黃）
   if (c > ${LC.wetland} - .5 && c < ${LC.wetland} + .5) { vec3 g = lTint(vec3(.04, .065, .035), satL, .5) * (1. + .3 * mott); return mix(g, vec3(.02, .035, .035), smoothstep(.62, .66, gN(P / 6.).x) * .7); }
-  if (c > ${LC.construction} - .5 && c < ${LC.construction} + .5) return lTint(vec3(.15, .115, .08), satL, .3) * (1. + .25 * ((gN(P / .9).x - .5) * fdF + (n2 - .5) * .8)) * (1. - .15 * lGrid(gRot(P, .4).x, 2.3, .4, px) * step(.55, n3));
-  if (c > ${LC.plaza} - .5 && c < ${LC.plaza} + .5) { vec2 cell = floor(Q / .6); return lTint(vec3(.23, .22, .2), satL, .2) * (.9 + .15 * gH(cell) * fdF + .1 * (n3 - .5)) * (1. - .25 * max(lGrid(Q.x, .6, .02, px), lGrid(Q.y, .6, .02, px))); }
+${TW2.soil ? `  if (c > ${LC.construction} - .5 && c < ${LC.construction} + .5) {   // 試作 tw2 soil：OSM 的「施工中」多半是重劃區、園區的範圍，不是整片裸土。底色調淡，一半跟著影像走；影像是綠的地方畫成草
+    vec3 g = lTint(vec3(${TW2.num("soilr", 0.2).toFixed(3)}, ${TW2.num("soilg", 0.17).toFixed(3)}, ${TW2.num("soilb", 0.13).toFixed(3)}), satL, .75) * (1. + .25 * ((gN(P / .9).x - .5) * fdF + (n2 - .5) * .8)) * (1. - .15 * lGrid(gRot(P, .4).x, 2.3, .4, px) * step(.55, n3));
+    g = mix(g, land * clamp(lLum(g) * 1.2 / max(lLum(land), 1e-3), .5, 1.3), ${TW2.num("soilk", 0.5).toFixed(2)});
+    return mix(g, lawn, smoothstep(.5, .6, veg + (n2 - .5) * .3) * .8); }
+` : `  if (c > ${LC.construction} - .5 && c < ${LC.construction} + .5) return lTint(vec3(.15, .115, .08), satL, .3) * (1. + .25 * ((gN(P / .9).x - .5) * fdF + (n2 - .5) * .8)) * (1. - .15 * lGrid(gRot(P, .4).x, 2.3, .4, px) * step(.55, n3));
+`}  if (c > ${LC.plaza} - .5 && c < ${LC.plaza} + .5) { vec2 cell = floor(Q / .6); return lTint(vec3(.23, .22, .2), satL, .2) * (.9 + .15 * gH(cell) * fdF + .1 * (n3 - .5)) * (1. - .25 * max(lGrid(Q.x, .6, .02, px), lGrid(Q.y, .6, .02, px))); }
   if (c > ${LC.parking} - .5 && c < ${LC.parking} + .5) {   // 停車場：柏油＋白色停車格（5 m 深、2.5 m 寬，兩排夾 6 m 車道）
     vec3 g = vec3(.065, .065, .07) * (1. + .12 * mott);
     float y = mod(Q.y, 16.), inRow = step(y, 5.) + step(11., y), ln = inRow * lGrid(Q.x, 2.5, .1, px) * step(1.2, s);
@@ -371,7 +422,7 @@ export function fx3SimplePatch(m, F) {
     v = need(v, "#include <common>", "#include <common>\nattribute vec4 aFar; varying vec4 vX3; varying float vX3F; varying vec3 vX3W; varying vec3 vX3N;");
     v = need(v, "#include <beginnormal_vertex>", `#include <beginnormal_vertex>
   { vec4 xa = aFar * 127.; float xw = floor(xa.w + .5), xc = floor(color.a * 255. + .5); vX3F = 0.;
-    if (xw < -.5) { vX3 = vec4(xa.x / 127., xa.z / 127., -xw - 1., xc); objectNormal = vec3(0., 1., 0.); }
+    if (xw < -.5) { vX3 = vec4(xa.x / 127., xa.z / 127., -xw - 1., xc); objectNormal = vec3(0., 1., 0.);${TW2.stair || TW2.heli ? " vX3F = xa.y;" : ""} }
     else { vX3F = xa.y; vX3 = vec4(0., 0., -1. - xw, xc); objectNormal = normalize(vec3(objectNormal.x, 0., objectNormal.z) + vec3(1e-6, 0., 0.)); }
     vX3N = objectNormal; }`);
     v = need(v, "#include <begin_vertex>", "#include <begin_vertex>\nvX3W = (modelMatrix * vec4(transformed, 1.)).xyz;");
@@ -381,7 +432,7 @@ float x3H(vec2 p){ vec3 q = fract(vec3(p.xyx) * .1031); q += dot(q, q.yzx + 33.3
 float x3N(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); return mix(mix(x3H(i), x3H(i + vec2(1., 0.)), f.x), mix(x3H(i + vec2(0., 1.)), x3H(i + 1.), f.x), f.y); }
 // 抗鋸齒的 [a,b] 方框（w＝這個座標一個像素的寬）
 float x3Box(float x, float a, float b, float w){ w = max(w, 1e-4); return clamp((min(x + w * .5, b) - max(x - w * .5, a)) / w, 0., 1.); }
-float x3Rough = -1., x3Metal = 0.;`);
+float x3Rough = -1., x3Metal = 0.;${TW2.stair || TW2.heli ? TW2_GLSL : ""}`);
     s = need(s, "#include <roughnessmap_fragment>", `{ float dayK = smoothstep(-.02, .15, uSun3.y);
   if (vX3.z > -.5) {
     // ---- 屋頂：底色（worker 已乘每棟色調）×fr；女兒牆暗邊；中央樓梯間；浪板的分片；低頻風化 ----
@@ -396,7 +447,12 @@ float x3Rough = -1., x3Metal = 0.;`);
       // 女兒牆：牆腳暗帶 1 m（近景 twRoof3 同一個 .6→1），太遠時帶子變寬但淡，平均暗度不變
       float rw = 1. + px * .6; c *= 1. - .4 * (1. - smoothstep(0., rw, e)) * (1. - noRim) / (1. + px * .35);
       // 樓梯間（公寓、大樓；近景是幾何 3.4×2.8 m）：遠看一塊亮一點的方塊＋背光面暗
-      if (rt > .5 && rt < 1.5 && L > 4. && W > 3.) { float st = x3Box(p.x, -1.7, 1.7, px) * x3Box(p.y, -1.4, 1.4, px); c = mix(c, diffuseColor.rgb * 1.08 + .02, st * .8 * (1. - smoothstep(1.2, 3.5, px))); }
+      ${TW2.stair || TW2.heli ? `// 試作 tw2：樓梯間照近景同一個位置（tile.worker.js farBuilding 把 roofPlan 的 k＋16×屋突寫在法線 y；沒寫的是 127，照原本）
+      if (vX3F < 99.5) { float fk = floor(vX3F + .5), sk = mod(fk, 16.), st = 0.; vec2 sc = tw2Stair(sk, L, W), hs = ${TW2_HS};
+        if (sk > .5 && L > 4. && W > 3.) st = x3Box(p.x, sc.x - hs.x, sc.x + hs.x, px) * x3Box(p.y, sc.y - hs.y, sc.y + hs.y, px);
+        if (fk > 15.5) { vec2 hA = tw2Tu(L, W) * .5; st = max(st, x3Box(p.x, -hA.x, hA.x, px) * x3Box(p.y, -hA.y, hA.y, px)); }
+        c = mix(c, diffuseColor.rgb * 1.08 + .02, st * .8 * (1. - smoothstep(1.2, 3.5, px))); }
+      else ` : ""}if (rt > .5 && rt < 1.5 && L > 4. && W > 3.) { float st = x3Box(p.x, -1.7, 1.7, px) * x3Box(p.y, -1.4, 1.4, px); c = mix(c, diffuseColor.rgb * 1.08 + .02, st * .8 * (1. - smoothstep(1.2, 3.5, px))); }
     }
     diffuseColor.rgb = c;
   } else {

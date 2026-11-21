@@ -1,6 +1,7 @@
 import * as THREE from "./vendor/three.module.js";
 import { TQ, drawFinishes, drawWindows, drawSigns, SHUTTERS, CAGES } from "./kit-city-atlas.js";
 import { CVS_PAL, CVS_PAL_NAMES, cvsBandGLSL, cvsBrandOn } from "./shared/cvs-look.mjs";
+import { TW2 } from "./shared/tw2.mjs";
 const WIN_COL = [[1, 0.623, 0.31], [1, 0.882, 0.745], [0.484, 0.666, 1]];
 const WIN_MIX = { res: [0.68, 0.2, 0.12], office: [0.3, 0.45, 0.25], shop: [0.3, 0.35, 0.35], school: [0.1, 0.4, 0.5], hall: [0.15, 0.35, 0.5], temple: [0.75, 0.1, 0.15], wood: [0.8, 0.1, 0.1] };
 const y709 = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2], g3 = (c) => `vec3(${c.map((v) => v.toFixed(4)).join(", ")})`;
@@ -214,6 +215,7 @@ void twCvs(inout vec3 col, inout float rough, inout float metal, inout vec3 emis
     emis = (wG * (1. - fr) * inner * vec3(1., .97, .9) * .95 + wB * bc * .95) * uNight;
   }
 }`).replace("#include <map_fragment>", `vec3 twCol; float twRough; float twMetal; vec3 twEmis; twFacade(twCol, twRough, twMetal, twEmis); twCvs(twCol, twRough, twMetal, twEmis); diffuseColor.rgb = twCol;`).replace("#include <roughnessmap_fragment>", "float roughnessFactor = twRough;").replace("#include <metalnessmap_fragment>", "float metalnessFactor = twMetal;").replace("#include <emissivemap_fragment>", "totalEmissiveRadiance += twEmis;");
+    if (TW2.arcade || TW2.cage) shader.fragmentShader = tw2Facade(shader.fragmentShader);
   };
   if (glass) {
     const ob = material.onBeforeCompile, from = "rough = mix(rough, .09, glass); metal = mix(0., .6, glass);";
@@ -327,4 +329,39 @@ export function facadeGeometry(array, stride = 28) {
   g.computeBoundingSphere();
   g.computeBoundingBox();
   return g;
+}
+function tw2Facade(fs) {
+  const need = (a, b) => {
+    if (!fs.includes(a)) throw Error("tw2 立面對不上：" + a.slice(0, 50));
+    fs = fs.replace(a, b);
+  };
+  const geo = TW2.cage && TW2.num("cageGeo", 0) > 0, f = (x) => (+x).toFixed(3);
+  if (TW2.arcade) need("  // 玻璃：反射天空；夜裡每格亂數亮燈（一樓店面亮得多）\n", `  if (vRn.y > 14.5) col *= mix(.86, .58, smoothstep(0., gh, v));
+  // 玻璃：反射天空；夜裡每格亂數亮燈（一樓店面亮得多）
+`);
+  if (geo) need("    else { vec3 t = texture(tVSign,", `    else if (part > 10.5) { vec4 c = texture(tWin, vec3(vSV.x, 1. - vSV.y, 24.)); col = base * .2 * (1. - c.a) + c.rgb * base; rough = .6; }
+    else { vec3 t = texture(tVSign,`);
+  if (TW2.cage && !geo) {
+    need("  // 鐵窗：圖集第 24 格的鐵窗網，罩在窗外（原本只畫最近 24～40 棟）\n", `  vec3 cgP = -vViewPosition, cgDx = dFdx(cgP), cgDy = dFdy(cgP); float cgSx = dFdx(s), cgSy = dFdy(s), cgVx = dFdx(v), cgVy = dFdy(v);
+  // 鐵窗：圖集第 24 格的鐵窗網，罩在窗外（原本只畫最近 24～40 棟）
+`);
+    need(
+      `if (cg.x > 0.) { float w = min(bw - .3, (cg.x + .3) * bw / 4.4) / bw, za = (cg.z - .15) / 3.2, zb = za + (cg.y + .3) / 3.2; vec2 q = vec2((cu - .5) / w + .5, (cv - za) / (zb - za));`,
+      `if (cg.x > 0.) { float w = min(bw - .3, (cg.x + .3) * bw / 4.4) / bw, za = (cg.z - .15) / 3.2, zb = za + (cg.y + .3) / 3.2;
+      float wm = w * bw, sa = (j + .5) * bw - wm * .5, sb = sa + wm, va = z0 + za * fh, vb = z0 + zb * fh, det = cgSx * cgVy - cgSy * cgVx;
+      vec3 cT = (cgDx * cgVy - cgDy * cgVx) / det, cB = (cgDy * cgSx - cgDx * cgSy) / det, cV = normalize(vViewPosition); float vn = dot(cV, normalize(cross(cT, cB)));
+      vec2 o = abs(det) > 1e-12 && vn > .08 ? clamp(${f(TW2.num("cageD", 0.5))} * vec2(dot(cV, cT), dot(cV, cB)) / vn, vec2(-.9, -.7), vec2(.9, .7)) : vec2(0.);
+      vec3 cc = uCages[int(clamp(vRn.y, 0., 6.) + .5)];
+      float bx = step(sa, s) * step(s, sb); col *= 1. - .3 * bx * step(va, v) * step(v, vb); col *= 1. - .35 * bx * step(v, va) * (1. - smoothstep(0., .35, va - v));
+      float ts = abs(o.x) > 1e-4 ? ((o.x > 0. ? sb : sa) - s) / o.x : -1., vs = v + ts * o.y;
+      if (ts > 0. && ts < 1. && vs > va && vs < vb) { col = mix(col * .8, cc * .5, .65); glass = 0.; }
+      float tb = abs(o.y) > 1e-4 ? (va - v) / o.y : -1., xb = s + tb * o.x;
+      if (tb > 0. && tb < 1. && xb > sa && xb < sb) { col = vec3(.42, .42, .4) * (o.y > 0. ? 1. : .5); glass = 0.; }
+      float tt = abs(o.y) > 1e-4 ? (vb - v) / o.y : -1., xt = s + tt * o.x;
+      if (tt > 0. && tt < 1. && xt > sa && xt < sb) { col = vec3(.5, .51, .5) * (o.y > 0. ? 1. : .45); glass = 0.; }
+      vec2 q = vec2((cu + o.x / bw - .5) / w + .5, (cv + o.y / fh - za) / (zb - za));`
+    );
+    need("col = col * (1. - c.a) * .86 + c.rgb * uCages[int(clamp(vRn.y, 0., 6.) + .5)];", "col = col * (1. - c.a) * .86 + c.rgb * cc;");
+  }
+  return fs;
 }

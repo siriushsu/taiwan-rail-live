@@ -1,5 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
 import { LAMP_RGB_GLSL, lampMixAt, lampTone } from "./night-mix.mjs";
+import { segIndex, segDist } from "./road-trees.mjs";
+import { RANK as RANK_RD, findJunctions } from "./road-marks.mjs";
 export function nightFlags(params, coarse = false) {
   const all = params.get("n64") !== "0", f = (k) => all && params.get(k) !== "0";
   return { lamp: f("nlamp"), glow: f("nglow"), wall: f("nwall"), win: f("nwin"), mid: f("nmid"), room: f("nwin") && (params.has("nroom") ? params.get("nroom") !== "0" : !coarse), lmix: f("nlamp") && params.get("nlmix") !== "0", far: f("nglow") && params.get("nfar") !== "0" && (params.get("nfr") === "0" ? "base" : true) };
@@ -9,8 +11,8 @@ const hash2 = (x, y) => {
   const s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
   return s - Math.floor(s);
 };
-export function lampPositions(roads, groundAt, { size = 1280, deckAt = null, mix = false } = {}) {
-  const pos = [], seed = [], road = [], tone = [];
+export function lampPositions(roads, groundAt, { size = 1280, deckAt = null, mix = false, arm = 0, poleOk = null } = {}) {
+  const pos = [], seed = [], road = [], tone = [], pole = [], pool = [];
   for (const r of roads || []) {
     const k = RANK[r.cls] ?? 2;
     if (k < 3 || !r.pts || r.pts.length < 2) continue;
@@ -25,7 +27,15 @@ export function lampPositions(roads, groundAt, { size = 1280, deckAt = null, mix
         const side = main ? (idx % 2 ? 1 : -1) * side0 : side0, x = a[0] + ux * s - uy * off * side, y = a[1] + uy * s + ux * off * side;
         if (x < 0 || y < 0 || x >= size || y >= size) continue;
         const deck = r.bridge && deckAt ? deckAt(r, x, y) : null, h = typeof deck === "number" ? deck + 6.5 : groundAt(x, y) + lift;
-        pos.push(x, h, -y);
+        if (arm > 0 && typeof deck !== "number" && (!poleOk || poleOk(x, y))) {
+          const A = main ? arm : arm * 0.5, ix = uy * side, iy = -ux * side, lx = x + ix * A, ly = y + iy * A;
+          pole.push(x, y, ix, iy, lift, A);
+          pool.push(lx, ly);
+          pos.push(lx, groundAt(lx, ly) + lift, -ly);
+        } else {
+          if (arm > 0 && typeof deck !== "number") pool.push(x, y);
+          pos.push(x, h, -y);
+        }
         seed.push(hash2(x * 0.37, y * 0.91));
         if (mix) {
           road.push(a[0] + ux * s, a[1] + uy * s);
@@ -35,7 +45,65 @@ export function lampPositions(roads, groundAt, { size = 1280, deckAt = null, mix
       s -= L;
     }
   }
-  return { pos: new Float32Array(pos), seed: new Float32Array(seed), n: seed.length, ...mix ? { road: new Float32Array(road), tone: new Float32Array(tone) } : {} };
+  return { pos: new Float32Array(pos), seed: new Float32Array(seed), n: seed.length, ...mix ? { road: new Float32Array(road), tone: new Float32Array(tone) } : {}, ...arm > 0 ? { pole: new Float32Array(pole), pool: new Float32Array(pool) } : {} };
+}
+export const lampDeck = (groundAt) => (r, x, y) => {
+  let best = null;
+  for (let i = 0; i < r.pts.length - 1; i++) {
+    const a = r.pts[i], b = r.pts[i + 1], dx = b[0] - a[0], dy = b[1] - a[1], f = Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / (dx * dx + dy * dy || 1))), d = Math.hypot(x - a[0] - dx * f, y - a[1] - dy * f);
+    if (!best || d < best.d) best = { d, h: (a[2] || 0) + ((b[2] || 0) - (a[2] || 0)) * f };
+  }
+  return best && best.h > 0.3 ? groundAt(x, y) + best.h : null;
+};
+export function poleOkOf(roads, tracks, groundAt) {
+  const extra = [];
+  for (const p of tracks || []) {
+    for (let k = 4; k + 3 < p.length; k += 4) if (Math.max(p[k - 2], p[k + 2]) > groundAt(p[k], p[k + 1]) + 2.5) extra.push([p[k - 4], p[k - 3], p[k], p[k + 1], 6]);
+  }
+  const upOf = roads.map((r) => r.pts.some((q) => (q[2] || 0) > 0.3)), idx = segIndex(roads, extra), flat = roads.filter((r, i) => !upOf[i]), J = findJunctions(flat, { paired: NO_PAIR }), jn = [];
+  for (const j of J.junctions) jn.push([j.x, j.y, Math.max(...j.arms.map((a) => a.w)) / 2 + 3]);
+  for (const C2 of J.clusters) if (C2.major) jn.push([C2.x, C2.y, Math.max(0, ...C2.arms.map((A) => A.e)) + 3]);
+  const C = 64, G = /* @__PURE__ */ new Map();
+  for (const j of jn) for (let gx = Math.floor((j[0] - j[2] - 1) / C); gx <= Math.floor((j[0] + j[2] + 1) / C); gx++) for (let gy = Math.floor((j[1] - j[2] - 1) / C); gy <= Math.floor((j[1] + j[2] + 1) / C); gy++) {
+    const k = gx * 4096 + gy;
+    let a = G.get(k);
+    if (!a) G.set(k, a = []);
+    a.push(j);
+  }
+  return (x, y) => {
+    for (const [jx, jy, r] of G.get(Math.floor(x / C) * 4096 + Math.floor(y / C)) || []) if (Math.hypot(x - jx, y - jy) < r) return false;
+    let ok = true;
+    const par = [];
+    idx.each(x, y, 32, (i, ax, ay, bx, by, need) => {
+      if (!ok) return;
+      const [d, u] = segDist(x, y, ax, ay, bx, by);
+      if (i < 0) {
+        if (d < need) ok = false;
+        return;
+      }
+      const r = roads[i], k = RANK_RD[r.cls] ?? 2;
+      if (k < 2) return;
+      const up = upOf[i];
+      if (d < r.w / 2 + (up ? 2 : 0.3)) {
+        ok = false;
+        return;
+      }
+      if (!up && k >= 4 && u > -0.05 && u < 1.05 && d < 32) {
+        const l = Math.hypot(bx - ax, by - ay) || 1;
+        par.push([(bx - ax) / l, (by - ay) / l, ((x - ax) * (ay - by) + (y - ay) * (bx - ax)) / l, r.w]);
+      }
+    });
+    if (ok) for (const a of par) for (const b of par) {
+      if (Math.abs(a[0] * b[0] + a[1] * b[1]) < 0.94) continue;
+      const sb = a[0] * b[0] + a[1] * b[1] > 0 ? b[2] : -b[2];
+      if (a[2] * sb < 0 && Math.abs(a[2] - sb) <= 30 + (a[3] + b[3]) / 2) ok = false;
+    }
+    return ok;
+  };
+}
+const NO_PAIR = /* @__PURE__ */ new Map();
+export function tileLamps(roads, tracks, groundAt, { mix = false, arm = 0 } = {}) {
+  return lampPositions(roads, groundAt, { deckAt: lampDeck(groundAt), mix, ...arm > 0 ? { arm, poleOk: poleOkOf(roads, tracks, groundAt) } : {} });
 }
 export function createLampMaterial(fogDensity, blackTex = null) {
   const mix = !!blackTex;
@@ -121,12 +189,13 @@ float gH(vec2 p){`);
       vec3 base = vec3(.010, .013, .022) * (.4 + .6 * clamp(dot(nW, vec3(-.5, .7, -.5)) * 1.15, 0., 1.)) * (1. - wat);
       totalEmissiveRadiance += (lc * lit + base) * nfW * uNightFar; }`);
 }
-export function nightRoadPatch(mat, uNight) {
+export function nightRoadPatch(mat, uNight, pool = null) {
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uNight = uNight;
-    sh.fragmentShader = rep(sh.fragmentShader, "#include <common>", "#include <common>\nuniform float uNight;");
+    if (pool) sh.uniforms.uPoolD = pool.uD;
+    sh.fragmentShader = rep(sh.fragmentShader, "#include <common>", "#include <common>\nuniform float uNight;" + (pool ? " uniform float uPoolD;" : ""));
     sh.fragmentShader = rep(sh.fragmentShader, "#include <emissivemap_fragment>", `#include <emissivemap_fragment>
-  if (uNight > 0.) totalEmissiveRadiance += vec3(1., .66, .38) * mix(.025, .05, 1. - step(.1, vColor.r)) * uNight;`);
+  if (uNight > 0.) totalEmissiveRadiance += vec3(1., .66, .38) * mix(.025, .05, 1. - step(.1, vColor.r)) * uNight${pool ? ` * mix(${pool.k.toFixed(3)}, 1., smoothstep(uPoolD, uPoolD * 1.3, length(vViewPosition)))` : ""};`);
   };
   mat.customProgramCacheKey = () => "road-n64";
 }
