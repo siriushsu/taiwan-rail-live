@@ -6059,6 +6059,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="tripask1121"><span class="d">11/21</span><span>App 的 AI 排行程：說了目的地就直接排，不再反問幾點出發；排完可以再補一句，例如「早上八點」</span></li>
         <li data-cl-of="nightexterior1120"><span class="d">11/20</span><span>地景地圖入夜後，故宮、北美館等場館閉館後外觀照明會留到晚上 10 點；高雄 85 大樓等地標的夜燈恢復整夜點亮</span></li>
         <li data-cl-of="pierground1120"><span class="d">11/20</span><span>切換立體地形時，橋墩會跟著地面高度更新。首頁圖片還在載入時，也能先看列車、操作地圖</span></li>
         <li data-cl-of="office1119"><span class="d">11/19</span><span>拉近地景地圖的總統府，可以看見紅磚兩翼一扇扇的拱窗、門廊的石柱，以及夜裡亮著的中央塔樓</span></li>
@@ -6066,7 +6067,6 @@
         <li data-cl-of="stamps1119"><span class="d">11/19</span><span>車庫新增印章簿：懸賞錄程判定合格的每一趟照車種蓋一個章，集滿一組可以免費選一款兌換車</span></li>
         <li data-cl-of="farparks1119"><span class="d">11/19</span><span>全台山海與離島的遠景更細緻。中正紀念堂正面朝向自由廣場，兩側牌樓可看穿，園內和總統府旁誤畫的公寓也已修正</span></li>
         <li data-cl-of="followrain1119"><span class="d">11/19</span><span>新地景跟車會遇到當地的雨，進隧道雨絲漸停，拉遠可以看見雨中的山霧</span></li>
-        <li data-cl-of="heritagetemples1119"><span class="d">11/19</span><span>地景補上 29 間古蹟廟宇，依實景重畫各殿位置、天井與屋頂，從彰化孔廟到金門奎閣都能拉近看</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -6373,6 +6373,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="tripask1121"><span class="d">11/21</span><span>App 的 AI 排行程：說了目的地就直接排，不再反問幾點出發；排完可以再補一句，例如「早上八點」</span></li>
         <li data-cl="tymccrowd1113"><span class="d">11/13</span><span>桃園機場捷運的車站看板與跟車卡多了車廂擁擠度：四節車廂各一格、顏色表示鬆緊，資料取自桃園捷運官網的列車動態；對不上是哪一列車時留白</span></li>
         <li data-cl="trainstock1105"><span class="d">11/05</span><span>區間車列車卡新增車型推估：依鐵道維基館運用表標出 EMU500／600／700／800／900，實際以當日調度為準</span></li>
         <li data-cl="guideroute1103"><span class="d">11/03</span><span>觀看的「導覽」分頁拆開了：查詢首頁多「去哪裡」，車站、地標和縣市點一下就飛過去；搜尋也找得到地點、縣市和路線；最愛可以新增地點；選路線直接看全線並亮線；精選取景移到觀看的視角</span></li>
@@ -7671,7 +7672,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1119j：總統府翼樓、門廊與塔冠細節。
 // v1120a：橋墩隨地形圖磚更新地面高度。
 // v1120b：場館閉館後外觀照明留到 22 時，模型自帶夜燈的地標整夜亮。
-const BUILD = 'v1120b';
+// v1121a：只動伺服器端（Worker），網頁畫面不變：App 的 AI 排行程有目的地就直接排、可以接著補一句。
+const BUILD = 'v1121a';
 // v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 // 有播電腦首頁開場、又是第一次來（RI_HOME_OPENING.fresh）：揭幕後開新地景（開場影片就是新地景錄的）；只這一趟，不寫地景偏好
