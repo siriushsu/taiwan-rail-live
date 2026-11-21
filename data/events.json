@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-17",
+  "updated": "2026-11-21",
   "events": [
     {
       "id": "tra-20261012-exam-1109",
@@ -182,6 +182,16 @@
       "end": "2026-12-25",
       "anchor": { "kind": "station", "sys": "afr_sched", "name": "二萬平" },
       "url": "https://afrch.forest.gov.tw/AllNews/0079630"
+    },
+    {
+      "id": "tra-20261119-xingyuan-forest",
+      "source": "official",
+      "title": "星願奇蹟之森",
+      "note": "臺北車站 1 樓大廳的室內耶誕裝置，77 棵聖誕樹圍著主樹；12/24–12/27 另有耶誕市集",
+      "start": "2026-11-20",
+      "end": "2027-01-02",
+      "anchor": { "kind": "station", "sys": "tra_sched", "name": "臺北" },
+      "url": "https://www.trc.com.tw/tra-tip-web/tip/tip009/tip911/newsDtl?newsNo=8ae4cac2a1f0191e01a1f6b480fc2191"
     }
   ]
 }

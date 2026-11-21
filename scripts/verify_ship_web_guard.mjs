@@ -8,6 +8,7 @@
 //   P 組 認正式站——在暫存目錄造 origin＋兩個 clone 的小 repo(假 strip 腳本只刪整行註解)。
 //        「正式站內容」由這支自己的 expectStripped() 產生,不經過被測的程式碼。
 //   W 組 ship_web.mjs 的呼叫位置(靜態)——模組對了但沒被呼叫,等於沒有。
+//   D 組 升版重試——假的 deploy:只有「查不到剛上傳的版本」會等一下再試,別的失敗與試滿次數都照樣回失敗。
 // 預設全部離線、只寫暫存目錄:不碰共用的 .git/ship-web.lock、不打正式站、不跑 ship_web.mjs。
 //
 // 兩個手動模式(唯讀,但會連網):
@@ -268,6 +269,34 @@ await group('W', async () => {
     trainGarage > firstGate && trainGarage < strip
       && /const trainGarage = spawnSync\('node', \[path\.join\(wt, 'scripts', 'verify_train_garage\.mjs'\)\],\s*\{[^}]*GARAGE_URL: '', GARAGE_MOBILE_ONLY: ''[^]*?if \(trainGarage\.status !== 0\) fail\(/.test(src),
     `train-garage@${trainGarage}、strip@${strip}`);
+  ok('W12 升版經 deployVersionWithRetry、最後仍失敗就停',
+    /const dep = await deployVersionWithRetry\(\{ deploy: \(\) => \{[^]*?'versions', 'deploy'[^]*?return r;\s*\} \}\);\s*if \(dep\.status !== 0\) fail\(/.test(src),
+    '要有 const dep = await deployVersionWithRetry({ deploy: () => {…versions deploy…} }) 與 if (dep.status !== 0) fail(…)');
+});
+
+// ── D 組:升版查不到剛上傳的版本就等一下再試 ────────────────────────────────
+// NOT_FOUND 是 2026-11-21 出 v1120b 時 wrangler 印的原文(帳號代碼換掉);deploy 與 sleep 都是假的,不碰 Cloudflare。
+await group('D', async () => {
+  const NOT_FOUND = { status: 1, stdout: '', stderr: '\x1b[31m✘ \x1b[41;31m[\x1b[41;97mERROR\x1b[41;31m]\x1b[0m \x1b[1mA request to the Cloudflare API '
+    + '(/accounts/<account>/workers/scripts/taiwan-rail-live/versions/ff7728dd-ec84-4d06-9baf-30414f0e424e) failed.\x1b[0m\n\n'
+    + '  The requested Worker version could not be found, please check the ID being passed and try again. [code: 100146]\n' };
+  const DONE = { status: 0, stdout: '⛅️ SUCCESS  Deployed taiwan-rail-live version ff7728dd-ec84-4d06-9baf-30414f0e424e at 100% (1.17 sec)\n', stderr: '' };
+  const OTHER = { status: 1, stdout: '', stderr: '✘ [ERROR] A request to the Cloudflare API failed.\n\n  Authentication error [code: 10000]\n' };
+  const play = async (results, opt = {}) => {
+    let calls = 0; const waits = [];
+    const r = await guard.deployVersionWithRetry({ deploy: () => results[Math.min(calls++, results.length - 1)],
+      sleep: async ms => { waits.push(ms); }, log: () => {}, ...opt });
+    return { r, calls, waits };
+  };
+  const say = x => `status ${x.r.status}、升版跑 ${x.calls} 次、等 ${x.waits.length} 次`;
+  let x = await play([NOT_FOUND, NOT_FOUND, DONE]);
+  ok('D1 前兩次查不到、第三次成功 ⇒ 等兩次後回成功', x.r === DONE && x.calls === 3 && x.waits.length === 2 && x.waits.every(ms => ms > 0), say(x));
+  x = await play([DONE]);
+  ok('D2 第一次就成功 ⇒ 只跑一次、不等', x.r === DONE && x.calls === 1 && x.waits.length === 0, say(x));
+  x = await play([OTHER, DONE]);
+  ok('D3 別的失敗不重試', x.r === OTHER && x.calls === 1 && x.waits.length === 0, say(x));
+  x = await play([NOT_FOUND], { tries: 4 });
+  ok('D4 一直查不到 ⇒ 試滿次數就回失敗', x.r === NOT_FOUND && x.calls === 4 && x.waits.length === 3, say(x));
 });
 
 // ── WB 組:路段懸賞總閘門的接線(靜態)。各支驗收只在分支上手動跑了一個月,拔掉這一段不會有任何別的東西變紅 ──

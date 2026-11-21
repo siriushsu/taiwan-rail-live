@@ -49,7 +49,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import os from 'node:os';
 import { pathToFileURL } from 'node:url';
-import { acquireShipLock, checkProductionAncestry } from './ship_web_guard.mjs';
+import { acquireShipLock, checkProductionAncestry, deployVersionWithRetry } from './ship_web_guard.mjs';
 import { createGateRunner } from './ship_web_gate_ledger.mjs';
 
 const args = process.argv.slice(2);
@@ -1039,9 +1039,12 @@ try {
   } else {
     // ── 6. deploy @100%（ID 只取自上面那次 upload 的輸出）──────────────────
     await prodGate('升版前', `（已上傳的 ${verId} 沒有升版，正式站沒動）`);
-    const dep = spawnSync('arch', ['-arm64', 'node', wrangler, 'versions', 'deploy', `${verId}@100%`, '--yes'],
-      { cwd: wt, encoding: 'utf8' });
-    process.stdout.write(dep.stdout || ''); process.stderr.write(dep.stderr || '');
+    const dep = await deployVersionWithRetry({ deploy: () => {
+      const r = spawnSync('arch', ['-arm64', 'node', wrangler, 'versions', 'deploy', `${verId}@100%`, '--yes'],
+        { cwd: wt, encoding: 'utf8' });
+      process.stdout.write(r.stdout || ''); process.stderr.write(r.stderr || '');
+      return r;
+    } });
     if (dep.status !== 0) fail('versions deploy 失敗');
 
     // ── 7. 收貨：正式站逐 byte＝本地 stripped（邊緣快取最長等 ~3 分鐘）─────

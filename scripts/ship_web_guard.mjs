@@ -179,3 +179,18 @@ export async function checkProductionAncestry({ repo, sha, fetchProd, nodeModule
     + '（wrangler deployments list），把它併進出貨基準再出；查不出來就停下來問使用者。'
     + (stripErrors.length ? `\n（有 ${stripErrors.length} 份去註解重做失敗，第一份：${stripErrors[0]}）` : '') };
 }
+
+// ── 3. 升版：剛上傳的版本要等一下才查得到 ──────────────────────────────────
+// 2026-11-21 出 v1120b 連兩發都在 upload 後約 6 秒升版，Cloudflare 回「The requested Worker version could
+// not be found … [code: 100146]」，同一個 ID 一分鐘後就查得到。這個錯出在查版本那一步、正式站還沒動，
+// 所以只對它等一下再試；其他失敗照舊當場回傳，由呼叫端判死。
+// deploy() 跑一次升版、回 { status, stdout, stderr }；回傳最後一次的結果。
+export async function deployVersionWithRetry({ deploy, tries = 8, waitMs = 15000,
+  sleep = ms => new Promise(r => setTimeout(r, ms)), log = console.log }) {
+  for (let attempt = 1; ; attempt++) {
+    const r = deploy();
+    if (r.status === 0 || attempt >= tries || !/\[code: 100146\]/.test((r.stdout || '') + (r.stderr || ''))) return r;
+    log(`  升版查不到剛上傳的版本（100146），${waitMs / 1000}s 後重試 ${attempt}/${tries - 1}`);
+    await sleep(waitMs);
+  }
+}
