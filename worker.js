@@ -1,7 +1,7 @@
 import { withRailWeatherNotice } from './scripts/rail_weather_bulletin.mjs';
 import { railAiScheduled, railAiStatus } from './scripts/rail_ai_status.mjs';
 import { railPushScheduled, railPushRegister, railPushUnregister, railPushDecide } from './scripts/rail_push.mjs';
-import { tripAsk, tripExplain, tripAskStatus, tripAskScheduled, tripAskPurge } from './scripts/trip_ask.mjs';
+import { tripAsk, tripExplain, tripAskStatus, tripAskScheduled, tripAskPurge, normDevice } from './scripts/trip_ask.mjs';
 import { WEATHER_CRON, weatherScheduled, weatherApi } from './scripts/weather_frames.mjs';
 import traScheduleSupplements from './scripts/tra_schedule_supplements.json' with { type: 'json' };
 import {createPlatformProxy} from './scripts/tra_platform_proxy.mjs';
@@ -4276,8 +4276,9 @@ async function railPushRoute(handler, request, env) {
   return handler(request, env);
 }
 
-// AI 一句話排行程（scripts/trip_ask.mjs）。身分：有通行證＝plus；登入但沒有通行證＝試用（checkPlusEntitlement 的 403 也帶 uid）；
-// 沒登入 401 login_required；Firebase／RevenueCat 查不到 503。
+// AI 一句話排行程（scripts/trip_ask.mjs）。身分：有通行證＝plus；登入但沒有通行證＝free（checkPlusEntitlement 的 403 也帶 uid）；
+// 沒帶 token 但帶了 X-RI-Device（第 2 版 App 產生的 UUID）＝不登入；兩個都沒有 401 login_required；Firebase／RevenueCat 查不到 503。
+// 帶了 token 就照 token 驗，驗不過是 401，不退回不登入（免得登入的人默默掉成每天 5 次）。
 // 本機測試身分：只有 .dev.vars 設 TRIP_ASK_DEV_AUTH=1、而且請求打的是 localhost 才收「Bearer dev:<名字>:<plus|free>」。
 // 正式站的網址不會是 localhost，所以就算環境變數設錯也用不到。
 async function tripAskIdentity(request, env) {
@@ -4285,6 +4286,10 @@ async function tripAskIdentity(request, env) {
   if (env.TRIP_ASK_DEV_AUTH === '1' && (host === 'localhost' || host === '127.0.0.1')) {
     const m = (request.headers.get('Authorization') || '').match(/^Bearer dev:([A-Za-z0-9_-]{1,40}):(plus|free)$/);
     if (m) return { ok: true, uid: 'dev-' + m[1], plus: m[2] === 'plus' };
+  }
+  if (!request.headers.get('Authorization')) {
+    const device = normDevice(request.headers.get('X-RI-Device'));
+    return device ? { ok: true, anon: true, device, plus: false } : { ok: false, status: 401 };
   }
   const check = await checkPlusEntitlement(request, env);
   if (check.ok) return { ok: true, uid: check.uid, plus: true };
@@ -12246,7 +12251,7 @@ export default {
         return { error: String((e && e.message) || e) };
       });
       if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(railPushTask);
-      // AI 一句話排行程：每小時一次刪掉 7 天前使用者打的那句話（scripts/trip_ask.mjs）。自帶 .catch，理由同上。
+      // AI 一句話排行程：每小時一次刪掉 7 天前使用者打的那句話、35 天前的每日次數（scripts/trip_ask.mjs）。自帶 .catch，理由同上。
       if (new Date(event.scheduledTime || Date.now()).getUTCMinutes() === 17) {
         const tripTask = tripAskScheduled(env).catch(e => {
           console.error('[cron trip-ask] 失敗:', (e && e.stack) || String(e));

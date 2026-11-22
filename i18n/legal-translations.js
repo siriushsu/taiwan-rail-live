@@ -378,3 +378,32 @@ Object.assign(window.RAIL_I18N_LEGAL_MESSAGES.ja, {
   "生效日期：2026 年 11 月 6 日（前版：2026 年 10 月 25 日）": "施行日：2026年11月6日（前版：2026年10月25日）",
   "軌島通行證是 App 數位功能的使用資格，不是實際乘車票券。通行證提供「軌島通行證月票（月訂方案）」與「軌島通行證年票（年訂方案）」兩種自動續訂的訂閱週期，以及一次付款的終身通行證（見第 4 節）；三者是同一個通行證資格。iOS／iPadOS 透過 Apple App Store 收費，Android 透過 Google Play 收費。完成訂閱或購買後，可使用通行證功能（以使用當時列明者為準，可能依第 4.4 節調整），例如：台鐵列車的誤點履歷（回溯 90 天的逐日紀錄）、自製列車（把車庫裡的車排班開上地圖、取名字）、收藏與完乘紀錄跨裝置雲端同步、行程分享、跟車配樂（依所看列車的位置與當下時間自動切換情境配樂，或自行指定情境；不使用通行證時仍可使用免費的背景音樂）、匯入 Google Maps 已儲存清單成為最愛地點、校正懸賞錄程的島民點數加成，以及非跟車時的衛星高解析圖磚。iOS 17.6 以上另支援跟車鎖定畫面與動態島即時動態；創始期間訂閱的島民，旅程護照另有創始島民徽章。": "軌島パスはアプリのデジタル機能を利用する資格で、実際の乗車券ではありません。月間・年間プランは自動更新サブスクリプションで、これに加えて一回払いのライフタイムパス（第4節参照）があります。三つは同じパス資格です。iOS／iPadOSではApple App Store、AndroidではGoogle Playを通じて課金します。購読または購入が完了すると、パス機能（利用時点で記載されているもの。4.4に基づき変更されることがあります）を利用できます。たとえば台湾鉄路の過去90日の日別遅延履歴、自作列車（車庫の列車にダイヤと名前を付けて地図上を走らせる）、お気に入りと完乗記録の端末間同期、旅程共有、追跡サウンドトラック（見ている列車の位置と時刻に合わせて場面が自動で切り替わり、自分で指定することもできます。パスがなくても無料のBGMは引き続き利用できます）、Googleマップ保存済みリストのお気に入り場所への読み込み、校正懸賞の記録で得られる島民ポイントの加算、列車追跡中以外の高解像度衛星地図などです。iOS 17.6以降ではロック画面／Dynamic Islandの追跡ライブ表示にも対応します。創始期間の加入者にはAppの旅程パスポートに創始島民バッジも提供します。",
 });
+// 2026-11-22 隱私權政策加 AI 排行程（一之 7、用途、Anthropic、保存與刪除）。
+Object.assign(window.RAIL_I18N_LEGAL_MESSAGES.en, {
+  "生效日期：2026 年 11 月 22 日（前版：2026 年 11 月 6 日）": "Effective November 22, 2026 (previous version: November 6, 2026)",
+  "7. AI 排行程": "1.7 AI trip planner",
+  "你在 App 的「AI 排行程」打一句話（例如「明天早上八點從板橋到台中」）時，軌島會把下列內容送到 Anthropic 的 Claude 服務，請它把這句話整理成起點、終點、出發或抵達時間與偏好：": "When you type a sentence into the app’s AI trip planner (for example, “From Banqiao to Taichung at 8 tomorrow morning”), Rail Island sends the following to Anthropic’s Claude service so it can turn the sentence into an origin, a destination, a departure or arrival time, and preferences:",
+  "你打的那句話；": "The sentence you typed;",
+  "App 的介面語言，以及當下的日期與時間；": "The app’s interface language, and the current date and time;",
+  "你接著補一句時，畫面上目前已經填好的起點、終點、時間與偏好。": "When you add a follow-up sentence, the origin, destination, time and preferences already filled in on screen.",
+  "行程由 App 用軌島的時刻表在你的裝置上排出來，不由 AI 決定。排好之後，App 會把方案的內容（站名、車次、上下車時刻、轉乘、票價與準點率）送給 Anthropic，請它寫兩三句說明。": "The trip itself is planned by the app on your device using Rail Island’s timetables; it is not decided by AI. Once plans are found, the app sends their contents (station names, train numbers, boarding and alighting times, transfers, fares and on-time rates) to Anthropic so it can write a two- or three-sentence explanation.",
+  "送給 Anthropic 的內容不含你的帳號、電子郵件、裝置識別碼或定位座標。你說「從這裡出發」時，App 在裝置上用定位找出最近的車站，座標不會送出。請不要在那句話裡寫進姓名、電話等個人資料。": "What is sent to Anthropic does not include your account, email address, device identifier or location coordinates. When you say “from here,” the app uses your location on the device to find the nearest station; the coordinates are not sent. Please do not put personal information such as names or phone numbers in your sentence.",
+  "為了計算每天可以用幾次：登入時，軌島以帳號識別碼的雜湊記錄次數；沒有登入時，App 會在裝置上隨機產生一組識別碼並隨請求送到軌島伺服器，伺服器只保存它的雜湊。這組識別碼與手機的硬體識別碼、Apple ID 或任何帳號無關，移除 App 後就不再使用。": "To count how many times you can use it each day: when you are signed in, Rail Island records usage under a hash of your account identifier; when you are not signed in, the app generates a random identifier on your device and sends it with each request to Rail Island’s server, which stores only its hash. This identifier is unrelated to your phone’s hardware identifiers, your Apple ID or any account, and is no longer used once you remove the app.",
+  "把你在 AI 排行程打的話整理成查詢條件、為排好的方案寫說明，並計算每天的使用次數；": "Turning what you type into the AI trip planner into search conditions, writing explanations for the plans found, and counting daily usage;",
+  "Anthropic：AI 排行程的語句整理與方案說明（只收到一之 7 列出的內容）；": "Anthropic: interpreting sentences and explaining plans for the AI trip planner (it receives only the items listed in 1.7);",
+  "AI 排行程：你打的那句話與整理出的欄位保存在 Cloudflare D1，7 天後自動刪除；方案說明不保存。每天的使用次數以帳號或裝置識別碼的雜湊記錄，35 天後自動刪除。刪除帳號會一併刪除該帳號的這些紀錄；沒有登入時留下的紀錄無法對應到你，會在上述期限到期後自動刪除。": "AI trip planner: the sentence you typed and the fields extracted from it are stored in Cloudflare D1 and deleted automatically after 7 days; plan explanations are not stored. Daily usage counts are recorded under a hash of your account or device identifier and deleted automatically after 35 days. Deleting your account also deletes these records for that account; records left while you were not signed in cannot be linked to you and are deleted automatically when the periods above expire.",
+});
+Object.assign(window.RAIL_I18N_LEGAL_MESSAGES.ja, {
+  "生效日期：2026 年 11 月 22 日（前版：2026 年 11 月 6 日）": "施行日：2026年11月22日（前版：2026年11月6日）",
+  "7. AI 排行程": "1.7 AI経路検索",
+  "你在 App 的「AI 排行程」打一句話（例如「明天早上八點從板橋到台中」）時，軌島會把下列內容送到 Anthropic 的 Claude 服務，請它把這句話整理成起點、終點、出發或抵達時間與偏好：": "アプリの「AI経路検索」に文を入力すると（例：「明日の朝8時に板橋から台中へ」）、軌島は次の内容をAnthropicのClaudeサービスに送り、その文を出発地、目的地、出発または到着時刻、希望条件に整理させます：",
+  "你打的那句話；": "入力した文；",
+  "App 的介面語言，以及當下的日期與時間；": "アプリの表示言語と、現在の日付・時刻；",
+  "你接著補一句時，畫面上目前已經填好的起點、終點、時間與偏好。": "続けて一文を追加したときは、画面にすでに入力されている出発地、目的地、時刻、希望条件。",
+  "行程由 App 用軌島的時刻表在你的裝置上排出來，不由 AI 決定。排好之後，App 會把方案的內容（站名、車次、上下車時刻、轉乘、票價與準點率）送給 Anthropic，請它寫兩三句說明。": "経路そのものは、アプリが軌島の時刻表を使ってお使いの端末上で検索するもので、AIが決めるものではありません。経路が見つかると、アプリはその内容（駅名、列車番号、乗車・降車時刻、乗り換え、運賃、定時運行率）をAnthropicに送り、2〜3文の説明を書かせます。",
+  "送給 Anthropic 的內容不含你的帳號、電子郵件、裝置識別碼或定位座標。你說「從這裡出發」時，App 在裝置上用定位找出最近的車站，座標不會送出。請不要在那句話裡寫進姓名、電話等個人資料。": "Anthropicに送る内容には、アカウント、メールアドレス、端末識別子、位置情報の座標は含まれません。「ここから」と入力した場合は、アプリが端末上で位置情報を使って最寄り駅を探し、座標は送信しません。入力する文には、氏名や電話番号などの個人情報を書かないでください。",
+  "為了計算每天可以用幾次：登入時，軌島以帳號識別碼的雜湊記錄次數；沒有登入時，App 會在裝置上隨機產生一組識別碼並隨請求送到軌島伺服器，伺服器只保存它的雜湊。這組識別碼與手機的硬體識別碼、Apple ID 或任何帳號無關，移除 App 後就不再使用。": "1日の利用回数を数えるため、ログイン中はアカウント識別子のハッシュで回数を記録します。ログインしていない場合は、アプリが端末上でランダムな識別子を生成してリクエストとともに軌島のサーバーに送り、サーバーはそのハッシュだけを保存します。この識別子は端末のハードウェア識別子、Apple ID、その他のアカウントとは無関係で、アプリを削除すると使われなくなります。",
+  "把你在 AI 排行程打的話整理成查詢條件、為排好的方案寫說明，並計算每天的使用次數；": "AI経路検索に入力した文を検索条件に整理し、見つかった経路の説明を書き、1日の利用回数を数えること；",
+  "Anthropic：AI 排行程的語句整理與方案說明（只收到一之 7 列出的內容）；": "Anthropic：AI経路検索の文の整理と経路の説明（受け取るのは1.7に挙げた内容のみ）；",
+  "AI 排行程：你打的那句話與整理出的欄位保存在 Cloudflare D1，7 天後自動刪除；方案說明不保存。每天的使用次數以帳號或裝置識別碼的雜湊記錄，35 天後自動刪除。刪除帳號會一併刪除該帳號的這些紀錄；沒有登入時留下的紀錄無法對應到你，會在上述期限到期後自動刪除。": "AI経路検索：入力した文と整理された項目はCloudflare D1に保存され、7日後に自動削除されます。経路の説明は保存しません。1日の利用回数はアカウントまたは端末識別子のハッシュで記録され、35日後に自動削除されます。アカウントを削除すると、そのアカウントのこれらの記録も削除されます。ログインしていないときの記録はあなたと結び付けられず、上記の期間が過ぎると自動削除されます。",
+});
