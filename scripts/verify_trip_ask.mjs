@@ -238,6 +238,23 @@ const facts = cleanFacts({
     && v('推薦 13:46 出發，比 14:01 那班多留 15 分鐘。也可以搭 13:31 那班。', fb) === '推薦 13:46 出發，比 14:01 那班多留 15 分鐘。也可以搭 13:31 那班。'
     && v('推薦 13:31 出發，14:22 到機場第一航廈。', { ...fb, list: 'next' }) != null,
     String(v('推薦 13:46 出發，比 14:01 那班多留 15 分鐘。也可以搭 13:31 那班。', fb)));
+  // 景點線 11-23：下火車後接公車／客運（時刻推估）
+  const fbus = cleanFacts({ from: '臺中', to: '阿里山國家森林遊樂區', list: 'next', more: true, options: [
+    { kinds: ['BUS'], depart: '06:10', arrive: '10:05', minutes: 235, transfers: 1,
+      bus: { route: '7322', board: '嘉義火車站', boardAt: '07:40', alight: '阿里山轉運站', alightAt: '09:58', rideMin: 138 },
+      rides: [{ system: 'TRA', train: '111', board: '臺中', boardAt: '06:10', alight: '嘉義', alightAt: '07:20' }] },
+    { kinds: [], depart: '07:00', arrive: '11:00', minutes: 240, transfers: 0, bus: { route: '7329', board: '', boardAt: '08:00', alight: 'x', alightAt: '09:00' },
+      rides: [{ system: 'THSR', train: '803', board: '台中', boardAt: '07:00', alight: '嘉義', alightAt: '07:30' }] }] });
+  check('bus 收進來；缺上車站牌的 bus 當沒送', fbus.options[0].bus && fbus.options[0].bus.route === '7322' && fbus.options[0].bus.rideMin === 138
+    && !('bus' in fbus.options[1]), JSON.stringify(fbus.options.map(o => o.bus || null)));
+  check('寫到公車路線、公車站牌、推估時刻：放行；路線號碼不在方案裡（7329）：擋',
+    v('搭 06:10 的 111 次到嘉義，轉 7322 客運約 09:58 到阿里山轉運站。', fbus, 'zh', ['111'], ['06:10', '09:58']) != null
+    && v('搭 06:10 的 111 次到嘉義，轉 7329 客運到阿里山轉運站。', fbus, 'zh', ['111'], ['06:10']) === null,
+    String(v('搭 06:10 的 111 次到嘉義，轉 7322 客運約 09:58 到阿里山轉運站。', fbus, 'zh', ['111'], ['06:10', '09:58'])));
+  check('bus 的路線號列在 trains 也算數（模型常把公車路線當車次列）；沒在方案裡的路線照擋',
+    v('搭 06:10 的 111 次到嘉義，轉 7322 客運約 09:58 到阿里山轉運站。', fbus, 'zh', ['111', '7322'], ['06:10', '09:58']) != null
+    && v('搭 06:10 的 111 次到嘉義，轉 7322 客運約 09:58 到阿里山轉運站。', fbus, 'zh', ['111', '7329'], ['06:10', '09:58']) === null);
+  check('提示詞：bus 的時刻是推估、要寫「約」', EXPLAIN_SYSTEM.includes('方案有 bus 時') && EXPLAIN_SYSTEM.includes('要加「約」'));
   check('提示詞：一兩句、對看的人說話、list／more／remainKm 的意思', EXPLAIN_SYSTEM.includes('一兩句') && EXPLAIN_SYSTEM.includes('不要寫「使用者」')
     && EXPLAIN_SYSTEM.includes('more＝true') && EXPLAIN_SYSTEM.includes('remainKm') && EXPLAIN_SYSTEM.includes('不超過 40 個字') && EXPLAIN_SYSTEM.includes('list＝before 時，第一個方案'));
 }

@@ -27,7 +27,7 @@ import {
   TS_TOKEN_RE, TS_END_SLACK_MS, tsValidateBind,
   tsDelays, tsUpcoming, tsContentState, tsEndState, tsShouldPush, tsShouldEnd, tsStaleDateSec,
 } from './scripts/trackside_core.mjs';
-import { BUS_TRANSFER_SCHEMA, resolveBusLegVehicles, resolveBusRouteStops, resolveStationN1 } from './scripts/bus_transfer_core.mjs';
+import { BUS_TRANSFER_SCHEMA, resolveBusLegVehicles, resolveBusRouteStops, resolveSpotRides, resolveStationN1, SPOT_REACH_M } from './scripts/bus_transfer_core.mjs';
 import {
   BUS_STOP_INDEX_SCHEMA, busSearchMatch, nextTwoByRoute, parseBusStopIndexLine,
   parseDirectBulkUpdateTime, parseProviderConfig, providerForCity, resolveDirectBulkStop, resolveTdxStop,
@@ -6180,6 +6180,7 @@ const busTransferStationMem = new Map();
 const busTransferInflight = new Map();
 const busLegInflight = new Map();
 const busRouteStopsInflight = new Map();
+const busSpotInflight = new Map();
 
 function sharedBusInflight(map, key, start, {
   waitMaxMs = BUS_INFLIGHT_WAIT_MAX_MS,
@@ -6318,6 +6319,7 @@ function resetBusTransferCaches() {
   busTransferInflight.clear();
   busLegInflight.clear();
   busRouteStopsInflight.clear();
+  busSpotInflight.clear();
 }
 
 async function busTransferManifestData(request, env) {
@@ -7030,6 +7032,142 @@ async function busRouteStops(request, env) {
   }
 }
 
+// ── 景點最後一段：哪個車站有公車／客運到得了景點附近（native AI 排行程，2026-11-23）────────────
+// App 排「明天到日月潭」這種終點離車站很遠的行程時，帶景點座標與幾個候選車站來問：
+// 每站附近（靜態索引 600m 內）的站牌有哪些路線，往下開會不會靠近景點（SPOT_REACH_M 內）。
+// 只打 StopOfRoute（S2，路線停哪些站），不打即時到站；結果是路線＋上下車站牌＋沿站牌距離，時刻由 App 推估（畫面寫「約」）。
+// 每站每個 scope 的路線一次用 OR 查（每包 BUS_SPOT_ROUTE_CHUNK 條），列裁成只剩站牌位置後快取 6 小時：
+// 同一站對不同景點共用同一份，路線站序幾乎不變。站一次最多 BUS_SPOT_MAX_STATIONS 個（附近沒有站牌的站不打 TDX）、三個一組依序查，避開 TDX 每秒 10 次。
+const BUS_SPOT_MAX_STATIONS = 10;
+const BUS_SPOT_ROUTE_CHUNK = 30;
+const BUS_SPOT_RIDES_PER_STATION = 4;
+
+function busSpotRoutesUrl(env, scope, routeUids) {
+  const base = String(env.BUS_STOP_ROUTE_BASE_URL_OVERRIDE || env.BUS_API_BASE_URL_OVERRIDE || BUS_API_BASE).replace(/\/$/, '');
+  if (!/^(?:InterCity|City\/[A-Za-z]+)$/.test(String(scope || ''))) throw new Error('bus spot invalid scope');
+  const uids = [...new Set(routeUids.map(String))];
+  if (!uids.length || uids.some(uid => !/^[A-Za-z0-9_-]{1,64}$/.test(uid))) throw new Error('bus spot invalid route uid');
+  const url = new URL(`${base}/StopOfRoute/${scope}`);
+  url.searchParams.set('$filter', uids.map(uid => `RouteUID eq '${uid}'`).join(' or '));
+  url.searchParams.set('$select', BUS_S2_SELECT);
+  url.searchParams.set('$top', '2000');
+  url.searchParams.set('$format', 'JSON');
+  return url;
+}
+
+// 快取只留比對要用的欄位：一條客運動輒上百站，整列存會讓 6 小時快取大好幾倍。
+function busSpotTrimRow(row) {
+  return {
+    RouteUID: row.RouteUID, SubRouteUID: row.SubRouteUID, Direction: row.Direction,
+    ...(row.RouteName ? { RouteName: { Zh_tw: row.RouteName.Zh_tw } } : {}),
+    Stops: (Array.isArray(row.Stops) ? row.Stops : []).map(stop => ({
+      StopUID: stop.StopUID,
+      StopName: { Zh_tw: stop.StopName && stop.StopName.Zh_tw },
+      StopPosition: stop.StopPosition ? { PositionLat: stop.StopPosition.PositionLat, PositionLon: stop.StopPosition.PositionLon } : null,
+    })),
+  };
+}
+
+async function cachedBusSpotRoutes(request, env, stationId, scope, routeUids, part) {
+  const edge = caches.default;
+  const cacheKey = busTransferCacheKey(request, `${stationId}|${scope}|${part}`, 'spot-routes');
+  try {
+    const hit = await matchBusCache(edge, cacheKey);
+    if (hit) return { ...(await hit.json()), cacheState: 'hit' };
+  } catch (e) {}
+  return await sharedBusInflight(busSpotInflight, cacheKey.url, async ({ signal, isCurrent }) => {
+    const token = await getToken(env);
+    const response = await busTdxFetch(env, busSpotRoutesUrl(env, scope, routeUids), token, signal, 'S2', scope);
+    if (!response.ok) {
+      const contentLength = Number(response.headers.get('content-length'));
+      recordBusTdxUsage(env, 'S2', scope, response.status, Number.isFinite(contentLength) ? contentLength : 0, 0);
+      if (response.status === 401 && !signal?.aborted) tok = null;
+      throw new Error(`tdx bus spot StopOfRoute ${response.status} ${scope}`);
+    }
+    const text = await response.text();
+    let body;
+    try { body = JSON.parse(text); }
+    catch (e) { throw new Error(`tdx bus spot StopOfRoute invalid json ${scope}`); }
+    const rows = Array.isArray(body) ? body : (body && Array.isArray(body.StopOfRoutes) ? body.StopOfRoutes : []);
+    const decodedBytes = new TextEncoder().encode(text).byteLength;
+    const contentLength = Number(response.headers.get('content-length'));
+    recordBusTdxUsage(env, 'S2', scope, response.status, Number.isFinite(contentLength) && contentLength >= 0 ? contentLength : decodedBytes, decodedBytes);
+    const raw = { fetchedAt: new Date().toISOString(), rows: rows.map(busSpotTrimRow) };
+    if (isCurrent()) {
+      try {
+        await orderedBusCachePut(edge, cacheKey.url, [{
+          key: cacheKey,
+          body: JSON.stringify(raw),
+          headers: { 'content-type': 'application/json', 'cache-control': `public, s-maxage=${BUS_ROUTE_STOPS_TTL_SEC}` },
+        }]);
+      } catch (e) {}
+    }
+    return { ...raw, cacheState: 'miss' };
+  });
+}
+
+async function busSpotStation(request, env, stationId, spot) {
+  let product;
+  try { product = await busTransferStationData(request, env, stationId); }
+  catch (e) { return { id: stationId, state: 'error', rides: [] }; }
+  const { station } = product;
+  if (!station) return { id: stationId, state: 'unsupported', rides: [] };
+  if (!station.scopes.length) return { id: stationId, state: 'no_nearby_stops', rides: [] };
+  const rowsByScope = {};
+  let failed = 0, fetchedAt = null, cache = 'hit';
+  await Promise.all(station.scopes.map(async scopeData => {
+    const uids = [...new Set((scopeData.routeRefs || []).map(ref => String(ref.routeUid || '')).filter(Boolean))].sort();
+    const parts = [];
+    for (let i = 0; i < uids.length; i += BUS_SPOT_ROUTE_CHUNK) parts.push(uids.slice(i, i + BUS_SPOT_ROUTE_CHUNK));
+    rowsByScope[scopeData.scope] = [];
+    for (let p = 0; p < parts.length; p++) {
+      try {
+        const raw = await cachedBusSpotRoutes(request, env, station.id, scopeData.scope, parts[p], p);
+        rowsByScope[scopeData.scope].push(...raw.rows);
+        if (!fetchedAt || raw.fetchedAt < fetchedAt) fetchedAt = raw.fetchedAt;
+        if (raw.cacheState !== 'hit') cache = 'miss';
+      } catch (e) { failed++; }
+    }
+  }));
+  const rides = resolveSpotRides({ station, rowsByScope, spot, limit: BUS_SPOT_RIDES_PER_STATION });
+  return { id: station.id, state: failed ? (rides.length ? 'partial' : 'error') : 'ok', rides, fetchedAt, cache };
+}
+
+async function busSpot(request, env) {
+  // 🔴 限流要擋在最前面：快取未命中時每站會打 StopOfRoute，與其他公車端點共用 BUS_LIMITER。
+  if (await rateLimited(env.BUS_LIMITER, request)) return jsonRes({ error: 'rate_limited' }, 429, 'no-store');
+  const url = new URL(request.url);
+  const lat = Number(url.searchParams.get('lat'));
+  const lon = Number(url.searchParams.get('lon'));
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < 21.8 || lat > 25.4 || lon < 119.3 || lon > 122.1) {
+    return jsonRes({ error: 'bad spot' }, 400, 'no-store');
+  }
+  const ids = [...new Set(String(url.searchParams.get('stations') || '').split(',').map(id => id.trim()).filter(Boolean))];
+  if (!ids.length || ids.length > BUS_SPOT_MAX_STATIONS || ids.some(id => !/^[A-Z]+:[A-Za-z0-9_]+$/.test(id))) {
+    return jsonRes({ error: 'bad stations', max: BUS_SPOT_MAX_STATIONS }, 400, 'no-store');
+  }
+  try { await busTransferManifestData(request, env); }
+  catch (e) { return jsonRes({ error: 'bus transfer index unavailable' }, 503, 'no-store'); }
+  const spot = { lat, lon };
+  const stations = [];
+  for (let i = 0; i < ids.length; i += 3) {
+    stations.push(...await Promise.all(ids.slice(i, i + 3).map(id => busSpotStation(request, env, id, spot))));
+  }
+  const looked = stations.filter(s => s.state !== 'unsupported' && s.state !== 'no_nearby_stops');
+  if (looked.length && looked.every(s => s.state === 'error')) {
+    return jsonRes({ error: 'bus spot unavailable', stations: stations.map(s => ({ id: s.id, state: s.state })) }, 502, 'no-store');
+  }
+  return jsonRes({
+    state: stations.some(s => s.state === 'partial' || s.state === 'error') ? 'partial' : 'ok',
+    generatedAt: new Date().toISOString(),
+    trigger: 'user_trip_plan_only',
+    polling: false,
+    spot,
+    reachM: SPOT_REACH_M,
+    stations,
+  }, 200, 'no-store');
+}
+
 // ── 短效整段旅程分享 ────────────────────────────────────────────────
 // 公開 id 與編輯 token 是兩把獨立的隨機值：收件人連結只含 public id，不能據此更新、續期或刪除。
 // D1 只留 edit token 的 SHA-256；分享手機位置時也只覆寫「最新一筆」，沒有任何歷史表。
@@ -7228,7 +7366,7 @@ const API_POST_ALLOWED = new Set(['/api/account-delete', '/api/bounty-claim', '/
 // 'other',否則隨便打 /api/<亂數> 就能把 blob 基數炸開。新增端點時要一起加進來。
 const API_ENDPOINTS = new Set([
   'tra-platforms', 'tra-live', 'tra-alert', 'thsr-alert', 'metro-alert', 'hazard-alert', 'rail-status', 'metro-live', 'ntmetro-live', 'trtc-live',
-  'klrt-position', 'bus-transfer', 'bus-leg-live', 'bus-route-stops', 'bus-stop-search', 'bus-stop-live', 'journey-share',
+  'klrt-position', 'bus-transfer', 'bus-leg-live', 'bus-route-stops', 'bus-spot', 'bus-stop-search', 'bus-stop-live', 'journey-share',
   'delay-stats', 'delay-climate', 'delay-replay', 'delay-history', 'thsr-schedule', 'thsr-freeseat', 'thsr-seat', 'station-events', 'today-board', 'basemap-token', 'basemap-session', 'basemap-src', 'basemap-fallback', 'account-delete',
   'bounty-board', 'bounty-claim', 'bounty-submit', 'bounty-me', 'bounty-merge', 'chips-me', 'garage-redeem', 'garage-collect', 'stamp-claim', 'cloud-ride', 'plus-status', 'revenuecat-webhook',
   'la/bind', 'la/unbind', 'metro-wait/bind', 'metro-wait/unbind', 'tra-wait/bind', 'tra-wait/unbind', 'pass-claim', 'pass-admin',
@@ -12487,6 +12625,7 @@ export default {
     else if (url.pathname === '/api/bus-transfer') res = await busTransfer(request, env);
     else if (url.pathname === '/api/bus-leg-live') res = await busLegLive(request, env);
     else if (url.pathname === '/api/bus-route-stops') res = await busRouteStops(request, env);
+    else if (url.pathname === '/api/bus-spot') res = await busSpot(request, env);
     else if (url.pathname === '/api/bus-stop-search') res = await busStopSearch(request, env);
     else if (url.pathname === '/api/bus-stop-live') res = await busStopLive(request, env);
     else if (url.pathname === '/api/journey-share') res = await journeyShare(request, env);
@@ -12570,6 +12709,7 @@ export const _tdxToken = { getToken, TDX_TOKEN_KEY, TDX_TOKEN_BACKOFF_MS, TDX_TO
 export const _busTransfer = {
   busTransfer, busLegLive, busRouteStops, busTransferManifestData, busTransferStationData, busN1Url, busN1Rows, fetchBusN1, cachedBusTransferRaw,
   busDynamicUrl, fetchBusDynamic, fetchBusRouteStops, busRouteStopsUrl, fetchTaipeiBusSeat, cachedBusLegRaw, cachedBusRouteStopsRaw,
+  busSpot, busSpotRoutesUrl, cachedBusSpotRoutes, BUS_SPOT_MAX_STATIONS, BUS_SPOT_ROUTE_CHUNK,
   resetBusTransferCaches, sharedBusInflight, matchBusCache, orderedBusCachePut, BUS_INFLIGHT_WAIT_MAX_MS, BUS_INFLIGHT_RECLAIM_MS,
 };
 // 公車站牌搜尋與到站（單元 C 第一批）：純 resolver 在 scripts/bus_live_core.mjs，

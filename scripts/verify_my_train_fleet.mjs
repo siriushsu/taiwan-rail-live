@@ -51,7 +51,13 @@ const externalNoise = (text, url) => /^https?:/.test(url || '') && !(url || '').
 async function boot(ctx, errors) {
   const page = await ctx.newPage();
   page.on('dialog', d => (d.type() === 'confirm' && /確定要刪除/.test(d.message()) ? d.accept() : d.dismiss()).catch(() => {}));
-  page.on('pageerror', e => errors.push('PAGEERROR: ' + e.message));
+  // WebKit 把重開時被中止的實體股道 fetch 也報成 pageerror(「Fetch API cannot load <網址> due to access control checks.」);
+  // 頁面自己有接住(rail-3d.js 印「實體股道 TypeError」,下面 console 那條濾的就是它),所以只濾重開當下、本機實體股道的 json。
+  const reloadAbort = new RegExp(`^Fetch API cannot load http://127\\.0\\.0\\.1:${PORT}/rail-3d/physical/[\\w-]+\\.json due to access control checks\\.$`);
+  page.on('pageerror', e => {
+    if (page.reloading && reloadAbort.test(String(e.stack || '').split('\n')[0])) return;
+    errors.push('PAGEERROR: ' + e.message);
+  });
   page.on('console', m => {
     if (m.type() !== 'error') return;
     if (page.reloading && /^實體股道 TypeError/.test(m.text())) return; // 舊頁面還在載的實體股道被重開中止,兩個引擎的訊息不同

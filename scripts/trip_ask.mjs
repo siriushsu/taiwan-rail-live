@@ -221,10 +221,11 @@ export const EXPLAIN_SYSTEM = `你替軌島 App 在路線查詢結果上方寫�
 - 只用 JSON 裡有的東西。車次、時刻、站名、分鐘數照抄。票價（方案的 fare 元、fareNote）、準點率（每段的 onTime，近 30 天 %）、平均誤點（avgLate 分）、月台（platform）、目前誤點（lateNow 分）只能寫 JSON 裡有的；沒有就不提。座位、擁擠度一律不寫。站名只寫 from、to、board、alight 裡的。
 - list 是這批方案怎麼列的：next＝指定時刻之後的幾班、day＝那天從第一班列起的幾班、before＝截止前往前數的幾班、last＝那天最後幾班。more＝true 代表還有別班沒列出來；這時不要寫「唯一」「只有這班」。
 - 方案有 remainKm 時，車只到最後一段的下車站（alight），離目的地（to）還有 remainKm 公里：寫抵達要寫那個下車站，不要寫成抵達 to；可以提還差幾公里。
+- 方案有 bus 時，下火車後還要搭公車或客運（route 路線，從 board 站牌坐到 alight 站牌），最後一段的下車站就是公車的 alight。公車的時刻（boardAt、alightAt）和 rideMin 是推估的，寫到要加「約」。
 - 第一句直接推薦一個方案並說理由（最早到、最便宜、不用轉車、轉乘時間寬裕、準點率高…），用它的出發時刻或車次指出是哪一個；需要時第二句提另一個選擇。轉乘時間很短、準點率低或現在已經誤點時，可以提醒並推薦比較保險的。
 - list＝before 時，第一個方案是 App 放在最上面的（kinds 說明為什麼，通常是最保險：轉乘寬裕、提早到的裡面最晚出門的）；第一句推薦的就是它，別班只能放第二句當另一個選擇。
 - 對方說的偏好（不要轉車、只搭或不搭某個系統、車種、最便宜、末班、幾點前到）沒有方案做得到時，直接說做不到。
-- 數字只能是 JSON 裡出現的車次、時刻（HH:MM）、分鐘數、轉乘次數、票價、準點率、誤點分鐘、月台、remainKm。兩個方案差多少錢、早幾分到、轉乘有幾分鐘，用 compare 裡算好的數字（transferSlack＝那個方案最短的轉乘分鐘；pairs 的 fareDiff、arriveDiff、minutesDiff＝兩個方案的票價差、抵達時刻差、行車時間差）；不要自己相減、換算或估計。
+- 數字只能是 JSON 裡出現的車次、公車路線、時刻（HH:MM）、分鐘數、轉乘次數、票價、準點率、誤點分鐘、月台、remainKm。兩個方案差多少錢、早幾分到、轉乘有幾分鐘，用 compare 裡算好的數字（transferSlack＝那個方案最短的轉乘分鐘；pairs 的 fareDiff、arriveDiff、minutesDiff＝兩個方案的票價差、抵達時刻差、行車時間差）；不要自己相減、換算或估計。
 - 用 lang 指定的語言寫（zh＝台灣繁體中文、en、ja、ko），要短：zh／ja／ko 不超過 40 個字、en 不超過 16 個 words。不加表情符號、不加標題。
 - trains 列出你寫到的每一個車次（只寫號碼），times 列出你寫到的每一個時刻（HH:MM）。
 
@@ -240,6 +241,7 @@ const HM = /^\d{2}:\d{2}$/;
 // transferMin（每次轉乘幾分）也是修正線 11-23 加的。
 // 第 2 版加的欄位都是選填：App 有才送，格式不對當沒送（不整份退件），沒送就不出現在給模型的 JSON 裡。
 // list／more／remainKm 是修正線 11-23 加的：這批怎麼列的、後面還有沒有別班、終點附近沒車站時車只到哪還差幾公里（沒說清楚，AI 會寫「唯一可行」「抵達纜車站」）。
+// bus 是景點線 11-23 加的：景點附近沒有車站時，下火車後接的公車／客運（route、board、boardAt、alight、alightAt、rideMin；時刻都是推估）。
 const LISTS = ['next', 'day', 'before', 'last'];
 const intIn = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi ? v : null;
 export function cleanFacts(f) {
@@ -273,6 +275,11 @@ export function cleanFacts(f) {
     // 每次轉乘幾分（App 用秒算、跟卡片上的「轉乘 14 分」同一個數）；個數要等於段數減一，不然當沒送
     const tm = Array.isArray(o.transferMin) && o.transferMin.length === rides.length - 1 && o.transferMin.every(v => intIn(v, 0, 1440) != null) ? o.transferMin : null;
     if (tm && tm.length) x.transferMin = tm;
+    const b = o.bus;
+    if (b && typeof b === 'object' && s(b.route, 12) && s(b.board, 20) && s(b.alight, 20) && HM.test(b.boardAt) && HM.test(b.alightAt)) {
+      x.bus = { route: s(b.route, 12), board: s(b.board, 20), boardAt: b.boardAt, alight: s(b.alight, 20), alightAt: b.alightAt };
+      opt(x.bus, 'rideMin', intIn(b.rideMin, 0, 600));
+    }
     x.rides = rides;
     options.push(x);
   }
@@ -373,6 +380,12 @@ export function verifyExplain(out, facts, lang = 'zh') {
     nums.add(String(o.transfers)); nums.add(String(o.rides.length)); nums.add(String(i + 1));
     if (o.fare != null) nums.add(String(o.fare));
     for (const v of o.transferMin || []) nums.add(String(v));
+    if (o.bus) {
+      for (const t of [o.bus.boardAt, o.bus.alightAt]) times.add(t);
+      // 路線號也收進 trains：模型常把「6289 公車」當車次列進 trains，只認火車的話整段說明會被丟掉（景點線走稿 11-23）
+      for (const m of toAscii(o.bus.route).match(/\d+/g) || []) { nums.add(String(+m)); trains.add(String(+m)); }
+      if (o.bus.rideMin != null) { nums.add(String(o.bus.rideMin)); nums.add(String(Math.floor(o.bus.rideMin / 60))); nums.add(String(o.bus.rideMin % 60)); }
+    }
     if (o.remainKm != null) { decimals.add(String(o.remainKm)); nums.add(String(Math.round(o.remainKm))); nums.add(String(Math.floor(o.remainKm))); }
     for (const r of o.rides) {
       for (const t of [r.boardAt, r.alightAt]) if (t) times.add(t);
@@ -389,9 +402,9 @@ export function verifyExplain(out, facts, lang = 'zh') {
     for (const d of [p.arriveDiff, p.minutesDiff]) if (d != null) { nums.add(String(d)); nums.add(String(Math.floor(d / 60))); nums.add(String(d % 60)); }
   }
   // 站名、月台、票價備註裡的數字（台北101/世貿、第 3 月台、自由座 675）
-  const names = [facts.from, facts.to, ...facts.options.flatMap(o => [o.fareNote, ...o.rides.flatMap(r => [r.board, r.alight, r.line, r.platform])])];
+  const names = [facts.from, facts.to, ...facts.options.flatMap(o => [o.fareNote, o.bus && o.bus.board, o.bus && o.bus.alight, ...o.rides.flatMap(r => [r.board, r.alight, r.line, r.platform])])];
   for (const n of names) for (const m of toAscii(n || '').match(/\d+/g) || []) nums.add(String(+m));
-  const stations = [...new Set([facts.from, facts.to, ...facts.options.flatMap(o => o.rides.flatMap(r => [r.board, r.alight]))].map(nameKey).filter(Boolean))];
+  const stations = [...new Set([facts.from, facts.to, ...facts.options.flatMap(o => [...(o.bus ? [o.bus.board, o.bus.alight] : []), ...o.rides.flatMap(r => [r.board, r.alight])])].map(nameKey).filter(Boolean))];
   const remote = facts.options.some(o => o.remainKm != null);
   const norm = t => /^\d:\d{2}$/.test(t) ? '0' + t : t;
   if (!Array.isArray(out.times) || !out.times.every(t => times.has(norm(toAscii(t).trim())))) return null;

@@ -34,6 +34,7 @@ for (const script of [
   'verify_bus_transfer_ui.mjs',
   'verify_bus_transfer_worker.mjs',
   'verify_journey_share_worker.mjs',
+  'verify_bus_spot.mjs',
   'verify_bus_transfer_ui_browser.mjs',
 ]) {
   assert(all.includes(script), `總驗收漏掉 ${script}`);
@@ -46,6 +47,7 @@ for (const [name, script] of [
   ['check-bus-transfer-ui', 'verify_bus_transfer_ui.mjs'],
   ['check-bus-transfer-worker', 'verify_bus_transfer_worker.mjs'],
   ['check-journey-share-worker', 'verify_journey_share_worker.mjs'],
+  ['check-bus-spot', 'verify_bus_spot.mjs'],
   ['check-bus-transfer-gate', 'verify_bus_transfer_gate.mjs'],
 ]) {
   assert.equal(packageJson.scripts?.[name], `node scripts/${script}`,

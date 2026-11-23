@@ -102,6 +102,7 @@
     "check-bus-transfer-index": "node scripts/verify_bus_transfer_index.mjs",
     "check-bus-transfer-ui": "node scripts/verify_bus_transfer_ui.mjs",
     "check-bus-transfer-worker": "node scripts/verify_bus_transfer_worker.mjs",
+    "check-bus-spot": "node scripts/verify_bus_spot.mjs",
     "check-bus-transfer-gate": "node scripts/verify_bus_transfer_gate.mjs",
     "check-bus-transfer-i18n": "node scripts/verify_bus_transfer_i18n.mjs",
     "check-journey-share-worker": "node scripts/verify_journey_share_worker.mjs",

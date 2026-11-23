@@ -481,3 +481,84 @@ export function resolveBusRouteStops({ arrival, stopOfRouteRows }) {
     stops: selected.downstream,
   };
 }
+
+// ── 景點最後一段（native AI 排行程景點線，2026-11-23）──────────────────────────
+// 終點是景點、附近沒有車站時，App 問「候選車站附近的公車／客運，哪一條往下開會靠近景點」。
+// 輸入：候選站的靜態分站資產（scopes → stops，與 resolveStationN1 同一份）＋這幾條路線的 TDX StopOfRoute 列。
+// 每條 route-direction（routeKey）：
+//   - 下車＝上車之後、離景點最近的站牌；離景點超過 reachM，或沒有比上車站牌更靠近景點（反方向）就不收。
+//   - 上車＝本站附近、這條路線停的站牌裡，往下開到得了那個下車站牌、走路最近的一個。
+// 時刻不在這裡：StopOfRoute 沒有時刻，App 用沿站牌距離推估（畫面寫「約」）。
+// 同一個站、同一條路線、同一個下車站牌的好幾個 SubRoute（例如 6670 的 A1～E1）只留沿站牌距離最短的一個。
+export const SPOT_REACH_M = 3000;
+const SPOT_TOWARD_M = 300;
+
+export function resolveSpotRides({ station, rowsByScope, spot, reachM = SPOT_REACH_M, limit = 6 }) {
+  if (!station || !Array.isArray(station.scopes)) throw new Error('resolveSpotRides 缺 station.scopes');
+  const spotLat = finiteNumber(spot && spot.lat), spotLon = finiteNumber(spot && spot.lon);
+  if (!Number.isFinite(spotLat) || !Number.isFinite(spotLon)) throw new Error('resolveSpotRides 缺 spot');
+  const best = new Map();
+  for (const scopeData of station.scopes) {
+    const scope = scopeData.scope;
+    const near = new Map((scopeData.stops || []).map(stop => [stop.stopUid, stop]));
+    const refs = new Map((scopeData.routeRefs || []).map(ref => [ref.key, ref]));
+    if (!near.size) continue;
+    for (const row of rowsByScope[scope] || []) {
+      const stops = Array.isArray(valueOf(row, 'Stops')) ? valueOf(row, 'Stops') : [];
+      const pos = stops.map(stopPositionOf);
+      const toSpot = pos.map(p => (p ? haversineMeters(p, { lat: spotLat, lon: spotLon }) : Infinity));
+      // 每個位置之後（不含）離景點最近的站：從尾巴往前掃一次
+      const after = new Array(stops.length).fill(-1);
+      let k = -1;
+      for (let i = stops.length - 1; i >= 0; i--) { after[i] = k; if (k < 0 || toSpot[i] < toSpot[k]) k = i; }
+      let pick = null;
+      for (let i = 0; i < stops.length; i++) {
+        const uid = String(valueOf(stops[i], 'StopUID', 'StopID') || '');
+        const board = near.get(uid);
+        const j = after[i];
+        if (!board || j < 0 || !pos[i] || !(toSpot[j] <= reachM) || !(toSpot[j] < toSpot[i] - SPOT_TOWARD_M)) continue;
+        const walk = board.access && Number.isFinite(board.access.straightLineM) ? board.access.straightLineM : Infinity;
+        if (!pick || walk < pick.walk || (walk === pick.walk && j - i < pick.j - pick.i)) pick = { i, j, walk, board };
+      }
+      if (!pick) continue;
+      const points = [];
+      let distanceM = 0, prev = null;
+      for (let x = pick.i; x <= pick.j; x++) {
+        const p = pos[x];
+        if (!p) continue;
+        if (prev) distanceM += haversineMeters(prev, p);
+        points.push(Math.round(p.lat * 1e6) / 1e6, Math.round(p.lon * 1e6) / 1e6);
+        prev = p;
+      }
+      const routeKey = routeKeyOf(row, scope);
+      const ref = refs.get(routeKey);
+      const alight = stops[pick.j];
+      const boardUid = String(valueOf(stops[pick.i], 'StopUID', 'StopID') || '');
+      const ride = {
+        arrivalKey: `${routeKey}|${boardUid}`,
+        scope,
+        intercity: scope === 'InterCity',
+        routeUid: String(valueOf(row, 'RouteUID', 'RouteID') || ''),
+        routeName: zhName(valueOf(row, 'RouteName')) || (ref && ref.routeName) || '',
+        subRouteUid: String(valueOf(row, 'SubRouteUID', 'SubRouteID') || ''),
+        direction: finiteNumber(valueOf(row, 'Direction')),
+        headsign: zhName(valueOf(stops.at(-1) || {}, 'StopName')) || (ref && ref.headsign) || '',
+        board: { stopUid: boardUid, name: pick.board.stopName || zhName(valueOf(stops[pick.i], 'StopName')), position: pos[pick.i],
+          walkM: Number.isFinite(pick.walk) ? pick.walk : null },
+        alight: { stopUid: String(valueOf(alight, 'StopUID', 'StopID') || ''), name: zhName(valueOf(alight, 'StopName')), position: pos[pick.j],
+          toSpotM: Math.round(toSpot[pick.j]) },
+        stops: pick.j - pick.i,
+        distanceM: Math.round(distanceM),
+        points,
+      };
+      if (!ride.routeName) continue;
+      const id = `${ride.routeUid}|${ride.direction}|${ride.alight.stopUid}`;
+      const prevRide = best.get(id);
+      if (!prevRide || ride.distanceM < prevRide.distanceM || (ride.distanceM === prevRide.distanceM && (ride.board.walkM ?? Infinity) < (prevRide.board.walkM ?? Infinity))) best.set(id, ride);
+    }
+  }
+  // 走得到景點的（1 公里內）在前，其餘照下車站牌離景點遠近；再照沿站牌距離
+  const rides = [...best.values()].sort((a, b) =>
+    (a.alight.toSpotM > 1000) - (b.alight.toSpotM > 1000) || a.alight.toSpotM - b.alight.toSpotM || a.distanceM - b.distanceM);
+  return rides.slice(0, limit);
+}
