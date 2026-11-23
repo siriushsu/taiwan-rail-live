@@ -160,10 +160,17 @@ export async function createLiveMap({map,landscape=false,isCurrent=()=>true,onGe
     if(loadedCells.has(key))return loadedCells.get(key);
     const v=Number.isFinite(terrainSample(coordinate));loadedCells.set(key,v);return v;
   }
+  const LANDSCAPE_RAIL_LIFT=.35; // ＝rail-structures.js 的 DECK_DROP（道床頂面在軌頂下多少）
   function railHeight(path,s){
     if(path)s=path.closed?((s%path.length)+path.length)%path.length:Math.max(0,Math.min(path.length,s));
     // 實體軌道以畫面地表為基準；舊 DEM 淨空含全線 +2.5m，不能再把它當路基高度。
     // 軌道、逐節車廂及跟車鏡頭共用此函式，保留交會層差，不以橋墩填補資料誤差。
+    // 新地景接手時，股道改貼新地景自己的軌頂（landscape-web/site.js railTop）：它畫的道床、橋就在那個高度，
+    // 建置期剖面照舊 DEM 求解，小橋與月台處會多拱 1～6 公尺、洞口高好幾公尺。隧道也一起換，洞口內外才接得上（App 的新擺位同樣連地下段都用它）。
+    // 網站的道床頂面在軌頂下 .35（rail-structures.js DECK_DROP），所以軌頂抬 .35，網站道床頂面正好落在新地景軌頂、比它的道床面高 .17，兩層不打架。
+    // 找不到同一條股道就照原本的剖面。
+    if(path?.level&&terrainHeights()){const g=engineGround(),level=g?.railTop?path.level(s):null;
+      if(level?.wayId){const q=path.at(s)?.coordinate,top=q?g.railTop(level.wayId,q[0],q[1]):NaN;if(Number.isFinite(top))return top+LANDSCAPE_RAIL_LIFT;}}
     if(path?.level){const absolute=terrainHeights()?path.level(s)?.terrainHeightM:undefined;if(Number.isFinite(absolute))return terrainLoaded(path.at(s).coordinate)?absolute+.65:null;const ground=terrainHeights()?terrainAt(path.at(s).coordinate):0,level=path.level(s),offset=(terrainHeights()?level?.offsetM:level?.flatOffsetM??level?.offsetM)??0;return Number.isFinite(ground)?ground+offset+.65:null;}
     const h=path?.elevation?(terrainHeights()?path.elevation(s):0):terrainHeights()?null:0;return Number.isFinite(h)?h+.65:null;
   }

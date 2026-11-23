@@ -119,7 +119,7 @@ export function attach(map, { tilesBase, hour, date, weather, params: extra = {}
       const adaptive=matchMedia('(pointer: coarse)').matches && !extra.pr && extra.adapt !== '1';
       rain=createFollowRain(a,weather,adaptive,()=>queueMicrotask(()=>{
         if(active && revealed && extra.auto!=='0')onSlow?.();
-      }));
+      }),()=>{ lastMinute = -1; }); // 雨雲變了：下一格照分鐘換了一樣重跑 setTime，engine 會照當下天空重產環境貼圖
     },
     drawWeather: fn => rain.draw(fn),
   };
@@ -145,16 +145,21 @@ export function attach(map, { tilesBase, hour, date, weather, params: extra = {}
   // 列車、軌道、橋墩、隧道口貼的是畫面上看到的這一份地形，不是 MapLibre 的 DEM（兩份來源不同、取樣也不同，差幾公尺就浮空或陷下去）。
   // 經緯度 → TM2 每 0.01 度一格用線性近似（格內誤差約 2 公分；toTM2 一次約一微秒，重建一次要問上萬點）；這一點的近景圖磚與遠景塊都還沒到就回 NaN（等於「還沒載到」）。
   // rev 在圖磚到貨、換掉時加一，rail-3d 看到就重建（跟 MapLibre DEM 到貨重建同一條路）。
-  const tmCells = new Map();
-  function groundLL(lng, lat) {
-    if (!api) return NaN;
+  const tmCells = new Map(), tmOut = [0, 0];
+  function tmLL(lng, lat) {
     const i = Math.floor(lng * 100), j = Math.floor(lat * 100), key = i * 1e5 + j;
     let c = tmCells.get(key);
     if (!c) {
       const lo = (i + .5) / 100, la = (j + .5) / 100, d = .001, [e0, n0] = toTM2(lo, la), [e1, n1] = toTM2(lo + d, la), [e2, n2] = toTM2(lo, la + d);
       tmCells.set(key, c = [lo, la, e0, n0, (e1 - e0) / d, (n1 - n0) / d, (e2 - e0) / d, (n2 - n0) / d]);
     }
-    const dl = lng - c[0], dp = lat - c[1], e = c[2] + c[4] * dl + c[6] * dp, n = c[3] + c[5] * dl + c[7] * dp, T = api.TILE_M;
+    const dl = lng - c[0], dp = lat - c[1];
+    tmOut[0] = c[2] + c[4] * dl + c[6] * dp; tmOut[1] = c[3] + c[5] * dl + c[7] * dp;
+    return tmOut;
+  }
+  function groundLL(lng, lat) {
+    if (!api) return NaN;
+    const [e, n] = tmLL(lng, lat), T = api.TILE_M;
     if (api.tiles.get(`E${Math.floor(e / T)}_N${Math.floor(n / T)}`)?.h || api.fars.get(`F${Math.floor(e / (T * 4))}_${Math.floor(n / (T * 4))}`)?.h) return api.groundAt(e, n);
     // 拉遠時近景與第一層遠景只載鏡頭附近，畫面上的地面是上層遠景塊（L2、L3…，engine groundAt 也查這幾層）：到了就算載到
     for (const [k, M] of farLevels()) if (api.fars.get(`L${k}:F${Math.floor(e / M)}_${Math.floor(n / M)}`)?.h) return api.groundAt(e, n);
@@ -162,14 +167,55 @@ export function attach(map, { tilesBase, hour, date, weather, params: extra = {}
   }
   let farLv = null;
   const farLevels = () => farLv ||= Object.entries(api.index?.farLod?.levels || {}).filter(([k]) => +k >= 2).map(([k, L]) => [k, L.blockM]).sort((a, b) => a[0] - b[0]);
-  const ground = { at: groundLL, rev: 0 }; let groundSig = '', groundAt = 0;
+  // 軌頂高度也給網站（map3d.js railHeight 讀 railTop）：新地景圖磚 rails.json 每條股道帶自己的軌頂（p＝[x, y, 軌頂, 里程]，
+  // 跟它畫的道床、橋、隧道口同一份，平原上平順）。網站原本的建置期剖面（level-profiles）照舊 DEM 求解：小橋一律離地 6 公尺、
+  // 月台處 DEM 的突起也墊上去，新地景地面沒有那些起伏，列車就在頂埔這類地方拱起來又落下。App 的新擺位也是用這一份軌頂。
+  // 隧道（kind 2）也一起取：建置剖面的洞口高度是舊 DEM 在山坡上的估計，比新地景的洞口高好幾公尺（11-23 抽量 14 個洞口高 4～15 公尺），
+  // 只換露天段的話列車進洞會往下掉一截；新地景自己洞口內外是連續的。
+  // 同一條 OSM way 用 way 編號對上，再把點投影到那條股道上取高度（不靠里程，兩邊的量距方式差千分之幾）。
+  // 股道表只在引擎開著電車線（ocs，預設開）或輕軌時留在 t.tw2Tracks；
+  // 沒有、這一格還沒到、或 8 公尺內找不到同一條 way 就回 NaN，呼叫端退回原本的剖面。
+  const trackIx = new WeakMap();
+  function tileTracks(t) {
+    if (!t?.tw2Tracks) return null;
+    let ix = trackIx.get(t);
+    if (!ix) {
+      ix = new Map();
+      for (const tk of t.tw2Tracks) {
+        if (!(tk.p?.length >= 8)) continue;
+        const k = String(tk.way); if (!ix.has(k)) ix.set(k, []); ix.get(k).push(tk.p);
+      }
+      trackIx.set(t, ix);
+    }
+    return ix;
+  }
+  const RAIL_SNAP_M = 8, CELLS9 = [[0, 0], [-1, -1], [0, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]];
+  function railTopLL(wayId, lng, lat) {
+    if (!api) return NaN;
+    const [e, n] = tmLL(lng, lat), T = api.TILE_M, ti = Math.floor(e / T), tj = Math.floor(n / T), id = String(wayId);
+    let best = RAIL_SNAP_M * RAIL_SNAP_M, z = NaN;
+    for (let k = 0; k < 9; k++) { // 先找本格；軌道剛好壓在格邊時本格可能沒有那一段，再看八鄰格
+      const [di, dj] = CELLS9[k];
+      const pieces = tileTracks(api.tiles.get(`E${ti + di}_N${tj + dj}`))?.get(id);
+      if (!pieces) continue;
+      const x = e - (ti + di) * T, y = n - (tj + dj) * T;
+      for (const p of pieces) for (let i = 4; i < p.length; i += 4) {
+        const ax = p[i - 4], ay = p[i - 3], dx = p[i] - ax, dy = p[i + 1] - ay, q = dx * dx + dy * dy;
+        const f = q ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / q)) : 0, ex = x - ax - f * dx, ey = y - ay - f * dy, d2 = ex * ex + ey * ey;
+        if (d2 < best) { best = d2; z = p[i - 2] + f * (p[i + 2] - p[i - 2]); }
+      }
+      if (!k && Number.isFinite(z)) break;
+    }
+    return z;
+  }
+  const ground = { at: groundLL, railTop: railTopLL, rev: 0 }; let groundSig = '', groundAt = 0;
   function syncGround(now) {
     const on = active && revealed && !!api;
     if (!on) { if (map.railIslandGround === ground) { delete map.railIslandGround; ground.rev++; groundSig = ''; } return; }
     if (map.railIslandGround !== ground) { map.railIslandGround = ground; ground.rev++; groundSig = ''; }
     if (now - groundAt < 200) return; groundAt = now;
-    let a = 0, b = 0; for (const t of api.tiles.values()) if (t.h) a++; for (const f of api.fars.values()) if (f.h) b++;
-    const sig = a + ':' + b + ':' + api.tiles.size + ':' + api.fars.size;
+    let a = 0, b = 0, r = 0; for (const t of api.tiles.values()) { if (t.h) a++; if (t.tw2Tracks) r++; } for (const f of api.fars.values()) if (f.h) b++;
+    const sig = a + ':' + b + ':' + r + ':' + api.tiles.size + ':' + api.fars.size; // r：股道表到貨也要重建（軌頂從建置剖面換成新地景的）
     if (sig !== groundSig) { groundSig = sig; ground.rev++; }
   }
 

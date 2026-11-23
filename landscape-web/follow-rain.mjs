@@ -30,10 +30,10 @@ function shadeMist(sh) {
       vec3 g=cameraPosition+vec3(dot(viewMatrix[0].xyz,mvPosition.xyz),dot(viewMatrix[1].xyz,mvPosition.xyz),dot(viewMatrix[2].xyz,mvPosition.xyz));
       vec2 phase=(g.xz+wOrigin)*.00076699;
       float band=.5+.25*sin(phase.x+2.*phase.y)+.25*cos(2.*phase.x-phase.y);
-      wBank=wLook.y*smoothstep(250.,1800.,-mvPosition.z)*band*(1.-smoothstep(60.,260.,abs(g.y-95.-90.*band)));
+      wBank=wLook.y*smoothstep(150.,900.,-mvPosition.z)*band*(1.-smoothstep(60.,260.,abs(g.y-95.-90.*band)));
     }`);
   sh.fragmentShader='uniform vec4 wLook; varying float wBank;\n'+sh.fragmentShader;
-  sh.fragmentShader=sh.fragmentShader.replace('#include <tonemapping_fragment>',`gl_FragColor.rgb=mix(gl_FragColor.rgb,vec3(.42,.48,.49)*wLook.w,wBank*.32);
+  sh.fragmentShader=sh.fragmentShader.replace('#include <tonemapping_fragment>',`gl_FragColor.rgb=mix(gl_FragColor.rgb,vec3(.6,.65,.67)*wLook.w,wBank*.32);
     #include <tonemapping_fragment>`);
 }
 export function shareMist(materials) {
@@ -58,28 +58,30 @@ export function shadeRainRail(sh) {
 }
 export function shadeRainSky(mat) {
   mat.uniforms.wLook=uWeather;
-  mat.fragmentShader='uniform vec4 wLook;\n'+mat.fragmentShader.replace('gl_FragColor = vec4(c, 1.);',`vec3 clouds=mix(vec3(.37,.43,.46),vec3(.22,.28,.31),smoothstep(0.,.85,d.y))*wLook.w;
+  mat.fragmentShader='uniform vec4 wLook;\n'+mat.fragmentShader.replace('gl_FragColor = vec4(c, 1.);',`vec3 clouds=mix(vec3(.6,.63,.65),vec3(.22,.28,.31),smoothstep(0.,.6,d.y))*wLook.w;
     gl_FragColor=vec4(mix(c,clouds,min(.94,wLook.y)),1.);`);
 }
+const DROPS=1280;
 function drops() {
-  const count=320,position=new Float32Array(count*6),tips=new Float32Array(count*2);
+  const count=DROPS,position=new Float32Array(count*6),tips=new Float32Array(count*2);
   let seed=26119;const random=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296);
   for(let i=0;i<count;i++){
     const v=[random(),random(),random()];position.set(v,i*6);position.set(v,i*6+3);tips[i*2+1]=1;
   }
   const geometry=new T.BufferGeometry();
   geometry.setAttribute('position',new T.BufferAttribute(position,3));geometry.setAttribute('tip',new T.BufferAttribute(tips,1));
-  const mat=new T.ShaderMaterial({transparent:true,depthWrite:false,uniforms:{clock:{value:0},clipNear:{value:1},amount:{value:0},wind:{value:new T.Vector2()},wPortal:uPortal,wBore:uBore},
-    vertexShader:`attribute float tip; uniform float clock,amount,clipNear; uniform vec2 wind; varying float alpha;`+shelter+`
+  const mat=new T.ShaderMaterial({transparent:true,depthWrite:false,uniforms:{clock:{value:0},clipNear:{value:1},amount:{value:0},wPortal:uPortal,wBore:uBore},
+    vertexShader:`attribute float tip; uniform float clock,amount,clipNear; varying float alpha;`+shelter+`
     void main(){
       vec3 vel=vec3(1.3,-15.,.7);
       // 把雨體積放在可見視錐裡，地景為了畫遠山會隨鏡頭高度拉大近裁切距離。
+      // 雨滴跟著鏡頭平移、不跟著鏡頭轉：跟車時鏡頭每秒走十幾公尺，雨滴釘在地上的話，近處的雨滴會被鏡頭帶著往側邊掃過畫面，不像在往下落。
       vec3 forward=-vec3(viewMatrix[0].z,viewMatrix[1].z,viewMatrix[2].z);
-      vec3 center=cameraPosition+forward*(clipNear+19.);
-      vec3 p=center+mod(position*42.+clock*vel-center+21.,42.)-21.;
-      vec3 relative=vel-vec3(wind.x,0.,wind.y);
-      vec3 tail=p-tip*relative*(.017+.016*position.x);
-      alpha=amount*exposed(p)*(.26+.26*position.z)*(1.-smoothstep(15.,21.,length(p-center)));
+      vec3 ahead=forward*(clipNear+19.);
+      vec3 q=ahead+mod(position*42.+clock*vel-ahead+21.,42.)-21.;
+      vec3 p=cameraPosition+q;
+      vec3 tail=p-tip*vel*(.04+.03*position.x);
+      alpha=amount*exposed(p)*(.2+.22*position.z)*(1.-smoothstep(15.,21.,length(q-ahead)));
       gl_Position=projectionMatrix*viewMatrix*vec4(tail,1.);
     }`,fragmentShader:'varying float alpha;void main(){gl_FragColor=vec4(.80,.87,.91,alpha);}'});
   const mesh=new T.LineSegments(geometry,mat);mesh.frustumCulled=false;mesh.renderOrder=15;mesh.visible=false;return mesh;
@@ -94,10 +96,12 @@ export function weatherBudget(limits) {
   const settings=[normal,reduced(2,8,150,1600),reduced(1,4,80,3200)];
   return level=>Object.assign(limits,settings[level]);
 }
-export function createFollowRain(api,read,adaptive,onOverload) {
-  const {view,origin,scene}=api, color=new T.Color(), wetColor=new T.Color();
+export function createFollowRain(api,read,adaptive,onOverload,refreshSky) {
+  const {view,origin,scene}=api, color=new T.Color(), wetColor=new T.Color(), skyTint=new T.Color(), grey=new T.Color(.8,.82,.84);
   const sun=scene.children.find(o=>o.isDirectionalLight), skyLight=scene.children.find(o=>o.isHemisphereLight);
-  let mesh=null,last=0,poll=-Infinity,sample=null,rain=0,mist=0,cover=0,slow=0,range=1,prevE=0,prevN=0,windX=0,windZ=0,wetNear=0;
+  // engine 開著 FX2 霧時，霧的顏色與濃度在共用的 uHz2H（遠處霧色、濃度）與 uHz2Z（朝太陽的霧色）裡，scene.fog 只是它每格抄顏色的來源
+  const fx2Fog=T.ShaderLib.standard.uniforms.uHz2H?.value, fx2SunFog=T.ShaderLib.standard.uniforms.uHz2Z?.value, fogKeep=[0,0,0,0,0,0,0];
+  let mesh=null,last=0,poll=-Infinity,sample=null,rain=0,mist=0,cover=0,slow=0,range=1,wetNear=0,skyMist=0;
   const baseRatio=api.renderer.getPixelRatio();
   let detailLevel=0, pressure=0, clearTime=0;
   function setDetail(level){
@@ -142,6 +146,8 @@ export function createFollowRain(api,read,adaptive,onOverload) {
     if(!next&&!fog&&!rain&&!mist){if(mesh)mesh.visible=false;return false;}
     const ease=(a,b,k)=>Math.abs(b-a)<.003?b:a+(b-a)*(1-Math.exp(-dt*k));
     rain=ease(rain,next,1.5);mist=ease(mist,fog,1.2);cover=ease(cover,sample?.cover||0,8);
+    // 海面與建物反射的是 engine 的環境貼圖，engine 只在 setTime 時照當下天空重產；雨雲變化夠大、或停在新的濃度時請網站重產一次
+    if(Math.abs(mist-skyMist)>.2||(mist===fog&&mist!==skyMist)){skyMist=mist;refreshSky?.();}
     range=1-ramp(300,900,view.dist);wetNear=rain*(1-cover)*range;
     const day=1-.96*night;
     uWeather.value.set(rain,mist,wetNear,day);uOrigin.value.set(origin.e%8192,-origin.n%8192);
@@ -152,33 +158,41 @@ export function createFollowRain(api,read,adaptive,onOverload) {
       mesh.visible=strength>.008;
       if(mesh.visible){
         const u=mesh.material.uniforms;
-        if(prevE&&Math.hypot(view.e-prevE,view.n-prevN)<80){
-          windX=ease(windX,Math.max(-45,Math.min(45,(view.e-prevE)/elapsed)),4);
-          windZ=ease(windZ,Math.max(-45,Math.min(45,(prevN-view.n)/elapsed)),4);
-        }else windX=windZ=0;
-        u.clipNear.value=api.camera.near;u.wind.value.set(windX,windZ);u.clock.value=(now/1000)%4096;u.amount.value=strength;
-        mesh.geometry.setDrawRange(0,2*Math.round((320-(detailLevel?270:236)*slow)*(.55+.45*rain)));
+        u.clipNear.value=api.camera.near;u.clock.value=(now/1000)%4096;u.amount.value=strength;
+        mesh.geometry.setDrawRange(0,2*Math.round((DROPS-(DROPS-(detailLevel?50:84))*slow)*(.55+.45*rain)));
       }
     }
-    prevE=view.e;prevN=view.n;
     return true;
   }
   function draw(fn) {
     if(!mist)return fn();
-    const f=scene.fog,d=f.density; color.copy(f.color);
-    f.color.lerp(wetColor.setRGB(.36,.42,.44).multiplyScalar(uWeather.value.w),mist*.84);
+    // 雨天是陰天：直射光幾乎沒有（陰影淡掉）、天光變灰變強，遠處淡進跟雨雲同色的霧裡
+    const f=scene.fog,d=f.density,r=api.renderer,k=mist*.95; color.copy(f.color);
+    // 霧色＝雨雲天空貼近地平線處的顏色（shadeRainSky），遠山才會融進天空，不會在地平線上浮出一道比天空亮的白牆
+    wetColor.setRGB(.6,.63,.65).multiplyScalar(uWeather.value.w);
+    f.color.lerp(wetColor,k);
     f.density=d+Math.min(.00076,.73/Math.max(1,view.dist))*mist;
-    const direct=sun?.intensity, diffuse=skyLight?.intensity;
-    if(sun)sun.intensity=direct*(1-.53*mist);
-    if(skyLight)skyLight.intensity=diffuse*(1+1.4*mist);
+    if(fx2Fog){
+      fogKeep.splice(0,7,fx2Fog.x,fx2Fog.y,fx2Fog.z,fx2Fog.w,fx2SunFog.x,fx2SunFog.y,fx2SunFog.z);
+      fx2Fog.x+=(wetColor.r-fx2Fog.x)*k;fx2Fog.y+=(wetColor.g-fx2Fog.y)*k;fx2Fog.z+=(wetColor.b-fx2Fog.z)*k;
+      fx2SunFog.x+=(wetColor.r-fx2SunFog.x)*k;fx2SunFog.y+=(wetColor.g-fx2SunFog.y)*k;fx2SunFog.z+=(wetColor.b-fx2SunFog.z)*k;
+      fx2Fog.w+=Math.min(.0006,.29/Math.max(1,view.dist))*mist; // 畫面中心（跟的車）最多霧兩成五，拉遠看時不會整片白掉
+    }
+    const direct=sun?.intensity, diffuse=skyLight?.intensity, exposure=r.toneMappingExposure;
+    if(sun)sun.intensity=direct*(1-.9*mist);
+    if(skyLight){skyLight.intensity=diffuse*(1+2.2*mist);skyTint.copy(skyLight.color);skyLight.color.lerp(grey,mist);}
+    r.toneMappingExposure=exposure*(1-.06*mist);
     try{return fn();}finally{
       f.density=d;f.color.copy(color);
       if(sun)sun.intensity=direct;
-      if(skyLight)skyLight.intensity=diffuse;
+      if(skyLight){skyLight.intensity=diffuse;skyLight.color.copy(skyTint);}
+      r.toneMappingExposure=exposure;
+      if(fx2Fog){[fx2Fog.x,fx2Fog.y,fx2Fog.z,fx2Fog.w,fx2SunFog.x,fx2SunFog.y,fx2SunFog.z]=fogKeep;}
     }
   }
   function reset(){
-    last=0;poll=-Infinity;sample=null;rain=mist=cover=slow=wetNear=prevE=prevN=pressure=clearTime=0;
+    last=0;poll=-Infinity;sample=null;rain=mist=cover=slow=wetNear=pressure=clearTime=0;
+    if(skyMist){skyMist=0;refreshSky?.();}
     setDetail(0);
     uWeather.value.set(0,0,0,1);uBore.value.x=0;if(mesh)mesh.visible=false;
   }

@@ -52,14 +52,15 @@ export function pairedRoads(roads) {
     if (rankOf(r.cls) >= 4) for (let k = 0; k < r.pts.length - 1; k++) segs.push([i, r.pts[k], r.pts[k + 1]]);
   });
   const out = /* @__PURE__ */ new Map();
+  out.gap = /* @__PURE__ */ new Map();
   roads.forEach((r, i) => {
     if (rankOf(r.cls) < 4) return;
     let n = 0, hit = 0, side = 0;
-    const L = len(r.pts);
+    const L = len(r.pts), smp = [];
     for (let s = 2; s < L - 1; s += 10) {
       const [x, y, tx, ty] = along(r.pts, s);
       n++;
-      let best = 0;
+      let best = 0, bo = -1;
       for (const [o, p, q] of segs) {
         if (o === i) continue;
         const sx = q[0] - p[0], sy = q[1] - p[1], sl = Math.hypot(sx, sy) || 1;
@@ -67,14 +68,22 @@ export function pairedRoads(roads) {
         const u = ((x - p[0]) * sx + (y - p[1]) * sy) / (sl * sl);
         if (u < -0.05 || u > 1.05) continue;
         const lat = -(x - p[0] - sx * u) * ty + (y - p[1] - sy * u) * tx;
-        if (Math.abs(lat) >= 4 && Math.abs(lat) <= 30 && (!best || Math.abs(lat) < Math.abs(best))) best = lat;
+        if (Math.abs(lat) >= 4 && Math.abs(lat) <= 30 && (!best || Math.abs(lat) < Math.abs(best))) {
+          best = lat;
+          bo = o;
+        }
       }
       if (best) {
         hit++;
         side += best > 0 ? -1 : 1;
+        smp.push([s, best > 0 ? -1 : 1, Math.abs(best) - (r.w + roads[bo].w) / 2]);
       }
     }
-    if (n && hit / n >= 0.6) out.set(i, side >= 0 ? 1 : -1);
+    if (n && hit / n >= 0.6) {
+      const sd = side >= 0 ? 1 : -1;
+      out.set(i, sd);
+      out.gap.set(i, smp.filter((e) => e[1] === sd).map((e) => [e[0], e[2]]));
+    }
   });
   return out;
 }
@@ -216,10 +225,10 @@ export function roadMarks(roads, on, num = (k, d) => d, bNear = null) {
   roads.forEach((r, i) => {
     const k = rankOf(r.cls);
     if (k < 3 || internal.has(i)) return;
-    const L = len(r.pts), cc = getCut(i), pr = paired.get(i) || 0, cn = connector.has(i);
+    const L = len(r.pts), cc = getCut(i), pr = paired.get(i) || 0, cn = connector.has(i), wOk = r.w >= (pr ? 3.5 : 8);
     const s0 = cc[0][0], s1 = L - cc[1][0];
     if (on.yline && k >= 4 && r.w >= 8 && !pr && !cn && s1 - s0 > 6) line(over, slice(r.pts, s0, s1), yW, YELLOW);
-    if (on.lane && k >= 4 && r.w >= 8 && !cn && s1 - s0 > 8) {
+    if (on.lane && k >= 4 && wOk && !cn && s1 - s0 > 8) {
       if (pr) {
         const n = Math.max(1, Math.floor(r.w / laneW + 0.25));
         for (let q = 1; q < n; q++) line(over, slice(r.pts, s0, s1, -r.w / 2 + q * r.w / n), lnW, WHITE, 10, 0.4);
@@ -232,8 +241,9 @@ export function roadMarks(roads, on, num = (k, d) => d, bNear = null) {
         const a0 = Math.max(cc[0][sg > 0 ? 1 : 2], cc[0][0]), a1 = L - Math.max(cc[1][sg > 0 ? 1 : 2], cc[1][0]);
         if (a1 - a0 > 6) line(over, slice(r.pts, a0, a1, sg * (r.w / 2 - 0.5)), lnW, WHITE);
       }
+      if (pr && on.yline) for (const [u0, u1] of touchRuns(paired.gap?.get(i), s0, s1)) line(over, slice(r.pts, u0, u1, pr * (r.w / 2 - 0.25)), yW, YELLOW);
     }
-    if (on.walk && k >= 4 && r.w >= 8 && !cn) for (const sg of [1, -1]) {
+    if (on.walk && k >= 4 && wOk && !cn) for (const sg of [1, -1]) {
       if (pr === sg) continue;
       const a0 = cc[0][sg > 0 ? 1 : 2], a1 = L - cc[1][sg > 0 ? 1 : 2];
       if (a1 - a0 < 10) continue;
@@ -283,6 +293,19 @@ function cross(pts, s, o0, o1) {
 function seg(pts, sa, oa, sb, ob) {
   const A = along(pts, sa), B = along(pts, sb);
   return [[A[0] - A[3] * oa, A[1] + A[2] * oa], [B[0] - B[3] * ob, B[1] + B[2] * ob]];
+}
+function touchRuns(gap, a0, a1) {
+  const out = [];
+  let st = -1, last = -1;
+  for (const [s, g] of gap || []) if (Math.abs(g) <= 1.5) {
+    if (st < 0 || s - last > 10.5) {
+      if (st >= 0) out.push([st, last]);
+      st = s;
+    }
+    last = s;
+  }
+  if (st >= 0) out.push([st, last]);
+  return out.map(([u, v]) => [Math.max(a0, u - 5), Math.min(a1, v + 5)]).filter(([u, v]) => v - u >= 15);
 }
 function runs(pts, a0, a1, off, bNear) {
   if (!bNear) return [[a0, a1]];
