@@ -8,7 +8,7 @@
 import worker from '../worker.js';
 import { openTestDb } from './d1_local.mjs';
 import {
-  tripAsk, tripExplain, tripAskStatus, tripAskScheduled, tripAskPurge, cleanParsed, verifyExplain, cleanFacts, uidHash, usable,
+  tripAsk, tripExplain, tripAskStatus, tripAskScheduled, tripAskPurge, cleanParsed, verifyExplain, cleanFacts, uidHash, usable, EXPLAIN_MAX, EXPLAIN_SYSTEM,
   deviceHash, compareFacts, ANON_DAILY_ASKS, FREE_DAILY_ASKS, PLUS_DAILY_ASKS, MONTHLY_CAP_USD, ANON_CAP_SHARE, KEEP_TEXT_MS, FOLLOW_WINDOW_MS,
 } from './trip_ask.mjs';
 
@@ -185,9 +185,61 @@ const facts = cleanFacts({
   check('自己相減算出來的數字（早 8 分鐘）：擋', verifyExplain({ text: '高鐵比台鐵早 8 分鐘出發。', trains: [], times: [] }, facts) === null);
   check('網址：擋', verifyExplain({ text: '詳見 https://x.y', trains: [], times: [] }, facts) === null);
   const en = 'Take THSR train 0615 departing Banqiao at 08:12 and arriving in Taichung at 09:05; it is the earliest arrival with no transfers. If you would rather save money, TRA 111 leaves at 07:31 and arrives at 09:49, also direct, and still gets you there before the 10:00 deadline you asked for.';
-  check('英文 60 個 words 以內的說明（約 300 字元）不會被長度擋掉', en.length > 240 && verifyExplain({ text: en, trains: ['0615', '111'], times: ['08:12', '09:05', '07:31', '09:49'] }, facts) === en, String(en.length));
+  // 修正線 11-23：說明改成一兩句（App 只留兩行高），英文上限 150 字元；太長就只留放得下的前面幾句（原本這段 285 字元整段放行）。
+  const en1 = en.slice(0, en.indexOf('. ') + 1);
+  check('英文太長：只留放得下的第一句', en.length > EXPLAIN_MAX.en && en1.length <= EXPLAIN_MAX.en
+    && verifyExplain({ text: en, trains: ['0615', '111'], times: ['08:12', '09:05', '07:31', '09:49'] }, facts, 'en') === en1, String(en1.length));
   check('太長的說明：擋', verifyExplain({ text: '建議搭高鐵。'.repeat(80), trains: [], times: [] }, facts) === null);
   check('使用者給的期限（10時）可以寫', verifyExplain({ text: '明日10時までに着くなら0615便がおすすめです。', trains: ['0615'], times: [] }, facts) != null);
+}
+
+// ── 5b. 說明（修正線 11-23）：這批怎麼列的、還有沒有別班、車只到哪、站名、口吻、長度 ──────────────────────────
+{
+  const fr = cleanFacts({ from: '臺中', to: '日月潭纜車站', list: 'day', more: true, options: [
+    { kinds: ['EARLIEST_ARRIVAL'], depart: '08:05', arrive: '10:02', minutes: 117, transfers: 1, remainKm: 9.14,
+      rides: [{ system: 'TRA', train: '2701', board: '臺中', boardAt: '08:05', alight: '二水', alightAt: '08:50' },
+        { system: 'TRA', train: '2733', board: '二水', boardAt: '09:05', alight: '水里', alightAt: '10:02' }] }] });
+  check('list、more、remainKm 收進來（remainKm 取到 0.1）；壞的 list 丟掉', fr.list === 'day' && fr.more === true && fr.options[0].remainKm === 9.1
+    && !('list' in cleanFacts({ list: 'all', options: [{ depart: '10:00', arrive: '11:00', minutes: 60, transfers: 0, rides: [] }] })), JSON.stringify(fr));
+  check('舊 App 沒送 list、more：送給模型的 JSON 跟以前一樣', JSON.stringify(Object.keys(facts)) === '["from","to","arriveBy","options"]', JSON.stringify(Object.keys(facts)));
+  const v = (text, f = fr, lang = 'zh', trains = [], times = []) => verifyExplain({ text, trains, times }, f, lang);
+  check('車只到水里，寫成抵達日月潭纜車站：擋', v('08:05 出發、10:02 抵達日月潭纜車站。') === null);
+  check('寫到水里、還差 9.1 公里：放行', v('10:02 到水里，離日月潭纜車站還有 9.1 公里。') != null);
+  check('還差幾公里寫錯（9.2）：擋', v('10:02 到水里，離日月潭纜車站還有 9.2 公里。') === null);
+  check('英文、日文寫成抵達目的地：擋', v('You arrive at Sun Moon Lake Ropeway at 10:02.', { ...fr, to: 'Sun Moon Lake Ropeway' }, 'en') === null
+    && v('日月潭ロープウェイに10:02着。', { ...fr, to: '日月潭ロープウェイ' }, 'ja') === null
+    && v('Train 2733 reaches Shuili at 10:02, 9.1 km short.', { ...fr, to: 'Sun Moon Lake Ropeway' }, 'en', ['2733'], ['10:02']) != null);
+  check('還有別班（more）卻寫「唯一可行」：擋；真的只有一班（more＝false）可以寫', v('08:05 這班是唯一可行的方案。') === null
+    && v('08:05 這班是唯一可行的方案。', { ...fr, more: false }) != null);
+  check('寫「使用者要…」：擋', v('使用者要去日月潭，建議搭 08:05 那班。') === null);
+  check('站名不在方案裡（集集站）：擋；方案裡的站、泛稱（轉乘站、車站、下一站）放行', v('08:05 出發，在集集站轉車。') === null
+    && v('08:05 從臺中站出發，在二水站轉乘，10:02 到水里站。') != null && v('二水是轉乘站，出車站後走到下一站的月台。') != null);
+  check('一句一句看：第二句數字錯，只給第一句；第一句就錯，整段不給', v('建議搭 08:05 那班。轉乘只要 3 分鐘。') === '建議搭 08:05 那班。'
+    && v('轉乘只要 3 分鐘。建議搭 08:05 那班。') === null);
+  const long3 = '建議搭 08:05 的區間車 2701 次，在二水轉 2733 次。10:02 到水里，離日月潭纜車站還有 9.1 公里。之後還有別班可以選。';
+  check('中文超過兩行多：從句子邊界截掉後面的句子；第一句就太長整段不給', v(long3, fr, 'zh', ['2701', '2733']) === '建議搭 08:05 的區間車 2701 次，在二水轉 2733 次。10:02 到水里，離日月潭纜車站還有 9.1 公里。'
+    && v('建議搭' + '很早很早'.repeat(14) + '的那班。') === null, String(v(long3, fr, 'zh', ['2701', '2733'])));
+  const fb = cleanFacts({ from: '板橋', to: '機場第一航廈', arriveBy: '15:00', list: 'before', more: true, options: [
+    { kinds: ['SAFEST'], depart: '13:46', arrive: '14:37', minutes: 51, transfers: 1, rides: [{ system: 'NTMC', train: '', board: '板橋', boardAt: '13:46', alight: '新北產業園區', alightAt: '14:00' },
+      { system: 'TYMC', train: '', board: '新北產業園區', boardAt: '14:14', alight: '機場第一航廈', alightAt: '14:37' }] },
+    { kinds: ['LATEST_DEPARTURE'], depart: '14:01', arrive: '14:52', minutes: 51, transfers: 1, rides: [{ system: 'NTMC', train: '', board: '板橋', boardAt: '14:01', alight: '新北產業園區', alightAt: '14:15' },
+      { system: 'TYMC', train: '', board: '新北產業園區', boardAt: '14:29', alight: '機場第一航廈', alightAt: '14:52' }] },
+    { kinds: [], depart: '13:31', arrive: '14:22', minutes: 51, transfers: 1, rides: [{ system: 'NTMC', train: '', board: '板橋', boardAt: '13:31', alight: '新北產業園區', alightAt: '13:45' },
+      { system: 'TYMC', train: '', board: '新北產業園區', boardAt: '14:00', alight: '機場第一航廈', alightAt: '14:22' }] }] });
+  const ft = cleanFacts({ from: '板橋', to: '機場第一航廈', options: [{ kinds: [], depart: '13:46', arrive: '14:37', minutes: 51, transfers: 1, transferMin: [14],
+    rides: [{ system: 'NTMC', train: '', board: '板橋', boardAt: '13:46', alight: '新北產業園區', alightAt: '13:59' },
+      { system: 'TYMC', train: '', board: '新北產業園區', boardAt: '14:14', alight: '機場第一航廈', alightAt: '14:37' }] }] });
+  check('轉乘分鐘照 App 送的 transferMin（跟卡片一樣 14 分，不是時:分相減的 15 分）；個數不對當沒送',
+    compareFacts(ft).transferSlack[0] === 14 && v('13:46 出發，轉乘有 14 分鐘。', ft) != null && v('13:46 出發，轉乘有 15 分鐘。', ft) === null
+    && !('transferMin' in cleanFacts({ options: [{ depart: '10:00', arrive: '11:00', minutes: 60, transfers: 0, transferMin: [3], rides: [{ board: 'a', alight: 'b' }] }] }).options[0]),
+    JSON.stringify(compareFacts(ft)));
+  check('截止前的清單：第一句推薦別班（13:31）、沒提最上面那班：擋；推薦最上面那班、第二句提別班：放行；別的列法不管',
+    v('推薦 13:31 出發，14:22 到機場第一航廈。', fb) === null
+    && v('推薦 13:46 出發，比 14:01 那班多留 15 分鐘。也可以搭 13:31 那班。', fb) === '推薦 13:46 出發，比 14:01 那班多留 15 分鐘。也可以搭 13:31 那班。'
+    && v('推薦 13:31 出發，14:22 到機場第一航廈。', { ...fb, list: 'next' }) != null,
+    String(v('推薦 13:46 出發，比 14:01 那班多留 15 分鐘。也可以搭 13:31 那班。', fb)));
+  check('提示詞：一兩句、對看的人說話、list／more／remainKm 的意思', EXPLAIN_SYSTEM.includes('一兩句') && EXPLAIN_SYSTEM.includes('不要寫「使用者」')
+    && EXPLAIN_SYSTEM.includes('more＝true') && EXPLAIN_SYSTEM.includes('remainKm') && EXPLAIN_SYSTEM.includes('不超過 40 個字') && EXPLAIN_SYSTEM.includes('list＝before 時，第一個方案'));
 }
 
 await attempt('說明端點', async () => {
@@ -432,12 +484,14 @@ await attempt('路由：不登入', async () => {
   const cmp = compareFacts(f2);
   check('程式算的比較：轉乘最短 5 分；1、2 案票價差 178、抵達差 51 分', JSON.stringify(cmp.transferSlack) === '[null,null,5]'
     && cmp.pairs[0].fareDiff === 178 && cmp.pairs[0].arriveDiff === 51 && cmp.pairs.length === 3, JSON.stringify(cmp));
-  const ok = { text: '最便宜是區間快 2011 次 322 元，第 3 月台、近 30 天準點率 88%，目前晚 4 分。多花 178 元搭自強 115 次可以早 51 分到。', trains: ['2011', '115'], times: [] };
-  check('票價、月台、準點率、誤點、程式算的差額都對得到：放行', verifyExplain(ok, f2) === ok.text);
+  // 修正線 11-23：說明限兩行多（中文 56 字），這裡兩句分開驗，每句的數字都要對得到。
+  const ok = { text: '最便宜是區間快 2011 次 322 元，第 3 月台、準點率 88%，目前晚 4 分。', trains: ['2011'], times: [] };
+  const ok2 = { text: '多花 178 元搭自強 115 次可以早 51 分到。', trains: ['115'], times: [] };
+  check('票價、月台、準點率、誤點、程式算的差額都對得到：放行', verifyExplain(ok, f2) === ok.text && verifyExplain(ok2, f2) === ok2.text);
   check('高鐵自由座 675、平均誤點 2 分、轉乘 5 分、千分位：放行', verifyExplain({ text: '高鐵 615 次對號 722 元（自由座 675），新烏日轉乘 5 分；2011 次平均誤點 2 分。', trains: ['615', '2011'], times: [] }, f2) != null
     && verifyExplain({ text: '票價 1,250 元。', trains: [], times: [] }, cleanFacts({ options: [{ depart: '10:00', arrive: '11:00', minutes: 60, transfers: 0, fare: 1250, rides: [] }] })) != null);
   check('票價寫錯（321 元）：擋', verifyExplain({ ...ok, text: ok.text.replace('322', '321') }, f2) === null);
-  check('自己算錯的差額（早 50 分）：擋', verifyExplain({ ...ok, text: ok.text.replace('51', '50') }, f2) === null);
+  check('自己算錯的差額（早 50 分）：擋', verifyExplain({ ...ok2, text: ok2.text.replace('51', '50') }, f2) === null);
   check('準點率寫錯（90%）：擋', verifyExplain({ ...ok, text: ok.text.replace('88', '90') }, f2) === null);
   check('沒送票價的方案寫了票價：擋', verifyExplain({ text: '高鐵 615 次票價 375 元。', trains: ['615'], times: [] }, facts) === null);
 }
