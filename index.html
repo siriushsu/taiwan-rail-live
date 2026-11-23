@@ -6051,7 +6051,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/11/21</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/11/24</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -6059,6 +6059,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="decel1124"><span class="d">11/24</span><span>台鐵列車進站煞車改用懸賞錄程實測的減速度，站間位置更準；也修正少數車站前車停著時，後車會疊上去的情形</span></li>
         <li data-cl-of="landscape1121"><span class="d">11/21</span><span>電腦版的地景地圖畫得更細：路口有車道線、斑馬線和號誌，高架橋改成 T 型橋墩；龍門吊橋、三角湧大橋等 13 座橋畫出吊索與拱肋，淡海輕軌有架空線，廟宇改成分殿的瓦頂</span></li>
         <li data-cl-of="tripask1121"><span class="d">11/21</span><span>App 的 AI 排行程：說了目的地就直接排，不再反問幾點出發；排完可以再補一句，例如「早上八點」</span></li>
         <li data-cl-of="nightexterior1120"><span class="d">11/20</span><span>地景地圖入夜後，故宮、北美館等場館閉館後外觀照明會留到晚上 10 點；高雄 85 大樓等地標的夜燈恢復整夜點亮</span></li>
@@ -6066,7 +6067,6 @@
         <li data-cl-of="office1119"><span class="d">11/19</span><span>拉近地景地圖的總統府，可以看見紅磚兩翼一扇扇的拱窗、門廊的石柱，以及夜裡亮著的中央塔樓</span></li>
         <li data-cl-of="modelnight1119"><span class="d">11/19</span><span>地景地圖的車站會隨首末班車亮燈，場館打烊後燈光轉暗，總統府和中正紀念堂整夜都看得見</span></li>
         <li data-cl-of="stamps1119"><span class="d">11/19</span><span>車庫新增印章簿：懸賞錄程判定合格的每一趟照車種蓋一個章，集滿一組可以免費選一款兌換車</span></li>
-        <li data-cl-of="farparks1119"><span class="d">11/19</span><span>全台山海與離島的遠景更細緻。中正紀念堂正面朝向自由廣場，兩側牌樓可看穿，園內和總統府旁誤畫的公寓也已修正</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -6100,6 +6100,7 @@
         <li data-cl="weatherapp1023"><span class="d">10/23</span><span>修正 App 颱風資訊整份重複顯示，改為各系統公告；補上新北環狀線、三鶯線 10/23 約 15 分鐘班距，淡海與安坑仍待確認</span></li>
         <li data-cl="weather1022"><span class="d">10/22</span><span>新增颱風期間全台鐵道營運提醒與官方來源，明確標示停駛、調整班距及待確認資訊；地圖有車不代表實際開行；開啟颱風公告時跟車卡暫時隱藏</span></li>
         <li class="grp">路網與車站</li>
+        <li data-cl="decel1124"><span class="d">11/24</span><span>台鐵列車進站煞車改用懸賞錄程實測的減速度，站間位置更準；也修正少數車站前車停著時，後車會疊上去的情形</span></li>
         <li data-cl="landscape1121"><span class="d">11/21</span><span>電腦版的地景地圖畫得更細：路口有車道線、斑馬線和號誌，高架橋改成 T 型橋墩；龍門吊橋、三角湧大橋等 13 座橋畫出吊索與拱肋，淡海輕軌有架空線，廟宇改成分殿的瓦頂</span></li>
         <li data-cl="nightexterior1120"><span class="d">11/20</span><span>地景地圖入夜後，故宮、北美館等場館閉館後外觀照明會留到晚上 10 點；高雄 85 大樓等地標的夜燈恢復整夜點亮</span></li>
         <li data-cl="pierground1120"><span class="d">11/20</span><span>切換立體地形時，橋墩會跟著地面高度更新。首頁圖片還在載入時，也能先看列車、操作地圖</span></li>
@@ -7675,7 +7676,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1120b：場館閉館後外觀照明留到 22 時，模型自帶夜燈的地標整夜亮。
 // v1121a：只動伺服器端（Worker），網頁畫面不變：App 的 AI 排行程有目的地就直接排、可以接著補一句。
 // v1121b：新地景 engine 對到 T7 4d2b666（第 0～5 輪新畫法、圖磚 m82y），一般廟宇改由引擎廟宇規則畫。
-const BUILD = 'v1121b';
+// v1124a：台鐵進站減速改用懸賞錄程實測值（PERF_RULES 的 bStop，只用在沒有實測剖面的梯形路徑）；防追撞在臨時停靠站的兩個漏洞補上。
+const BUILD = 'v1124a';
 // v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 // 有播電腦首頁開場、又是第一次來（RI_HOME_OPENING.fresh）：揭幕後開新地景（開場影片就是新地景錄的）；只這一趟，不寫地景偏好
@@ -11575,20 +11577,27 @@ const PERF_DEFAULT = { a: 1.5, b: 2.5, v: 110 };
 const PERF_HSR = { a: 1.4, b: 1.5, aAlt: 2.0, bAlt: 2.7, v: 300, coast: { c: 0.45, rho: 0.45 } };
 // 高鐵表定只到分,真實離站落在那一分之內 → 發車取中點。用處見上方 snapSchedule 的套用點。
 const HSR_DEP_MID_SEC = 30;
+// bStop:梯形剖面的進站減速(km/h/s),只用在沒有實測折點、退回梯形的跑段;解不出來(排點太緊)再退回 b。
+// b 本身不動:它同時是 GPS 站間曲線的查表鍵(gpsRunKey,App 也用同一把鑰匙)與待避判斷的煞停時間(v/b)。
+// 🔴 2026-11-23 用校正懸賞乘客錄程量的:進站 50→0 km/h 的平均減速 區間 1.22(1,003 次)、EMU3000 1.11(424)、
+// 普悠瑪 1.14(25)、PP 自強 0.78(144);原本的 3.0–3.6 是緊急煞車等級,車會在站前一路高速、最後幾秒才煞停。
+// 值是在 11-09 以前的錄程上挑的,拿 11-10～11-16 的 550 段站到站行駛當考卷:站間位置誤差中位 236→149 m、
+// 時間後 30% 的進站段 256→103 m(沒有線上 GPS 曲線、真的走梯形的 301 段 270→176 m)。
+// 太魯閣號懸賞裡沒有可用的趟,同為傾斜式電聯車,比照普悠瑪(9 段:b 1.0 中位 299 m、3.6 是 560 m)。
 const PERF_RULES = [ // carName 正整比對(鏡射 KIND_RULES 順序,先中先贏)
   [/阿里山號|祝山線|神木線|沼平線|觀日/, { a: 0.7, b: 1.1, v: 45 }], // 阿里山林鐵 762mm 窄軌小火車(登山段極慢;觀日=祝山觀日列車 carName)
   [/普快車|普通車/, { a: 1.3, b: 2.4, v: 100 }],     // 藍皮普快/傳統客車
-  [/\(太/,   { a: 1.88, b: 3.6, v: 135 }],           // 太魯閣 TEMU1000(傾斜式)
-  [/\(普/,   { a: 1.84, b: 3.6, v: 135 }],           // 普悠瑪 TEMU2000(傾斜式)
-  [/\(PP/,   { a: 1.6,  b: 2.8, v: 130 }],           // PP 自強 E1000(推拉,加速估~0.44m/s²)
-  [/\(3000|110[KM]/, { a: 2.52, b: 3.6, v: 135 }],   // EMU3000 新自強(110K/M=自由座編組,TDX 判明)
+  [/\(太/,   { a: 1.88, b: 3.6, bStop: 1.0, v: 135 }], // 太魯閣 TEMU1000(傾斜式)
+  [/\(普/,   { a: 1.84, b: 3.6, bStop: 1.0, v: 135 }], // 普悠瑪 TEMU2000(傾斜式)
+  [/\(PP/,   { a: 1.6,  b: 2.8, bStop: 0.8, v: 130 }], // PP 自強 E1000(推拉,加速估~0.44m/s²)
+  [/\(3000|110[KM]/, { a: 2.52, b: 3.6, bStop: 1.0, v: 135 }], // EMU3000 新自強(110K/M=自由座編組,TDX 判明)
   [/\(D\d/,  { a: 1.5,  b: 2.448, v: 110 }],         // 柴聯自強 DR2800/2900/3100
   [/自強/,   { a: 1.8,  b: 2.9, v: 130 }],           // 泛自強(無括號標記)
   [/莒光|復興/, { a: 1.5, b: 2.6, v: 120 }],          // 機車牽引傳統對號
-  [/電車|區間/, { a: 2.5, b: 3.0, v: 120 }],          // 區間/電車類 EMU
+  [/電車|區間/, { a: 2.5, b: 3.0, bStop: 1.2, v: 120 }], // 區間/電車類 EMU
 ];
 const PERF_BY_TYPE = { // carName 未中時退 typeName
-  '區間車': { a: 2.5, b: 3.0, v: 120 }, '區間快': { a: 2.5, b: 3.0, v: 120 },
+  '區間車': { a: 2.5, b: 3.0, bStop: 1.2, v: 120 }, '區間快': { a: 2.5, b: 3.0, bStop: 1.2, v: 120 },
   '自強': { a: 1.8, b: 2.9, v: 130 }, '莒光/復興': { a: 1.5, b: 2.6, v: 120 },
 };
 // DR1000 柴油客車(平溪/深澳/集集/內灣竹中以南)。班表一律標「區間車」,carName 分不出來,
@@ -12090,6 +12099,7 @@ function assignRunProfiles(s, perf, obs, zoneCls, pre, gps) {
       // 先建「沒有彎道限制」的原本剖面:它同時是判斷「這個彎本來就沒超速嗎」的依據
       // (沒超速就完全不介入)與退路。
       const nat = (pts && pts.length && buildObsProfile(runKm, runT, pts, perf.v))
+        || (perf.bStop && buildProfile(runKm, runT, perf.a, perf.bStop, perf.v, perf.coast))
         || buildProfile(runKm, runT, perf.a, perf.b, perf.v, perf.coast);
       // 先試「不動彎道端點上的實測折點」,守不住速限才退讓那顆折點換取減速空間。
       // 🔴 兩個坑,都會讓某個彎道【靜默地】沒被套用而整批判準照樣全綠:
@@ -12116,6 +12126,8 @@ function assignRunProfiles(s, perf, obs, zoneCls, pre, gps) {
       if (best) rp = best.rp;
     }
     if (!rp && pts && pts.length) rp = buildObsProfile(runKm, runT, pts, perf.v);
+    // 梯形先用實測的進站減速(bStop,見 PERF_RULES 上方),解不出來再退回原本較硬的 b。
+    if (!rp && perf.bStop) rp = buildProfile(runKm, runT, perf.a, perf.bStop, perf.v, perf.coast);
     if (!rp) rp = buildProfile(runKm, runT, perf.a, perf.b, perf.v, perf.coast);
     // 軟煞車解不出來的緊排點段,用較硬的煞車再解一次(見 PERF_HSR.bAlt),避免退回直線移動。
     // 軟加減速解不出來的緊排點段,依序用較硬的煞車、再加上較硬的加速重解(見 PERF_HSR.aAlt/bAlt),
@@ -13003,20 +13015,6 @@ function blockMergedDwellCandidate(it, groupHasMerged) {
   const P = window.railIslandPhysical;
   return !!(groupHasMerged && P?.has(it.tr));
 }
-function blockGapAtOrdinaryEndpoint(lead, it, followHold = it.h, leadHold = lead.it.h) {
-  // 普通真車站仍沿用「月台待避合法」：若前車停點就是後車這一截的實體綁定端點，不由 gapParked 提早接管。
-  // 判綁定端點而非原班表端點很重要：通過平鎮的車在原表也有 stop:false 的平鎮，但實體派車表略過它，
-  // 綁定段仍是中壢→埔心；因此平鎮不會被誤放行，中壢／埔心的既有月台規則則維持不變。
-  const P = window.railIslandPhysical, r = P?.has(it.tr) && P.record(it.tr);
-  const pl = trainPosAt(lead.it.tr, state.simSec - liveDelaySec(lead.it.tr) - leadHold);
-  const pf = trainPosAt(it.tr, state.simSec - liveDelaySec(it.tr) - followHold);
-  if (!r || !pl?.physical || !pf?.physical) return false;
-  const g = lead.it.g;
-  let i = g.dwell ? pl.stopIndex : null;
-  if (i == null && g.seg) i = Math.abs(g.d - g.seg.dA) <= Math.abs(g.seg.dB - g.d) ? g.i : g.i + 1;
-  const name = lead.it.tr.stops[i]?.name, a = r.stops[pf.segmentIndex], b = r.stops[pf.segmentIndex + 1];
-  return name != null && (traStnKey(a?.name) === traStnKey(name) || traStnKey(b?.name) === traStnKey(name));
-}
 // 同一段裡有這種站時，2D 車距不等於立體股道上的車距：停靠那一站的車兩截各照剖面走、停在那一站的投影點，與 2D 同步；
 // 通過的車整段照一條剖面走（motion.js 的 runBetween），過站時刻跟 2D 不同。同一個 2D 車距在立體地圖上會縮短
 // ——實測 10/27 埔心→平鎮，2154（停平鎮）誤點 16 分、後面的 114（通過）2D 車距守在 400 m，立體車心距只剩 203 m，
@@ -13124,11 +13122,20 @@ function updateBlockHolds() {
         }
       }
       if (!it.g.dwell) for (let m = gapParked.length - 1; m >= 0; m--) {
-        const p = gapParked[m], ph = leadHoldOf(p); if (blockGapAtOrdinaryEndpoint(p, it, it.h, ph)) continue;
+        // 普通真車站的停站車也照樣判：near3d 只在後車已貼到一個車身＋一幀行程內才成立，月台待避走不同股道時
+        // blockSep3d 為 Infinity、不受影響。原本這裡另有一條「前車停點是後車這一截的綁定端點就放行」(aa6c48a1)，
+        // 2026-11-24 進站減速改軟後，後車早到月台、在南港開進剛要開走的同股前車車尾（G11 13 秒、最多 0.6 m），拿掉後
+        // 11-24 真實班表全日掃描與固定考卷的 A／B／C／A′ 都不變。
+        const p = gapParked[m], ph = leadHoldOf(p);
         if (latchedFollowers.get(it.key)?.has(p.key)) continue;
         const s3 = blockSep3d(p, it, it.h, ph); if (!near3d(p, s3)) continue;
         const s2 = blockSep2d(p, it, it.h, ph), s = Math.min(s2, s3);
-        if (s < sep) { lead = p; sep3d = s3; sep = s; }
+        // 上一幀已經咬住的實體前車，只要還在 near3d 範圍內，就不讓「2D 較近、但不是實體前車」的 barrier 換掉：
+        // 換掉等於從首咬重新起算、實體棘輪歸零，後車照 2D 車距往前開進停在合併段上的前車車身。
+        // 2026-11-24 實測 G12-1228（進站減速改軟後後車早到 240 m）：L 剛停、F 已咬住 261 m，第 4 秒走另一股的 M 開動、
+        // 2D 只差 114 m 就把 lead 換成 M，F 開進 L 車身 101.7 m。
+        const keepPhysical = oldGap?.physical && oldGap.lead === p.key && !Number.isFinite(sep3d);
+        if (s < sep || keepPhysical) { lead = p; sep3d = s3; sep = s; }
       }
       if (lead && !it.g.dwell) {
         // km,與前車的有效距離；候選比較同時看 2D／3D，不能讓較遠的停站車蓋掉眼前的普通 barrier。

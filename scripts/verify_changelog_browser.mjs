@@ -179,7 +179,7 @@ const widths = [360, 375, 414, 768];
 // 11/14: v1114b Q trains no longer slide aside when stopped adds 1 (599 -> 600).
 // 11/18: v1118c desktop Landscape map goes formal adds 1 (602 -> 603).
 // 11/18: v1118d desktop home opening turned on adds 1 (603 -> 604).
-const expectedHistoryCount = 604;
+const expectedHistoryCount = 605;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

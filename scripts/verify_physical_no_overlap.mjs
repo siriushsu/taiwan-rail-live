@@ -518,8 +518,11 @@ const g12 = await page.evaluate(specs => {
 }, [
   // 探索版證明 +1 的 45%／F+75 找不到 L→M 不共股且兩個單一突變都會撞的組合；命中只在汐科端分岔的 95%、F+45。
   // -1 可保留原本 F+75，但同樣要取百福端分岔的 5%。以下連 M 車次、站間索引與時差都固定，gate 不再全網搜尋答案。
-  { train: '1211', dir: 1, from: '汐科', to: '南港', segmentIndex: 8, f: .95, delay: 45,
-    middleTrain: '4135', middleSegmentIndex: 14, middleShift: 17737.25 },
+  // 2026-11-24 台鐵梯形剖面改用實測進站減速（PERF_RULES 的 bStop）後，+1 原本的 F+45／M+17737.25 在 mid 秒的 L/F 位置
+  // 不再成立（固定位置已漂移）。照同一組條件重掃 F+30～90 × M±60 秒：正式組全部 0 撞，合格（前提成立＋三種突變都撞）的是
+  // F+65～71 × M 17749.25～17757.25 一整塊，取中心 F+68／M+17754.25（兩個方向各留約 3 秒）。
+  { train: '1211', dir: 1, from: '汐科', to: '南港', segmentIndex: 8, f: .95, delay: 68,
+    middleTrain: '4135', middleSegmentIndex: 14, middleShift: 17754.25 },
   { train: '1228', dir: -1, from: '百福', to: '七堵', segmentIndex: 34, f: .05, delay: 75,
     middleTrain: '1272', middleSegmentIndex: 27, middleShift: -17863 },
 ]);

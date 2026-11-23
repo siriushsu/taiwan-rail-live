@@ -1,28 +1,28 @@
 {
  "note": "由 node scripts/build_run_profiles.mjs --update-meet-ratchet 實測寫入，不要手改。--check 用目前的程式碼重跑 inputs 這幾個凍結的資料 blob：夾回數不得少於 snapped、重建不合格不得多於 unbuildable。",
- "measured_at": "b07792a7cb7d5c0037bcfa06b8c3c829f5cead7b",
+ "measured_at": "07f957f4fc346e300cd9cb9514286985db3c486c",
  "inputs": {
   "schedule": {
    "path": "data/tra_schedule_dense.json",
-   "blob": "da0b3f01f9dbfdd01e87fd94fa4af4d62466e10f"
+   "blob": "d16a420185a6168ec8f5c4db714395769887073b"
   },
   "track": {
    "path": "data/tra.json",
-   "blob": "300136982057d5f1e349dbbc41fb773647254f94"
+   "blob": "aaaeab5add511535f9fac9c992f556b8bd374828"
   },
   "passObs": {
    "path": "data/tra_pass_obs.json",
-   "blob": "35c44a41c39fdd73588cd74eae938569abca9645"
+   "blob": "c09ca60d1e948d60028adf2e35751ceeeeee3570"
   },
   "trackSections": {
    "path": "data/tra_track_sections.json",
-   "blob": "d869c450cea59042df48735e3868f83330aaf2e1"
+   "blob": "013811a152f03e80bca06824e885ebdf22b96330"
   },
   "special": {
    "path": "data/tra_special_trains.json",
-   "blob": "9d4f2bb02a9448a5fff9742c0eb5ecd2a13facdd"
+   "blob": "51d5efea20264843a5a997d8c87079ec305a5238"
   }
  },
- "snapped": 244,
- "unbuildable": 17
+ "snapped": 250,
+ "unbuildable": 10
 }
