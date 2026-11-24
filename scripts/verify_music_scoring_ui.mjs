@@ -63,10 +63,10 @@ for (const [eng, launcher] of [['chromium', chromium], ['webkit', webkit]].filte
     page.on('pageerror', e => console.error(`   [pageerror ${tag}]`, String(e).slice(0, 140)));
     await page.goto(`http://127.0.0.1:${PORT}/index.html?plus=1`, { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => typeof window.musicPlOpen === 'function'
-      && window.MUSIC_DATA && window.MUSIC_DATA.pools.length === 16, null, { timeout: 30000 });
+      && window.MUSIC_DATA && window.MUSIC_DATA.pools.length === 20, null, { timeout: 30000 });
     await page.evaluate(() => { state.plus = { active: false }; state.music._effKey = ''; window.musicPlOpen(); });
 
-    // ── A. 清單完整:16 個池一個都不能少,未上架的池照樣列出、只是不能點 ──────────
+    // ── A. 清單完整:20 個池一個都不能少,未上架的池照樣列出、只是不能點 ──────────
     const all = await page.evaluate(() => {
       const q = s => [...document.querySelectorAll('#musicPlBody ' + s)];
       // 🔴 每次展開都會重畫清單 ⇒ 先抓一份 NodeList 再逐一點,第二顆之後點的是已經脫離
@@ -90,9 +90,9 @@ for (const [eng, launcher] of [['chromium', chromium], ['webkit', webkit]].filte
     ok(`${tag} A1 三個家族都在`, all.fam === 3, JSON.stringify(all));
     ok(`${tag} A2 主打卡「跟著列車」在`, all.hero === 1, JSON.stringify(all));
     ok(`${tag} A3 「隨機」在`, all.free === 1, JSON.stringify(all));
-    ok(`${tag} A4 16 個池的名字全部看得到(展開後)`, all.missing.length === 0, `缺 ${all.missing.join(',')}`);
+    ok(`${tag} A4 20 個池的名字全部看得到(展開後)`, all.missing.length === 0, `缺 ${all.missing.join(',')}`);
     ok(`${tag} A5 已上架的池可點、未上架的降級`,
-      all.clickablePools === all.shippedCount && all.soon === 16 - all.shippedCount, JSON.stringify(all));
+      all.clickablePools === all.shippedCount && all.soon === 20 - all.shippedCount, JSON.stringify(all));
 
     // 準備中那批:要【看得見】(不是 display:none)但【點不到】——兩件事都要驗,少一件就變成隱藏或誤點
     const soon = await page.evaluate(() => {

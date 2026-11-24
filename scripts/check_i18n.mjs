@@ -215,7 +215,8 @@ const musicDisplayKeys = [
   ...musicData.pools.flatMap(pool => [pool.zh, pool.desc]),
 ].filter(Boolean);
 // 分母自己也要有斷言:欄位改名或曲庫清空時,這條檢查會靜默縮成 0 個而不是報錯。
-if (musicDisplayKeys.length < 2 * (musicData.families.length + musicData.pools.length)) {
+// 池的說明可以不寫（11 月曲風歌單只有名稱），分母只算有寫說明的池。
+if (musicDisplayKeys.length < 2 * musicData.families.length + musicData.pools.length + musicData.pools.filter(p => p.desc).length) {
   fail(`配樂曲庫顯示字串取到 ${musicDisplayKeys.length} 個,少於家族+池數 x 2,欄位名可能改了`);
 }
 for (const key of new Set(musicDisplayKeys)) {

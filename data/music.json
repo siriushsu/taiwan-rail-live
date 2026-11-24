@@ -878,6 +878,154 @@
       ]
     },
     {
+      "id": "lofi",
+      "zh": "Lo-fi",
+      "family": null,
+      "desc": "",
+      "zones": null,
+      "hours": null,
+      "weather": null,
+      "auto": false,
+      "tracks": [
+        {
+          "src": "_pass/lofi/半醒的燈 Half-Awake Light.mp3",
+          "dur": 193,
+          "bytes": 2530301
+        },
+        {
+          "src": "_pass/lofi/小小軌道 Tiny Orbits.mp3",
+          "dur": 199,
+          "bytes": 2845253
+        },
+        {
+          "src": "_pass/lofi/窗上的細線 Fine Lines.mp3",
+          "dur": 172,
+          "bytes": 2565749
+        },
+        {
+          "src": "_pass/lofi/紙頁微塵 Paper and Dust.mp3",
+          "dur": 168,
+          "bytes": 1961909
+        }
+      ]
+    },
+    {
+      "id": "violin",
+      "zh": "提琴",
+      "family": null,
+      "desc": "",
+      "zones": null,
+      "hours": null,
+      "weather": null,
+      "auto": false,
+      "tracks": [
+        {
+          "src": "_pass/violin/向光的弧線 An Arc Toward Light.mp3",
+          "dur": 103,
+          "bytes": 1681181
+        },
+        {
+          "src": "_pass/violin/呼吸的輪廓 Shape of a Breath.mp3",
+          "dur": 154,
+          "bytes": 2220629
+        },
+        {
+          "src": "_pass/violin/把溫柔留下 Keep the Tenderness.mp3",
+          "dur": 255,
+          "bytes": 3662117
+        },
+        {
+          "src": "_pass/violin/漂浮的回聲 Floating Echoes.mp3",
+          "dur": 169,
+          "bytes": 2501309
+        },
+        {
+          "src": "_pass/violin/輕巧的約定 A Little Promise.mp3",
+          "dur": 142,
+          "bytes": 2253869
+        },
+        {
+          "src": "_pass/violin/追逐微風 Chasing a Breeze.mp3",
+          "dur": 154,
+          "bytes": 2310965
+        }
+      ]
+    },
+    {
+      "id": "jazz",
+      "zh": "爵士",
+      "family": null,
+      "desc": "",
+      "zones": null,
+      "hours": null,
+      "weather": null,
+      "auto": false,
+      "tracks": [
+        {
+          "src": "_pass/jazz/三拍呼吸 Breathing in Three.mp3",
+          "dur": 204,
+          "bytes": 3258053
+        },
+        {
+          "src": "_pass/jazz/口袋裡的晴天 Pocketful of Light.mp3",
+          "dur": 187,
+          "bytes": 2982053
+        },
+        {
+          "src": "_pass/jazz/微光跳格 Flicker Steps.mp3",
+          "dur": 188,
+          "bytes": 3114533
+        },
+        {
+          "src": "_pass/jazz/柔角律動 Soft Corners.mp3",
+          "dur": 227,
+          "bytes": 3956069
+        },
+        {
+          "src": "_pass/jazz/留白之間 Space Between Notes.mp3",
+          "dur": 190,
+          "bytes": 3009317
+        },
+        {
+          "src": "_pass/jazz/絨線慢步 Velvet Footsteps.mp3",
+          "dur": 236,
+          "bytes": 3551189
+        }
+      ]
+    },
+    {
+      "id": "piano",
+      "zh": "鋼琴",
+      "family": null,
+      "desc": "",
+      "zones": null,
+      "hours": null,
+      "weather": null,
+      "auto": false,
+      "tracks": [
+        {
+          "src": "_pass/piano/多留一拍 One Beat More.mp3",
+          "dur": 133,
+          "bytes": 1845773
+        },
+        {
+          "src": "_pass/piano/相遇之後 After We Meet.mp3",
+          "dur": 174,
+          "bytes": 2340437
+        },
+        {
+          "src": "_pass/piano/第一束光 A Thread of Light.mp3",
+          "dur": 90,
+          "bytes": 1248341
+        },
+        {
+          "src": "_pass/piano/紙風車 Paper Pinwheel.mp3",
+          "dur": 151,
+          "bytes": 2196869
+        }
+      ]
+    },
+    {
       "id": "rail-texture-score",
       "zh": "鐵道質地配樂",
       "family": null,

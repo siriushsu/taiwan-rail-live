@@ -77,11 +77,16 @@ const newPoolCounts = Object.fromEntries(J.pools.filter(p => p.id in expectedNew
 check('B5 9/27 新增五個情境池共 27 首且逐池完整',
   Object.entries(expectedNewPools).every(([id, n]) => newPoolCounts[id] === n),
   Object.entries(newPoolCounts).map(([id, n]) => `${id}=${n}`).join('、'));
+const expectedNovPools = { lofi: 4, violin: 6, jazz: 6, piano: 4 };
+const novPoolCounts = Object.fromEntries(J.pools.filter(p => p.id in expectedNovPools).map(p => [p.id, p.tracks.length]));
+check('B6 11/24 新增四個曲風歌單共 20 首且逐池完整',
+  Object.entries(expectedNovPools).every(([id, n]) => novPoolCounts[id] === n),
+  Object.entries(novPoolCounts).map(([id, n]) => `${id}=${n}`).join('、'));
 
 // ── C. 結構契約 ──
 const famIds = new Set(J.families.map(f => f.id));
 check('C1 families 恰 3 套', J.families.length === 3);
-check('C2 pools 恰 16 池', J.pools.length === 16, `實際 ${J.pools.length}`);
+check('C2 pools 恰 20 池', J.pools.length === 20, `實際 ${J.pools.length}`);
 check('C3 每池的 family 存在（獨立池允許 null）', J.pools.every(p => p.family === null || famIds.has(p.family)));
 check('C4 每池 zones 的值都在分區清單裡', J.pools.every(p => p.zones === null || p.zones.every(z => ZONES.includes(z))));
 check('C5 每池 hours 的值都在時段清單裡', J.pools.every(p => p.hours === null || p.hours.every(h => HOURS.includes(h))));

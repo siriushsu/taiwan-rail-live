@@ -56,7 +56,7 @@ await ctx.addInitScript(() => {           // 鍵名照 2026-08-13 那份驗收�
 });
 await page.goto(`http://127.0.0.1:${PORT}/index.html`, { waitUntil: 'domcontentloaded' });
 await page.waitForFunction(() => typeof window.musicPickPool === 'function'
-  && window.MUSIC_DATA && window.MUSIC_DATA.pools && window.MUSIC_DATA.pools.length === 16,
+  && window.MUSIC_DATA && window.MUSIC_DATA.pools && window.MUSIC_DATA.pools.length === 20,
   null, { timeout: 30000 });
 
 // ── A. 分區判定。期望值來自「這個座標在哪個縣市」這個外部事實 ──
@@ -110,8 +110,8 @@ ok('C4 選出的池一律是 auto', grid.every(g => !g.id || g.auto === true),
   grid.filter(g => g.id && !g.auto).map(g => g.id).join(', '));
 // 正向對照:auto:false 的池絕不可被自動選到(否則「乾脆全放行」也會全綠)
 ok('C5 手動限定池不得出現在任何一格',
-  !grid.some(g => ['rainy-city', 'island-community', 'rail-texture-score'].includes(g.id)),
-  grid.filter(g => ['rainy-city', 'island-community', 'rail-texture-score'].includes(g.id)).map(g => `${g.z}×${g.h}→${g.id}`).join(', '));
+  !grid.some(g => ['rainy-city', 'island-community', 'rail-texture-score', 'lofi', 'violin', 'jazz', 'piano'].includes(g.id)),
+  grid.filter(g => ['rainy-city', 'island-community', 'rail-texture-score', 'lofi', 'violin', 'jazz', 'piano'].includes(g.id)).map(g => `${g.z}×${g.h}→${g.id}`).join(', '));
 
 // ── D. 同分輪替。花蓮×清晨是刻意的平手格(花蓮山海地理命中 2 分、晨曦初班時段命中 2 分)──
 const picks = await page.evaluate(() => {

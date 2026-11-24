@@ -61,6 +61,11 @@ const POOLS = [
     zones: null, hours: ['dusk'], weather: null, auto: true },
   { id: 'island-community', zh: '山海聚落共創', family: null, desc: '以山海聚落為想像的開闊合奏與彼此呼應',
     zones: null, hours: null, weather: null, auto: false },
+  // 11 月音樂包（2026-11-24）：四個曲風歌單，只在手動選單、要通行證；名稱照使用者的資料夾名，不寫說明。
+  { id: 'lofi', zh: 'Lo-fi', family: null, desc: '', zones: null, hours: null, weather: null, auto: false },
+  { id: 'violin', zh: '提琴', family: null, desc: '', zones: null, hours: null, weather: null, auto: false },
+  { id: 'jazz', zh: '爵士', family: null, desc: '', zones: null, hours: null, weather: null, auto: false },
+  { id: 'piano', zh: '鋼琴', family: null, desc: '', zones: null, hours: null, weather: null, auto: false },
   { id: 'rail-texture-score', zh: '鐵道質地配樂', family: null, desc: '鐵道質地的聲音設計',
     zones: null, hours: null, weather: null, auto: false },
 ];
