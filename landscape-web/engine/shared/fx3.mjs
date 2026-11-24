@@ -276,7 +276,8 @@ export const LAND_CLASSES = [
   "rock",
   "greenhouse",
   "institution",
-  "pitchClay"
+  "pitchClay",
+  "riverbed"
 ];
 const LC = Object.fromEntries(LAND_CLASSES.map((k, i) => [k, i.toFixed(1)]));
 export function fx3LandPatch(sh, F) {
@@ -306,7 +307,17 @@ vec3 lCol(float c, float s, float ang, float rn, vec2 P, float px, vec3 satL, ve
   if (c < ${LC.forest} + .5 && c > ${LC.forest} - .5 || c > ${LC.shrub} - .5 && c < ${LC.shrub} + .5) {
     // 樹林、灌叢：保留影像（山坡的色調變化）＋樹冠雜訊，只把顏色收乾淨一點
     vec3 fc = lTint(c < ${LC.forest} + .5 ? vec3(.03, .055, .022) : vec3(.05, .07, .03), satL, .5) * (.75 + .5 * (gN(P / 4.1).x * .6 + gN(P / 13.).x * .4));
-    return mix(land, fc, .45); }
+    // 地表顏色線 11-24：分類多邊形粗（ESA 10 m、OSM 的灌叢面蓋到河口礫石灘），影像是亮的、不綠的地方（裸地、礫石）照影像，不拉成綠色
+    float bare = smoothstep(.22, .32, lLum(land)) * (1. - veg);
+    if (c < ${LC.forest} + .5) {
+      // 地表顏色線 11-24：樹林的地面畫成一團一團的林冠（約 7 m 一團：團心亮、團與團之間暗），樹與樹之間斜看才不像平整的草坡（林口台地）；遠了收成平均色
+      //   只用到最近團心的距離（不畫團與團的交界線，交界線會排成蜂巢格），位置再用雜訊推歪
+      vec2 q = P / 7. + (gN(P / 23.).yz - .5) * .8, ci = floor(q); float d1 = 9., hv = 0.;
+      for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) { vec2 cc = ci + vec2(float(i), float(j)); float d = length(q - cc - vec2(gH(cc), gH(cc + 17.3))) * (.8 + .4 * gH(cc + 9.7)); if (d < d1) { d1 = d; hv = gH(cc + 5.1); } }
+      float fdC = 1. - smoothstep(.6, 2.2, px), cr = .74 + .4 * (1. - smoothstep(.1, .85, d1)) * (.6 + .8 * hv);
+      fc *= mix(.92, cr, fdC);
+      return mix(land, fc, .6 * (1. - bare)); }
+    return mix(land, fc, .45 * (1. - bare)); }
   if (c > ${LC.grass} - .5 && c < ${LC.garden} + .5 || c > ${LC.golf} - .5 && c < ${LC.golf} + .5) {
     vec3 g = lawn;
     if (c > ${LC.park} - .5 && c < ${LC.park} + .5) {   // 公園：草地＋樹蔭下較深的地被（影像很綠的地方）＋少數裸露
@@ -328,7 +339,8 @@ vec3 lCol(float c, float s, float ang, float rn, vec2 P, float px, vec3 satL, ve
     vec3 g = s > inset ? a : b; g = mix(b, a, smoothstep(inset - px * .5, inset + px * .5, s));
     float ln = max(lLine(s - inset, .08, px), lLine(s - .12, .1, px));
     return mix(g, vec3(.6, .6, .58), ln * .85); }
-  if (c > ${LC.pitchClay} - .5) {   // 第 121 包：棒壘球場的紅土內野（紅褐土、細顆粒、靠邊緣有一圈較深的踩踏痕）
+  if (c > ${LC.pitchClay} - .5 && c < ${LC.pitchClay} + .5) {   // 地表顏色線 11-24：原本只寫下限（紅土是最後一類），新類別 riverbed 排在後面會被畫成紅土，補上限
+      // 第 121 包：棒壘球場的紅土內野（紅褐土、細顆粒、靠邊緣有一圈較深的踩踏痕）
     vec3 g = lTint(vec3(.15, .065, .032), satL, .15) * (1. + .2 * ((gN(P / .35).x - .5) * fdF + (n2 - .5) * .6)); return g * mix(.86, 1., smoothstep(.4, 2.2, s)); }
   if (c > ${LC.track} - .5 && c < ${LC.track} + .5) {   // 跑道：紅色 PU、分道線跟著邊界走（距離每 1.22 m 一條）
     vec3 g = vec3(.16, .045, .03) * (1. + .1 * (n1 - .5) * fdF);
@@ -353,7 +365,8 @@ vec3 lCol(float c, float s, float ang, float rn, vec2 P, float px, vec3 satL, ve
   if (c > ${LC.barren} - .5 && c < ${LC.barren} + .5) {   // 裸地（河床、崩塌地、ESA 的裸露地）：留一半影像（山坡崩塌地、河床的深淺），亮度壓到裸土的範圍
     vec3 g = lTint(vec3(.14, .125, .1), satL, .75) * (1. + .3 * ((gN(P / .4).x - .5) * fdF + (n2 - .5) * .7)); float lg = lLum(g);
     return mix(g, land * clamp(lg * 1.3 / max(lLum(land), 1e-3), .5, 1.1), .5); }
-  if (c > ${LC.sand} - .5 && c < ${LC.sand} + .5) { vec3 g = lTint(vec3(.27, .245, .2), satL, .7) * (1. + .15 * ((gN(P / .3).x - .5) * fdF + (n2 - .5))); return mix(g, land * clamp(lLum(g) / max(lLum(land), 1e-3), .6, 1.2), .35); }   // 沙灘、礫石灘：顏色跟影像走（花蓮的礫石灘是灰的、西部沙灘偏黃）
+  if (c > ${LC.sand} - .5 && c < ${LC.sand} + .5) {   // 地表顏色線 11-24：原本底色是沙黃、再乘上影像的色相（暖色算兩次），亮度又夾在上限——礫石灘、灰黑沙都畫成一樣亮的黃沙。改成中性底色、色相與亮度都跟影像（石城礫石灰褐、外澳與旗津灰黑沙、福隆金黃沙）
+    vec3 g = vec3(.25) * mix(vec3(1.), clamp(satL / max(lLum(satL), .004), vec3(.4), vec3(2.2)), .75) * clamp(lLum(land) / .42, .5, 1.35) * (1. + .15 * ((gN(P / .3).x - .5) * fdF + (n2 - .5))); return mix(g, land, .35); }   // 沙灘、礫石灘：顏色跟影像走（花蓮的礫石灘是灰的、西部沙灘偏黃）
   if (c > ${LC.wetland} - .5 && c < ${LC.wetland} + .5) { vec3 g = lTint(vec3(.04, .065, .035), satL, .5) * (1. + .3 * mott); return mix(g, vec3(.02, .035, .035), smoothstep(.62, .66, gN(P / 6.).x) * .7); }
 ${TW2.soil ? `  if (c > ${LC.construction} - .5 && c < ${LC.construction} + .5) {   // 試作 tw2 soil：OSM 的「施工中」多半是重劃區、園區的範圍，不是整片裸土。底色調淡，一半跟著影像走；影像是綠的地方畫成草
     vec3 g = lTint(vec3(${TW2.num("soilr", 0.2).toFixed(3)}, ${TW2.num("soilg", 0.17).toFixed(3)}, ${TW2.num("soilb", 0.13).toFixed(3)}), satL, .75) * (1. + .25 * ((gN(P / .9).x - .5) * fdF + (n2 - .5) * .8)) * (1. - .15 * lGrid(gRot(P, .4).x, 2.3, .4, px) * step(.55, n3));
@@ -366,6 +379,11 @@ ${TW2.soil ? `  if (c > ${LC.construction} - .5 && c < ${LC.construction} + .5) 
     float y = mod(Q.y, 16.), inRow = step(y, 5.) + step(11., y), ln = inRow * lGrid(Q.x, 2.5, .1, px) * step(1.2, s);
     return mix(g, vec3(.45, .45, .42), ln * .8); }
   if (c > ${LC.railway} - .5 && c < ${LC.railway} + .5) return lTint(vec3(.12, .11, .1), satL, .3) * (1. + .3 * (gN(P / .25).x - .5) * fdF);
+  if (c > ${LC.riverbed} - .5 && c < ${LC.riverbed} + .5) {   // 地表顏色線 11-24：河床（只有中心線的河，bake/landclass.mjs 的 riverbed）：灰色卵石＋離帶子邊 5 m 以上畫一條水（8 m 的溪溝沒有水線，16 m 的間歇河中間約 6 m）；影像很綠（樹冠蓋住的小河）讓影像透出來
+    float cob = gN(P / .45).x * fdF * .5 + gN(P / 1.6).x * fdM * .35 + n2 * .3;
+    vec3 g = lTint(vec3(.17, .165, .155), satL, .25) * (.75 + .5 * cob);
+    vec3 w = vec3(.035, .075, .08) * (.85 + .3 * gN(P / 2.3 + 3.).x) + vec3(.25) * smoothstep(.75, .9, gN(P / .8).x) * fdF * .5;
+    return mix(mix(g, w, smoothstep(4.5, 5.5, s)), land, veg * .6); }
   if (c > ${LC.rock} - .5 && c < ${LC.rock} + .5) return mix(lTint(vec3(.16, .155, .145), satL, .5) * (1. + .3 * mott), land, .45);
   if (c > ${LC.greenhouse} - .5 && c < ${LC.greenhouse} + .5) return vec3(.32, .34, .34) * (1. - .2 * lGrid(Q.y, 3.2, .25, px));
   // 街廓（住宅、商業、工業、機關、學校、軍事、ESA 的都市）：柏油與水泥鋪面拼成一塊一塊，接縫；影像很綠的地方是植栽（邊界用雜訊切開，不是糊的）
@@ -404,6 +422,9 @@ ${TW2.soil ? `  if (c > ${LC.construction} - .5 && c < ${LC.construction} + .5) 
     if (nat > .5 && c2 >= 0.) { e += (c1 < c2 ? 1. : -1.) * ((gN(P / 11.).x - .5) * 6. + (gN(P / 3.3).x - .5) * 1.6); bw = max(bw, 1.5); }
     float tb = smoothstep(-bw, bw, e);
     if (tb < .999) lc = mix(k2 ? lCol(c2, s2, a2, r2, P, pxL, satL, land, veg) : land, lc, tb);
+    // 地表顏色線 11-24：海岸線往內約 30 m、分類不是沙灘的地方（OSM／ESA 把灌叢、林地畫到水邊）：10 m 影像在這一帶混了浪花白沫、礫石、草，顏色偏黃；
+    //   沒標沙灘的岸邊多是礫石、礁岩、消波塊——不綠的地方收成同亮度的偏灰礫石色（石城—大里）。沙灘照影像（lCol 的 sand）。
+    if (k1 && abs(c1 - ${LC.sand}) > .5) lc = mix(lc, vec3(lLum(lc)) * vec3(1.03, 1., .94), smoothstep(-32., -14., sd) * (1. - veg) * .8);
     landW = (1. - smoothstep(4500., 7000., dist)) * (k1 || (tb < .999 && k2) ? 1. : 0.);
     land = mix(land, lc, landW);
   }

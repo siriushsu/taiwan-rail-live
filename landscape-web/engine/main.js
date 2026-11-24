@@ -7,7 +7,10 @@ import { tunnelDetail } from "../places.mjs";
 import { surfaceRoads, withTunnelTrees } from "../tunnel-roads.mjs";
 import * as THREE from "./vendor/three.module.js";
 import { createFacade } from "./tw-facade.js";
-import { createRailStructures } from "./integration/rail-structures.js";
+import { createRailStructures, structAmb, structAmbUp } from "./integration/rail-structures.js";
+import { createRideStn } from "../host-stubs.js";
+import { createRideCab } from "../host-stubs.js";
+import { planMotion } from "../host-stubs.js";
 import { groupTunnelPortals, PORTAL_GROUND_U } from "./integration/tunnel-portals.js";
 import { roadUnderpassGeometry, roadPortalMaterial } from "./integration/road-underpass.js";
 import { levelCrossingGeometry, levelCrossingMaterial } from "./integration/level-crossing.js";
@@ -30,6 +33,13 @@ import { createStreet } from "./shared/street-mesh.mjs";
 import { createRailHl } from "./shared/rail-hl.mjs";
 import { VSHA, fspec, fetchV, jget, hex16 } from "./shared/fetch-v.mjs";
 const H = globalThis.__LANDSCAPE_HOST__, coarse = matchMedia("(pointer:coarse)").matches, params = H.params;
+const RFX = (() => {
+  const all = params.get("rideFx") !== "0", o = {};
+  for (const k of ["amb", "track", "stn", "near", "night", "cab", "run", "girder", "plat"]) o[k] = all && params.get("rfx" + k[0].toUpperCase() + k.slice(1)) !== "0";
+  return o;
+})();
+const stnRide = { value: 0 };
+let stnDay = 0;
 const $ = (id) => H.el(id), status = (t) => {
   $("status").textContent = t;
   H.status(t);
@@ -51,7 +61,7 @@ const P28 = { fSide: 0, fWin: 1, fBasic: 0, rd: 1, rdLines: 1, rdFar: 0, rdStep:
 for (const k of Object.keys(P28)) if (params.has(k)) P28[k] = +params.get(k);
 if (params.get("ui") === "0") document.body.classList.add("noui");
 const DATA = params.get("data") || "/tiles/", FAR_M = TILE_M * 4;
-const LIMIT = coarse ? { near: 700, mid: 2600, far: 11e3, maxNear: 6, maxMid: 24, loads: 2, shadow: 2048, trees: 0.55, extraR: 350, shadowMove: 0.2, shadowGap: 400, adapt: 1, prMin: 1.5, stage: 1, maxMidMove: 16, still: 10, stillKB: 4096, stillLoads: 4, late: 1, lo: 2.5, loR: 1e3, chunk: 4, mvpr: 1 } : { near: 1100, mid: 4200, far: 16e3, maxNear: 12, maxMid: 60, loads: 3, shadow: 4096, trees: 1, extraR: 700, shadowMove: 0.04, shadowGap: 0, adapt: 0, prMin: 1, stage: 0, maxMidMove: 60, still: 0, stillKB: 4096, stillLoads: 0, late: 0, lo: 0, loR: 1e3, chunk: 2, mvpr: 0 };
+const LIMIT = coarse ? { near: 700, mid: 2600, far: 11e3, maxNear: 6, maxMid: 24, loads: 2, shadow: 2048, trees: 0.55, forestAdd: 0, extraR: 350, shadowMove: 0.2, shadowGap: 400, adapt: 1, prMin: 1.5, stage: 1, maxMidMove: 16, still: 10, stillKB: 4096, stillLoads: 4, late: 1, lo: 2.5, loR: 1e3, chunk: 4, mvpr: 1 } : { near: 1100, mid: 4200, far: 16e3, maxNear: 12, maxMid: 60, loads: 3, shadow: 4096, trees: 1, forestAdd: 1, extraR: 700, shadowMove: 0.04, shadowGap: 0, adapt: 0, prMin: 1, stage: 0, maxMidMove: 60, still: 0, stillKB: 4096, stillLoads: 0, late: 0, lo: 0, loR: 1e3, chunk: 2, mvpr: 0 };
 for (const k of Object.keys(LIMIT)) if (params.has(k)) LIMIT[k] = +params.get(k);
 const prFixed = parseFloat(params.get("pr")) || 0;
 for (const k of Object.keys(LIMIT)) if (params.has(k)) LIMIT[k] = +params.get(k);
@@ -170,7 +180,7 @@ const FS = { on: params.get("farSat") !== "0" && !!index.farLod?.levels, ...coar
 for (const k of ["f0", "f1", "r1", "r2"]) if (params.has("fs" + k)) FS[k] = +params.get("fs" + k);
 const FSL = index.farLod?.levels || {}, FSTOP = Math.max(1, ...Object.keys(FSL).map(Number));
 if (FS.on) THREE.ShaderChunk.alphahash_fragment = "#ifdef USE_ALPHAHASH\n	if ( opacity < getAlphaHashThreshold( vPosition ) ) discard;\n#endif";
-const LAND_NO_TREE = new Set(["water", "courtPaved", "pitchGrass", "pitchSand", "track", "playground", "parking", "plaza", "sand", "aquaculture", "greenhouse", "pitchClay"].map((k) => LAND_CLASSES.indexOf(k)));
+const LAND_NO_TREE = new Set(["water", "courtPaved", "pitchGrass", "pitchSand", "track", "playground", "parking", "plaza", "sand", "aquaculture", "greenhouse", "pitchClay", "riverbed"].map((k) => LAND_CLASSES.indexOf(k)));
 function landPixels(tx) {
   if (tx.userData.px) return tx.userData.px;
   const im = tx.image, c = document.createElement("canvas");
@@ -355,6 +365,7 @@ function setTime(h) {
   hemi.intensity = (0.1 + 0.3 * day) * (NC.wall ? 1 - 0.55 * night : 1);
   hemi.color.setRGB(0.75, 0.83, 1);
   hemi.groundColor.setRGB(0.42, 0.4, 0.35);
+  structAmb.value = RFX.amb ? (0.04 + 0.28 * day) * (1 - 0.8 * night) : 0;
   const hor = new THREE.Color(0.012, 0.018, 0.036).lerp(new THREE.Color(0.52, 0.68, 0.88), day).lerp(new THREE.Color(0.98, 0.5, 0.22), dusk * 0.5);
   scene.fog.color.copy(hor).multiplyScalar(0.92);
   fogBase.copy(scene.fog.color);
@@ -374,6 +385,15 @@ function setTime(h) {
   fx2S.day = day;
   fx2S.dusk = dusk;
   applyLight(FX2, { sun, hemi, scene, envGround, sunDir, day, night });
+  if (ride.on && RFX.amb) {
+    const f = 1 + 0.8 * day;
+    hemi.intensity *= f;
+    scene.environmentIntensity *= f;
+    sun.intensity *= 1 - 0.2 * day;
+  }
+  structAmbUp.value = ride.on && RFX.amb ? 0.3 * day : 0;
+  stnDay = ride.on && RFX.plat ? day : 0;
+  stnRide.value = ride.cur?.kind === 2 ? 0 : stnDay;
   shared.uNight.value = night;
   if (facade) facade.uniforms.uNight.value = night;
   if (NC.far) {
@@ -473,10 +493,51 @@ vec2 gRot(vec2 p, float a){ float c = cos(a), s = sin(a); return vec2(c * p.x - 
     aeroGroundPatch(sh);
     shadeRainGround(sh);
     if (TW2.tone) toneGround(sh, TW2);
+    sh.fragmentShader = fxRep(sh.fragmentShader, "#include <lights_physical_fragment>", "#include <lights_physical_fragment>\n  { float gSpec = 1. - smoothstep(.7, .92, roughnessFactor); material.specularColor *= gSpec; material.specularF90 *= gSpec; }");
     if (FS.on) sh.fragmentShader = fxRep(sh.fragmentShader, "    wc = mix(wc, sat * 2.2, .22);", "    wc = mix(wc, sat * 2.2, .22 * (1. - uFsSea * smoothstep(40., 150., sd)));");
+    if (RFX.near) rideGroundPatch(sh);
+    if (RFX.night) hlInject(sh, 0.5);
   };
-  m.customProgramCacheKey = () => "land-ground-2" + AERO_KEY + FXKEY + P24KEY + (NC.glow ? "-n64" + (NC.far ? "f" : "") : "") + (FX2.ground || FX2.ao || HS2 ? FX2.key : "") + (FX3.ground || FX3.land ? FX3.key : "");
+  m.customProgramCacheKey = () => "land-ground-2" + (RFX.near ? "-rn" : "") + (RFX.night ? "-hl2" : "") + AERO_KEY + FXKEY + P24KEY + (NC.glow ? "-n64" + (NC.far ? "f" : "") : "") + (FX2.ground || FX2.ao || HS2 ? FX2.key : "") + (FX3.ground || FX3.land ? FX3.key : "");
   return m;
+}
+const rideNear = { value: 0 };
+const HL_I = +(params.get("hlI") || 500), hlU = { uHLW: { value: new THREE.Vector3() }, uHLD: { value: new THREE.Vector3(0, 0, -1) }, uHLon: { value: 0 } }, hlT = { value: 0 };
+const HL_GLSL = (wrap) => `if (uHLon > 0.) { vec3 hv = -vViewPosition - (viewMatrix * vec4(uHLW, 1.)).xyz; float hd = length(hv); vec3 hn = hv / max(hd, .01), Vh = normalize(vViewPosition), dV = normalize(mat3(viewMatrix) * uHLD), upV = normalize(viewMatrix[1].xyz);
+    float cs = dot(hn, dV), cone = (smoothstep(.988, .9995, cs) + .07 * smoothstep(.94, .988, cs)) * (1. - smoothstep(.02, .14, dot(hn, upV) - dot(dV, upV)));
+    float irr = min(uHLon * cone * ${HL_I.toFixed(1)} / (hd * hd + 25.) * mix(max(dot(normal, -hn), 0.), 1., ${wrap.toFixed(2)}), 1.5);
+    reflectedLight.directDiffuse += irr * BRDF_Lambert(material.diffuseColor);
+    reflectedLight.directSpecular += irr * material.specularColor * pow(max(dot(normal, normalize(Vh - hn)), 0.), mix(4., 80., 1. - material.roughness)) * .5${wrap > 0 ? `
+      + min(uHLon * smoothstep(.985, .9995, cs) * ${HL_I.toFixed(1)} / (hd * hd + 25.), 1.5) * material.specularColor * pow(1. - material.roughness, 2.) * 2.5` : ""}; }`;
+function hlInject(sh, wrap = 0) {
+  Object.assign(sh.uniforms, hlU);
+  sh.fragmentShader = fxRep(fxRep(sh.fragmentShader, "#include <common>", "#include <common>\nuniform vec3 uHLW, uHLD; uniform float uHLon;"), "#include <lights_fragment_end>", "#include <lights_fragment_end>\n" + HL_GLSL(wrap));
+}
+function addHL(m, wrap = 0) {
+  const ob = m.onBeforeCompile, k0 = m.customProgramCacheKey();
+  m.onBeforeCompile = function(sh, r) {
+    ob.call(this, sh, r);
+    hlInject(sh, wrap);
+  };
+  m.customProgramCacheKey = () => k0 + "-hl2";
+  m.needsUpdate = true;
+}
+function rideGroundPatch(sh) {
+  sh.uniforms.uRideNear = rideNear;
+  let f = fxRep(sh.fragmentShader, "uniform sampler2D tSat;", "uniform float uRideNear; uniform sampler2D tSat;");
+  const a = "float wat = max(smoothstep(-.8, .9, sd), smoothstep(.4, .62, pond));";
+  f = fxRep(f, a, `vec3 rBmp = vec3(0.);
+  if (uRideNear > .5 && uSize < 2000.) { float rF = 1. - smoothstep(90., 170., dist);
+    if (rF > .001) { vec3 a1 = gN(P / .32), a2 = gN(P / 1.1 + 19.7), a3 = gN(P / 3.7 + 43.1);
+      float v1 = 1. - smoothstep(.2, .55, pxm / .32), v2 = 1. - smoothstep(.2, .55, pxm / 1.1), v3 = 1. - smoothstep(.2, .55, pxm / 3.7), hard = 1. - .7 * clamp(foot * 1.5, 0., 1.);
+      float dt = (a1.x - .5) * v1 * .9 + (a2.x - .5) * v2 * .8 + (a3.x - .5) * v3 * .6;
+      land *= 1. + dt * mix(.16, .34, veg) * hard * rF;
+      land = mix(land, land * vec3(1.18, 1.1, .78), veg * smoothstep(.55, .8, a2.x) * v2 * .5 * rF);
+      land *= 1. + (1. - veg) * hard * (gH(floor(P / .09)) - .5) * .22 * (1. - smoothstep(.03, .09, pxm)) * rF;
+      vec2 g = a1.yz * (.02 / .32) * v1 + a2.yz * (.025 / 1.1) * v2 + a3.yz * (.035 / 3.7) * v3; rBmp = vec3(-g.x, 0., g.y) * hard * rF; } }
+  ${a}`);
+  f = fxRep(f, "normal = normalize(mix(normal, normalize(mat3(viewMatrix) * gNrm), wat));", "normal = normalize(mix(normal, normalize(mat3(viewMatrix) * gNrm), wat));\nnormal = normalize(normal + mat3(viewMatrix) * rBmp * (1. - wat));");
+  sh.fragmentShader = f;
 }
 const P24KEY = (P24.wq === 0 ? "-wq0" : "") + (params.get("dbg") === "wat" ? "-dbgw" : "");
 function p24Ground(sh) {
@@ -551,11 +612,17 @@ const geom = (o, extra = {}) => {
   return g;
 };
 const geomBytes = (g) => [...new Set(Object.values(g.attributes))].reduce((s, a) => s + (a.array?.byteLength || a.data?.array.byteLength || 0), 0) + (g.index?.array.byteLength || 0);
+const trackTy = { value: 0 };
+const whSec = (tr, E, N) => tr.gauge !== 1880 || !RFX.girder ? 0 : N < 2770420 ? 1 : N < 2773400 && E < 305600 ? 2 : 3;
+const trackType = (tr, E, N) => tr.gauge === 1880 ? whSec(tr, E, N) === 3 ? 4 : 2 : /^thsr/.test(tr.system) ? tr.service === "yard" ? 0 : 3 : tr.kind === 1 && /^(mrt|krtc|tymc|sanying|tmrt|ntalrt|ntdlrt)$/.test(tr.system) && tr.service !== "yard" ? 1 : 0;
 const railMat = new THREE.MeshStandardMaterial({ roughness: 0.95, metalness: 0, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -6 });
 railMat.onBeforeCompile = (sh) => {
-  sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nattribute vec3 aRail; varying vec3 vRail3;").replace("#include <begin_vertex>", "#include <begin_vertex>\nvRail3 = aRail;");
+  sh.uniforms.uTrackTy = trackTy;
+  sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nattribute vec3 aRail; attribute float aRailTy; uniform float uTrackTy; varying vec3 vRail3; varying float vRailTy;").replace("#include <begin_vertex>", "#include <begin_vertex>\nvRail3 = aRail; vRailTy = aRailTy; if (uTrackTy > .5 && aRailTy > 7.5) transformed.y += .015;");
   sh.fragmentShader = sh.fragmentShader.replace("#include <common>", `#include <common>
-varying vec3 vRail3;
+varying vec3 vRail3; varying float vRailTy; uniform float uTrackTy;
+float rBnd(float x, float a, float b, float p) { return clamp((x - a) / p + .5, 0., 1.) * clamp((b - x) / p + .5, 0., 1.); }
+float rEdg(float x, float c, float w, float p) { return (1. - smoothstep(w, w + p, abs(x - c))) * min(1., w * 3. / p); }
 float rH(vec2 p){ vec3 q = fract(vec3(p.xyx) * .1031); q += dot(q, q.yzx + 33.33); return fract((q.x + q.y) * q.z); }
 float rN(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); return mix(mix(rH(i), rH(i + vec2(1., 0.)), f.x), mix(rH(i + vec2(0., 1.)), rH(i + vec2(1., 1.)), f.x), f.y); }`).replace("#include <map_fragment>", `
   vec2 vRail = vRail3.xy; float uHalfGauge = vRail3.z;
@@ -570,6 +637,37 @@ float rN(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); re
   float steel = clamp((.036 - rd) / px + .5, 0., 1.) * min(1., .072 / px + .25);
   rc = mix(rc, vec3(.58, .58, .57), steel);
   float rRough = mix(.95, .32, steel), rMetal = steel * .85;
+  if (uTrackTy > .5 && vRailTy > .5) {   // 車頭車窗原型線 1b：搭乘時軌道照系統畫（trackType()；俯視 uTrackTy＝0，照舊是道碴）
+    float tyX = step(7.5, vRailTy), ty = vRailTy - 8. * tyX;   // 渡線、側線：vertex 抬高 1.5 cm，這裡只留走行面／承軌台／鋼軌，其餘丟掉，底下露出正線（兩條帶疊在一起不打架）
+    float au = abs(ru), hg = uHalfGauge, fine = 1. - smoothstep(.04, .16, px), nz = .86 + .28 * rN(vRail * vec2(1.3, .35));
+    vec3 c; float gm = 0.;
+    float keep = ty < 1.5 ? rBnd(au, hg - .22, hg + .22, .02) : (ty < 2.5 || ty > 3.5) ? rBnd(au, hg - .28, hg + .28, .02) : rBnd(au, hg - .2, hg + .2, .02);
+    if (tyX > .5 && keep < .5) discard;
+    if (ty < 1.5) {                 // 捷運高架：混凝土道床，每根鋼軌下一條承軌台、扣件每 0.6 m，中間一帶被鐵粉染成鏽褐（明德站望芝山 2020 照片）
+      vec3 deck = vec3(.42, .395, .36) * nz, rust = vec3(.34, .25, .19) * nz;
+      c = au < hg ? mix(deck, rust, .8) : mix(deck, rust, .35 * (1. - smoothstep(hg + .2, hg + .9, au)));
+      c = mix(c, vec3(.47, .42, .37) * nz, rBnd(au, hg - .22, hg + .22, px));
+      c *= 1. - .45 * min(1., rEdg(au, hg - .22, .025, px) + rEdg(au, hg + .22, .025, px));
+      c = mix(c, vec3(.13, .12, .11), rBnd(abs(au - hg), .05, .14, px) * (1. - smoothstep(.06, .06 + px, tv)) * fine * .85);
+    } else if (ty < 2.5 || ty > 3.5) {          // 文湖線（ty 4＝內湖段，走行面是鋼板：2010 內湖線車頭照片裡是亮的金屬面）：膠輪走在兩條混凝土走行面上（中心距 1880 mm），外側是導軌與絕緣礙子，沒有鋼軌與枕木（忠孝復興—南京復興車頭 2021 照片）
+      steel = 0.;
+      c = (au < hg ? vec3(.17, .17, .165) : vec3(.21, .205, .195)) * nz;
+      float pad = rBnd(au, hg - .28, hg + .28, px), jd = (.5 - abs(fract(rv / 5.) - .5)) * 5.;
+      float stl = step(3.5, ty);
+      c = mix(c, mix(vec3(.66, .65, .62), vec3(.60, .61, .62), stl) * (.92 + .16 * rN(vRail * vec2(2., .5))) * (1. - .3 * (1. - smoothstep(.015, .015 + px, jd)) * fine), pad);
+      c *= 1. - .5 * min(1., rEdg(au, hg - .28, .03, px) + rEdg(au, hg + .28, .03, px) + rEdg(au, 0., .015, px));
+      float gb = rBnd(au, 1.40, 1.50, px), ins = rBnd(au, 1.50, 1.60, px) * (1. - smoothstep(.07, .07 + px, (.5 - abs(fract(rv / 2.) - .5)) * 2.)) * fine;
+      c = mix(mix(c, vec3(.36, .36, .37), gb), vec3(.85, .85, .82), ins); gm = max(gb * .5, pad * stl * .75);
+    } else {                             // 高鐵：板式軌道，軌道板寬 2.55 m、每 4.95 m 一道板縫，扣件每 0.65 m；板外是橋面混凝土
+      float slab = 1. - smoothstep(1.28 - px * .5, 1.28 + px * .5, au), jd = (.5 - abs(fract(rv / 4.95) - .5)) * 4.95, tf = abs(fract(rv / .65) - .5) * .65;
+      c = mix(vec3(.47, .46, .43) * nz, vec3(.60, .59, .56) * (.93 + .14 * rN(vRail * vec2(1.5, .3))), slab);
+      c *= 1. - .5 * slab * (1. - smoothstep(.02, .02 + px, jd)) * min(1., .06 / px);
+      c *= 1. - .45 * rEdg(au, 1.28, .03, px);
+      c = mix(c, vec3(.14, .13, .12), rBnd(abs(au - hg), .06, .17, px) * (1. - smoothstep(.07, .07 + px, tf)) * fine * .85);
+    }
+    rc = mix(c, vec3(.58, .58, .57), steel);
+    rRough = mix(.9, .32, max(steel, gm)); rMetal = max(steel, gm) * .85;
+  }
   diffuseColor.rgb = rc;`).replace("#include <roughnessmap_fragment>", "float roughnessFactor = rRough;").replace("#include <metalnessmap_fragment>", "float metalnessFactor = rMetal;");
   if (TW2.yard) sh.fragmentShader = sh.fragmentShader.replace("float uHalfGauge = vRail3.z;", "float yd = step(5., vRail3.z), uHalfGauge = vRail3.z - 10. * yd;").replace("rc = mix(rc, vec3(.58, .58, .57), steel);", "rc = mix(rc, vec3(.29, .245, .2) * (.7 + .6 * grain), yd * (1. - tie) * .6); rc = mix(rc, mix(vec3(.58, .58, .57), vec3(.42, .27, .18), yd), steel); steel *= 1. - .75 * yd;");
   shadeRainRail(sh);
@@ -617,6 +715,32 @@ if (street) window.__tw2street = { stat: () => ({ ...street.stat(), mtree: [...t
 const wallMat = new THREE.MeshStandardMaterial({ color: 9408136, roughness: 0.92, metalness: 0, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
 let ugPortalMat = null, lxMat = null;
 const treeMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 });
+if (RFX.near) {
+  treeMat.onBeforeCompile = (sh) => {
+    sh.uniforms.uRideNear = rideNear;
+    sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nuniform float uRideNear; varying float vTF; varying vec3 vTP, vTC, vTS, vCamM;").replace("#include <beginnormal_vertex>", `#include <beginnormal_vertex>
+  vTF = 0.; vTP = position; vTC = vec3(0.); vTS = vec3(1.); vCamM = vec3(0.);
+#ifdef USE_INSTANCING
+  if (uRideNear > .5) { vTF = 1. - smoothstep(120., 170., distance(cameraPosition, (modelMatrix * instanceMatrix * vec4(0., .8, 0., 1.)).xyz)); vTP = (instanceMatrix * vec4(position, 1.)).xyz;
+    vTC = (instanceMatrix * vec4(0., .8, 0., 1.)).xyz; vTS = vec3(length(instanceMatrix[0].xyz), length(instanceMatrix[1].xyz), length(instanceMatrix[2].xyz)); vCamM = cameraPosition - modelMatrix[3].xyz;
+    vec3 dd = position - vec3(0., .8, 0.); dd.y /= dd.y > 0. ? .72 : .36; objectNormal = normalize(mix(objectNormal, normalize(dd), vTF)); }
+#endif`);
+    sh.fragmentShader = sh.fragmentShader.replace("#include <common>", `#include <common>
+uniform float uRideNear; varying float vTF; varying vec3 vTP, vTC, vTS, vCamM;
+float tH3(vec3 p){ p = fract(p * .1031); p += dot(p, p.zyx + 31.32); return fract((p.x + p.y) * p.z); }
+float tN3(vec3 p){ vec3 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f);
+  return mix(mix(mix(tH3(i), tH3(i + vec3(1., 0., 0.)), f.x), mix(tH3(i + vec3(0., 1., 0.)), tH3(i + vec3(1., 1., 0.)), f.x), f.y), mix(mix(tH3(i + vec3(0., 0., 1.)), tH3(i + vec3(1., 0., 1.)), f.x), mix(tH3(i + vec3(0., 1., 1.)), tH3(i + vec3(1., 1., 1.)), f.x), f.y), f.z); }`).replace("#include <color_fragment>", `#include <color_fragment>
+  float tLf = .5, tLh = .5; if (uRideNear > .5) { tLf = tN3(vTP / .55) * .6 + tN3(vTP / 1.7 + 5.3) * .4; tLh = tN3(vTP / .16 + 11.); diffuseColor.rgb *= mix(1., .5 + tLf + (tLh - .5) * .3, vTF); }`).replace("#include <normal_fragment_maps>", `#include <normal_fragment_maps>
+  if (uRideNear > .5) { float rim = 1. - abs(dot(normal, normalize(vViewPosition)));
+    float bh = (tLf * .35 + tLh * .06) * vTF; vec3 sx = dFdx(-vViewPosition), sy = dFdy(-vViewPosition), r1 = cross(sy, normal), r2 = cross(normal, sx); float det = dot(sx, r1);
+    normal = normalize(abs(det) * normal - sign(det) * (dFdx(bh) * r1 + dFdy(bh) * r2));
+    // 輪廓：視線到樹冠橢球（中心在幾何 y＝0.8、半徑 0.9（二十面體頂點 1、面中心 0.8，樹冠大小跟俯視差不多）、上半扁 0.85、下半 0.6）中心的最近距離，超過「1＋方向雜訊＋葉級雜訊」就丟——輪廓變圓、邊緣不規則；側對的面也丟（不留細線）
+    vec3 E = vTS * vec3(.9, .9 * (vTP.y > vTC.y ? .85 : .6), .9), o = (vCamM - vTC) / E, d = normalize((vTP - vCamM) / E), q = o - d * dot(o, d);
+    vec3 fn = normalize(cross(dFdx(vViewPosition), dFdy(vViewPosition)));
+    if (vTF > .2 && (length(q) > 1. + .34 * (tN3(normalize(q) * 2.2 + vTC * .37) - .5) + .12 * (tLh - .5) || rim > .9 || abs(dot(fn, normalize(vViewPosition))) < .18)) discard; }`);
+  };
+  treeMat.customProgramCacheKey = () => "tree-rn1";
+}
 const makeTreeGeo = (detail) => {
   const geo = new THREE.IcosahedronGeometry(1, detail), p = geo.attributes.position, c = new Float32Array(p.count * 3), hsh = (x, y, z) => {
     const s = Math.sin(x * 12.9898 + y * 78.233 + z * 37.719) * 43758.5453;
@@ -634,6 +758,7 @@ const makeTreeGeo = (detail) => {
 };
 const treeLo = makeTreeGeo(0), treeHi = coarse ? treeLo : makeTreeGeo(1), sharedGeo = /* @__PURE__ */ new Set([treeLo, treeHi]);
 const stationSolid = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.05, roughness: 0.62, side: THREE.DoubleSide }), stationGlass = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.25, roughness: 0.3, side: THREE.DoubleSide });
+const stationSolidLm = stationSolid.clone();
 const modelLights = createModelLights();
 const stationLit = /* @__PURE__ */ new Map(), stationLitOn = { v: 0 };
 const BLOOM_ON = (params.has("nbloom") ? params.get("nbloom") === "1" : !coarse && params.get("n64") !== "0") || FX2.bloom, LIT_GAIN = BLOOM_ON ? 1 : 1.6, WEEK_GAIN = BLOOM_ON ? 1 : 0.7;
@@ -666,7 +791,7 @@ const stationWeeklyMat = (part) => {
   return w.m;
 };
 const isWeekly = (part) => Array.isArray(part.nightEmissiveWeekly) && part.nightEmissiveWeekly.length === 7;
-function stationGroup(buf, lod, site, parts) {
+function stationGroup(buf, lod, lm, site, parts) {
   const siteId = site.id;
   const { pos, nor, index: index2 } = decodeStation(buf, lod), n = lod.vertexCount, col = new Float32Array(n * 3), solid = [], glass = [], lit = /* @__PURE__ */ new Map(), wk = /* @__PURE__ */ new Map();
   for (const raw of parts) {
@@ -683,7 +808,7 @@ function stationGroup(buf, lod, site, parts) {
   const g = new THREE.Group();
   g.rotation.x = -Math.PI / 2;
   const pa = new THREE.BufferAttribute(pos, 3), na = new THREE.BufferAttribute(nor, 3, true), ca = new THREE.BufferAttribute(col, 3);
-  for (const [list, mat] of [[solid, stationSolid], [glass, stationGlass], ...[...lit].map(([k, l]) => [l, stationLitMat(k.split(",").map(Number))]), ...[...wk].map(([part, l]) => [l, stationWeeklyMat(part)])]) {
+  for (const [list, mat] of [[solid, lm ? stationSolidLm : stationSolid], [glass, stationGlass], ...[...lit].map(([k, l]) => [l, stationLitMat(k.split(",").map(Number))]), ...[...wk].map(([part, l]) => [l, stationWeeklyMat(part)])]) {
     if (!list.length) continue;
     const bg = new THREE.BufferGeometry();
     bg.setAttribute("position", pa);
@@ -927,13 +1052,13 @@ async function loadTile(id, ti, tj, n = 0) {
   });
   if (TW2.ocs || TW2.lrt) t.tw2Tracks = rails.tracks;
   tm("tile.rail", () => {
-    const pos = [], nor = [], rl = [], idx = [], rc = RHL?.band ? [] : null;
+    const pos = [], nor = [], rl = [], ty = [], idx = [], rc = RHL?.band ? [] : null;
     let n2 = 0;
     const SEC0 = RHL?.band ? RHL.band.SEC : [[-2.6, -0.62], [-1.7, -0.17], [1.7, -0.17], [2.6, -0.62]];
     for (const tr of rails.tracks) {
       if (tr.kind === 2) continue;
       const yd = TW2.yard && !RHL?.band && tr.kind !== 1 && (tr.service === "yard" || tr.service === "siding" || tr.service === "spur"), SEC = yd ? TW2_YARD_SEC : SEC0;
-      const rcol = rc && RHL.band.color(tr), m = tr.p.length / 4, P = (i) => [tr.p[i * 4], tr.p[i * 4 + 1], tr.p[i * 4 + 2], tr.p[i * 4 + 3]], hg = tr.gauge / 2e3 + (yd ? 10 : 0), s0 = Math.floor(tr.p[3] / 600) * 600;
+      const rcol = rc && RHL.band.color(tr), m = tr.p.length / 4, P = (i) => [tr.p[i * 4], tr.p[i * 4 + 1], tr.p[i * 4 + 2], tr.p[i * 4 + 3]], hg = tr.gauge / 2e3 + (yd ? 10 : 0), s0 = Math.floor(tr.p[3] / 600) * 600, ty0 = trackType(tr, t.e0 + tr.p[0], t.n0 + tr.p[1]), tk = ty0 + (ty0 && (tr.service === "crossover" || tr.service === "siding") ? 8 : 0);
       for (let i = 0; i < m; i++) {
         const p = P(i), a = i > 0 ? P(i - 1) : tr.pre || p, b = i < m - 1 ? P(i + 1) : tr.post || p, l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, nx = -(b[1] - a[1]) / l, ny = (b[0] - a[0]) / l;
         for (let s = 0; s < 3; s++) {
@@ -942,6 +1067,7 @@ async function loadTile(id, ti, tj, n = 0) {
             pos.push(p[0] + nx * u, p[2] + dz, -(p[1] + ny * u));
             nor.push(Math.round(q[0] / ql * 127), Math.round(q[1] / ql * 127), Math.round(q[2] / ql * 127), 0);
             rl.push(u, p[3] - s0, hg);
+            ty.push(tk);
             if (rc) rc.push(...rcol);
           }
           if (i > 0) {
@@ -952,7 +1078,7 @@ async function loadTile(id, ti, tj, n = 0) {
         n2 += 6;
       }
     }
-    if (n2) t.rail = addMesh(t.group, geom({ pos: new Float32Array(pos), nor: new Int8Array(nor), idx: n2 > 65535 ? Uint32Array.from(idx) : Uint16Array.from(idx) }, { aRail: new THREE.BufferAttribute(new Float32Array(rl), 3), ...rc ? { aRCol: new THREE.BufferAttribute(new Float32Array(rc), 3) } : {} }), railMat, { cast: false });
+    if (n2) t.rail = addMesh(t.group, geom({ pos: new Float32Array(pos), nor: new Int8Array(nor), idx: n2 > 65535 ? Uint32Array.from(idx) : Uint16Array.from(idx) }, { aRail: new THREE.BufferAttribute(new Float32Array(rl), 3), aRailTy: new THREE.BufferAttribute(new Uint8Array(ty), 1), ...rc ? { aRCol: new THREE.BufferAttribute(new Float32Array(rc), 3) } : {} }), railMat, { cast: false });
   });
   if (RHL) tm("tile.railhl", () => RHL.tileLines(t, rails, local));
   tm("tile.struct", () => {
@@ -961,7 +1087,7 @@ async function loadTile(id, ti, tj, n = 0) {
       if (tr.kind !== 1) continue;
       for (let i = 4; i < tr.p.length; i += 4) {
         const a = [tr.p[i - 4], tr.p[i - 3], tr.p[i - 2]], b = [tr.p[i], tr.p[i + 1], tr.p[i + 2]];
-        segs.push({ a, b, groundA: local(a[0], a[1]), groundB: local(b[0], b[1]), bridge: true });
+        segs.push({ a, b, groundA: local(a[0], a[1]), groundB: local(b[0], b[1]), bridge: true, wh: whSec(tr, t.e0 + a[0], t.n0 + a[1]) });
       }
     }
     const portals = groupTunnelPortals(rails.portals.map((p) => ({ ...p })));
@@ -1046,9 +1172,9 @@ async function loadTile(id, ti, tj, n = 0) {
   });
   t.stations = [];
   for (const [k, s] of (P24.stn ? stations : []).entries()) {
-    const lod = s.lods.far || s.lods.near, buf = await (pStn ? pStn[k] : bin(url + lod.file, V(lod.file), n)), g = tm("tile.station", () => modelLights.group(s, lod, (parts) => stationGroup(buf, lod, s, parts), stationSolid, stationGlass));
+    const lod = s.lods.far || s.lods.near, buf = await (pStn ? pStn[k] : bin(url + lod.file, V(lod.file), n)), g = tm("tile.station", () => modelLights.group(s, lod, (parts) => stationGroup(buf, lod, s.set === "landmarks", s, parts), s.set === "landmarks" ? stationSolidLm : stationSolid, stationGlass));
     t.group.add(g);
-    t.stations.push({ id: s.id, name: s.name, far: g, near: s.lods.far && !P24.stnFar ? s.lods.near : null, at: s.at });
+    t.stations.push({ id: s.id, name: s.name, lm: s.set === "landmarks", far: g, near: s.lods.far && !P24.stnFar ? s.lods.near : null, at: s.at });
   }
   if (base.lamp || lampRoads) {
     const [rd, tunnels] = base.lamp ? [null, null] : await Promise.all([lampRoads, tunnelDetail(url)]);
@@ -1166,9 +1292,17 @@ function mtSlots(t, inR) {
   M.a = act.length;
   shadowDirty = true;
 }
+function phoneTrees(buf, meta) {
+  const ft = meta?.forestTrees, a = ft?.added, nAll = Math.floor(buf.byteLength / 10);
+  if (LIMIT.forestAdd || !a || ft.base + a !== nAll) return buf;
+  const src = new Uint8Array(buf), out = new Uint8Array(ft.base * 10);
+  let k = 0;
+  for (let i = 0; i < nAll; i++) if (Math.floor((i + 1) * a / nAll) <= Math.floor(i * a / nAll)) out.set(src.subarray(i * 10, i * 10 + 10), 10 * k++);
+  return k === ft.base ? out.buffer : buf;
+}
 async function loadNear(t, rn = 0) {
   t.near = "loading";
-  const url = DATA + t.id + "/", V = (name) => vspec(t.meta.files, name), [r, treeBuf] = await Promise.all([job("near", { url, chunk: LIMIT.chunk, skip: SKIP, lines: P28.rdLines, farStep: P28.rdFar > 0 ? P28.rdStep : 0, deck: P28.rdDeck, pier: P28.rdPier, side: P28.rdSide, rdMode: P28.rdMode, ...FX3.worker ? { fx3: FX3.worker } : {}, inner: P28.fSide && !P28.fBasic && P28.fInner ? 1 : 0, vf: t.vf, rn }), bin(url + "trees.bin", V("trees.bin"), rn)]);
+  const url = DATA + t.id + "/", V = (name) => vspec(t.meta.files, name), [r, treeBuf] = await Promise.all([job("near", { url, chunk: LIMIT.chunk, skip: SKIP, lines: P28.rdLines, farStep: P28.rdFar > 0 ? P28.rdStep : 0, deck: P28.rdDeck, pier: P28.rdPier, side: P28.rdSide, rdMode: P28.rdMode, ...FX3.worker ? { fx3: FX3.worker } : {}, inner: P28.fSide && !P28.fBasic && P28.fInner ? 1 : 0, vf: t.vf, rn }), bin(url + "trees.bin", V("trees.bin"), rn).then((b) => phoneTrees(b, t.meta))]);
   if (!tiles.has(t.id) || t.near !== "loading") return;
   const g = new THREE.Group();
   let bytes = 0;
@@ -1255,7 +1389,7 @@ async function loadNear(t, rn = 0) {
     }), p))(bin(url + st.near.file, V(st.near.file), rn)) : null) : null;
     for (const [k, st] of t.stations.entries()) {
       if (!st.near) continue;
-      const sb = await (pNs ? pNs[k] : bin(url + st.near.file, V(st.near.file), rn)), sg = tm("near.station", () => modelLights.group(st, st.near, (parts) => stationGroup(sb, st.near, st, parts), stationSolid, stationGlass));
+      const sb = await (pNs ? pNs[k] : bin(url + st.near.file, V(st.near.file), rn)), sg = tm("near.station", () => modelLights.group(st, st.near, (parts) => stationGroup(sb, st.near, st.lm, st, parts), st.lm ? stationSolidLm : stationSolid, stationGlass));
       g.add(sg);
       st.nearG = sg;
       bytes += sg.userData.bytes;
@@ -1930,6 +2064,11 @@ function rideCamera() {
   const ce = here[0] + le * c.side, cn = here[1] + ln * c.side, cy = z + c.h;
   camera.position.set(ce - origin.e, cy, -(cn - origin.n));
   camera.lookAt(ce - origin.e + de * Math.cos(pit), cy + Math.sin(pit), -(cn - origin.n) - dn * Math.cos(pit));
+  if (RFX.cab) {
+    const v = Math.min(1, (ride.kmh || 0) / 100);
+    camera.position.y += v * (0.012 * Math.sin(s / 3.1) + 6e-3 * Math.sin(s / 1.37 + 1.7));
+    camera.rotateZ(v * (35e-4 * Math.sin(s / 23) + 15e-4 * Math.sin(s / 7.9 + 0.5)));
+  }
   const aspect = H.w() / H.h(), A0 = c.fov * Math.PI / 180;
   camera.fov = (aspect >= 1 ? 2 * Math.atan(Math.tan(A0 / 2) / aspect) : A0) * 180 / Math.PI;
   camera.near = 0.5;
@@ -1944,6 +2083,8 @@ function rideCamera() {
   view.az = Math.atan2(de, dn);
   view.pitch = 0.3;
   ride.cur = { e: ce, n: cn, y: cy, de, dn, kind: here[3], ground: groundAt(ce, cn) };
+  stnRide.value = here[3] === 2 ? 0 : stnDay;
+  ride.hl = { e: here[0] + fe, n: here[1] + fn, y: z + 1.1, de: fe, dn: fn, dy: (routeAt(r, s + 20)[2] - here[2]) / 20 - 0.02 };
 }
 function rebaseTo(e, n) {
   origin.e = Math.floor(e / TILE_M) * TILE_M;
@@ -1955,14 +2096,21 @@ function rebaseTo(e, n) {
 async function rideStart(name, cam = ride.cam, s0 = 0) {
   const r = await rideLoad(name);
   Object.assign(ride, { on: true, name, route: r, cam: RIDE_CAMS[cam] ? cam : "front", s: Math.max(0, Math.min(r.lengthM, s0)), s0, yaw: 0, pitch: 0, done: false });
+  ride.plan = await ridePlan(r, name);
+  if (ride.plan) {
+    ride.t = ride.plan.tAt(ride.s);
+    ride.kmh = ride.plan.vAtS(ride.s);
+  }
   const p = routeAt(r, ride.s);
   if (Math.hypot(p[0] - origin.e, p[1] - origin.n) > 6e3) rebaseTo(p[0], p[1]);
+  setTime(hour);
   rideCamera();
   schedule();
   rideUI();
 }
 function rideExit() {
   ride.on = false;
+  setTime(hour);
   camera.fov = 42;
   camera.updateProjectionMatrix();
   rideUI();
@@ -1975,6 +2123,10 @@ function rideSet(o) {
   if (o.s != null) {
     ride.s = Math.max(0, Math.min(ride.route.lengthM, o.s));
     ride.done = false;
+    if (ride.plan) {
+      ride.t = ride.plan.tAt(ride.s);
+      ride.kmh = ride.plan.vAtS(ride.s);
+    }
   }
   if (o.yaw != null) ride.yaw = Math.max(-60, Math.min(60, o.yaw));
   if (o.paused != null) ride.paused = !!o.paused;
@@ -1985,13 +2137,42 @@ function rideSet(o) {
   }
   rideUI();
 }
+const RUN_EST = { metro: { label: "捷運（估計）", a0: 1, vA: 40, b: 1, v: 80, tilt: false, lenM: 140 }, tymc: { label: "機捷普通車（估計）", a0: 0.9, vA: 50, b: 1, v: 100, tilt: false, lenM: 90 }, thsr: { label: "高鐵（估計）", a0: 0.45, vA: 100, b: 0.75, v: 300, tilt: false, lenM: 304 } };
+async function ridePlan(r, name) {
+  if (!RFX.run) return null;
+  if (r._plan !== void 0) return r._plan;
+  let p = null;
+  try {
+    const plat = await fetch(`ride/plat/${name}.json`, { cache: "no-cache" }).then((q) => q.ok ? q.json() : null).catch(() => null);
+    const stations = r.stations.map((st) => {
+      const q = plat?.stations?.find((x) => x.name === st.name && Math.abs(x.s - st.s) < 80), end = q?.runs?.length ? Math.max(...q.runs.map((x) => x.s1)) - 8 : null;
+      return end && end > st.s ? { ...st, s: Math.min(end, st.s + 150) } : st;
+    });
+    const metro = /^(mrt|krtc|tmrt|sanying|ntalrt|ntdlrt)/.test(name), train = /^thsr/.test(name) ? RUN_EST.thsr : /^tymc/.test(name) ? RUN_EST.tymc : metro ? RUN_EST.metro : "emu900";
+    p = planMotion({ ...r, stations }, { train, stops: stations.map((q) => q.name), dwell: metro ? 25 : 30 });
+  } catch (e) {
+    console.warn("行車模型沒算出來，照等速：", e);
+  }
+  return r._plan = p;
+}
 function rideStep(dt) {
   if (!ride.on || ride.paused) return;
-  ride.s += ride.kmh / 3.6 * Math.min(dt, 100) / 1e3;
-  if (ride.s >= ride.route.lengthM) {
-    ride.s = ride.route.lengthM;
-    ride.paused = ride.done = true;
-    rideUI();
+  const m = ride.plan;
+  if (m) {
+    ride.t += Math.min(dt, 100) / 1e3;
+    ride.s = m.sAt(ride.t);
+    ride.kmh = m.vAt(ride.t);
+    if (ride.t >= m.t1) {
+      ride.paused = ride.done = true;
+      rideUI();
+    }
+  } else {
+    ride.s += ride.kmh / 3.6 * Math.min(dt, 100) / 1e3;
+    if (ride.s >= ride.route.lengthM) {
+      ride.s = ride.route.lengthM;
+      ride.paused = ride.done = true;
+      rideUI();
+    }
   }
   rideCamera();
 }
@@ -2138,7 +2319,83 @@ $("time").value = hour;
   origin.n = Math.floor(o.n / TILE_M) * TILE_M;
   setView(o);
 }
-const rideUg = await createRideUg({ DATA, renderer, scene, camera, tiles, sv: SV });
+const rideUg = await createRideUg({ DATA, renderer, scene, camera, tiles, sv: SV, hl: { uHLW: hlU.uHLW, uHLD: hlU.uHLD, uHLT: hlT } });
+const rideStn = createRideStn({ scene, origin, routeAt, getNight: () => night, plat: RFX.plat });
+const rideCab = createRideCab({ renderer }), cabKind = (name) => /^thsr/.test(name) ? "thsr" : /^(mrt|tymc|krtc|tmrt|sanying|ntalrt|ntdlrt)/.test(name) ? "metro" : "tra";
+if (RFX.night) {
+  for (const m of [railMat, roadMat]) addHL(m, 0.5);
+  for (const m of [treeMat, wallMat, stationSolid, stationSolidLm, stationGlass]) addHL(m);
+}
+if (RFX.plat) {
+  const ob = stationSolid.onBeforeCompile, k0 = stationSolid.customProgramCacheKey();
+  stationSolid.onBeforeCompile = function(sh, r) {
+    ob.call(this, sh, r);
+    sh.uniforms.uStnRide = stnRide;
+    sh.fragmentShader = fxRep(
+      fxRep(
+        fxRep(sh.fragmentShader, "#include <common>", "#include <common>\nuniform float uStnRide;"),
+        "#include <lights_physical_fragment>",
+        "#include <lights_physical_fragment>\n  material.specularColor *= 1. - .85 * uStnRide; material.specularF90 *= 1. - .85 * uStnRide;"
+      ),
+      "#include <lights_fragment_end>",
+      "  { vec3 L = vec3(.2126, .7152, .0722), w = vec3(1.03, 1., .95); float k = .85 * uStnRide; irradiance = mix(irradiance, dot(irradiance, L) * w, k); iblIrradiance = mix(iblIrradiance, dot(iblIrradiance, L) * w, k); }\n#include <lights_fragment_end>\n  reflectedLight.indirectDiffuse *= 1. - .45 * uStnRide; reflectedLight.directDiffuse *= 1. - .2 * uStnRide; reflectedLight.directSpecular *= 1. - .2 * uStnRide;"
+    );
+  };
+  stationSolid.customProgramCacheKey = () => k0 + "-plat";
+  stationSolid.needsUpdate = true;
+}
+function hlStep() {
+  const h = ride.on && RFX.night ? ride.hl : null;
+  hlU.uHLon.value = h ? night : 0;
+  hlT.value = h ? 1 : 0;
+  if (!h) return;
+  hlU.uHLW.value.set(h.e - origin.e, h.y, -(h.n - origin.n));
+  hlU.uHLD.value.set(h.de, h.dy, -h.dn).normalize();
+}
+const trunks = (() => {
+  const g = new THREE.CylinderGeometry(0.045, 0.075, 0.9, 5, 1, true);
+  g.translate(0, 0.45, 0);
+  const m = new THREE.InstancedMesh(g, new THREE.MeshStandardMaterial({ color: 2828324, roughness: 0.92 }), 4e3);
+  m.count = 0;
+  m.frustumCulled = false;
+  m.name = "ride-trunks";
+  scene.add(m);
+  return m;
+})();
+let trunkAt = 0;
+const trunkV = new THREE.Vector3(), shown = (o) => {
+  for (; o; o = o.parent) if (!o.visible) return false;
+  return true;
+};
+function rideTrunks(now) {
+  if (!(ride.on && RFX.near)) {
+    trunks.count = 0;
+    return;
+  }
+  if (now - trunkAt < 200) return;
+  trunkAt = now;
+  const c = camera.position, A = trunks.instanceMatrix.array, max = trunks.instanceMatrix.count, R = 220;
+  let k = 0;
+  for (const t of tiles.values()) {
+    const m = t.near?.treeMesh;
+    if (!m || !shown(m)) continue;
+    m.getWorldPosition(trunkV);
+    const lx = c.x - trunkV.x, lz = c.z - trunkV.z;
+    if (lx < -R || lx > TILE_M + R || lz > R || lz < -TILE_M - R) continue;
+    const B = m.instanceMatrix.array;
+    for (let i = 0; i < m.count && k < max; i++) {
+      const o = i * 16, dx = B[o + 12] - lx, dz = B[o + 14] - lz;
+      if (dx * dx + dz * dz > R * R) continue;
+      for (let q = 0; q < 16; q++) A[k * 16 + q] = B[o + q];
+      A[k * 16 + 12] += trunkV.x;
+      A[k * 16 + 13] += trunkV.y;
+      A[k * 16 + 14] += trunkV.z;
+      k++;
+    }
+  }
+  trunks.count = k;
+  trunks.instanceMatrix.needsUpdate = true;
+}
 const trains = await createTrainsLayer({ THREE, scene, origin, params, tileReady: (e, n) => tiles.get(tileId(Math.floor(e / TILE_M), Math.floor(n / TILE_M)))?.state === "ready" });
 if (params.get("ride") && !params.get("bench")) {
   await rideStart(params.get("ride"), params.get("cam") || "front", +(params.get("s0") || 0));
@@ -2151,7 +2408,7 @@ function hsKey() {
   return k;
 }
 function hsCasters() {
-  const mats = new Set([simpleMat, facadeMat, facade.material, facadeFarMat, stationSolid, ...stationLit.values()].filter(Boolean)), out = [];
+  const mats = new Set([simpleMat, facadeMat, facade.material, facadeFarMat, stationSolid, stationSolidLm, ...stationLit.values()].filter(Boolean)), out = [];
   for (const t of tiles.values()) if (t.state === "ready") t.group.traverse((o) => {
     if (o.isMesh && !o.isInstancedMesh && o.visible && o.layers.isEnabled(0) && (mats.has(modelLights.original(o.material)) || o === t.structMesh)) out.push(o);
   });
@@ -2231,6 +2488,7 @@ const drawFrame = () => {
   if (bloom && night > 0.02) bloom.render(scene, camera, (0.2 + 0.5 * night) * smooth(0.02, 0.3, night));
   else if (bloom && FX2.bloom) bloom.render(scene, camera, FX2.T.bk, FX2.T.bt);
   else renderer.render(scene, camera);
+  rideCab.draw();
 };
 window.__n64 = { NC, draw: drawFrame, bloom: !!bloom };
 const fx2Size = new THREE.Vector2();
@@ -2269,6 +2527,11 @@ const TW2_YARD_SEC = [[-1.85, -0.4], [-1.4, -0.17], [1.4, -0.17], [1.85, -0.4]];
 const tw2PlatIx = TW2.plat ? jget(DATA + "platforms-index.json", SV.root("platforms-index.json")).then((r) => r.ok ? r.json() : null).catch(() => null) : null;
 const tw2Btype = TW2.btype ? jget(DATA + "bridges-index.json", SV.root("bridges-index.json")).then((r) => r.ok ? r.json() : null).catch(() => null) : null, tw2BrMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0, side: THREE.DoubleSide });
 const tw2OcsMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(TW2.num("ocsc", 0.2), TW2.num("ocsc", 0.2) * 1.02, TW2.num("ocsc", 0.2) * 1.05), side: THREE.DoubleSide });
+const ocsBase = [tw2OcsMat.color.clone(), tw2LineMat.color.clone(), tw2PylonMat.color.clone()];
+function ocsNightStep() {
+  const k = ride.on && RFX.night ? 1 - 0.85 * night : 1;
+  [tw2OcsMat, tw2LineMat, tw2PylonMat].forEach((m, i) => m.color.copy(ocsBase[i]).multiplyScalar(k));
+}
 function tw2OcsBuild(t, g) {
   const lines = [], solid = [];
   if (!ocsGeo(t.tw2Tracks, lines, solid, TW2.num("ocsp", 0), { main: TW2.ocs, lrt: TW2.lrt }) && !lines.length) return 0;
@@ -2378,8 +2641,15 @@ function frame(now, still = false) {
   if (sample) sample(dt, now, rec);
   adaptFrame(dt, now);
   shared.uTime.value = now / 1e3;
+  trackTy.value = ride.on && RFX.track ? 1 : 0;
+  rideNear.value = ride.on && RFX.near ? 1 : 0;
+  rideTrunks(now);
   if (ride.on) rideStep(dt);
+  hlStep();
+  ocsNightStep();
+  rideCab.set(ride.on && RFX.cab, cabKind(ride.name), ride.cam, night);
   rideUg.update(ride);
+  rideStn.update(ride, RFX.stn);
   trains.update(now);
   if (NSKY && night > 0) glowApply(false);
   if (stars) stars.update(hour, night, now / 1e3, pixelRatio);
@@ -2623,7 +2893,7 @@ function census() {
     for (const m of t.terrain || []) terr.add(m);
   }
   for (const f of fars.values()) if (f.mesh) farM.add(f.mesh);
-  const cat = (m, inNear) => m.material === stationSolid || m.material === stationGlass ? (inNear ? "stn.near" : "stn.far") + (m.material === stationGlass ? ".glass" : "") : m.material === facade.material || m.material === facadeMat || facadeFarMat && m.material === facadeFarMat ? ex.has(m) ? "extras" : "facade" : m.material === simpleMat ? "simple" : m.material === treeMat ? "trees" : m.material === railMat ? "rail" : m.material === roadMat ? "roads" : m.material === wallMat ? "walls" : m.material === skyMat ? "sky" : m.material === seaMat ? "sea" : terr.has(m) ? "terrain" : farM.has(m) ? "far" : "struct";
+  const cat = (m, inNear) => m.material === stationSolid || m.material === stationSolidLm || m.material === stationGlass ? (inNear ? "stn.near" : "stn.far") + (m.material === stationGlass ? ".glass" : "") : m.material === facade.material || m.material === facadeMat || facadeFarMat && m.material === facadeFarMat ? ex.has(m) ? "extras" : "facade" : m.material === simpleMat ? "simple" : m.material === treeMat ? "trees" : m.material === railMat ? "rail" : m.material === roadMat ? "roads" : m.material === wallMat ? "walls" : m.material === skyMat ? "sky" : m.material === seaMat ? "sea" : terr.has(m) ? "terrain" : farM.has(m) ? "far" : "struct";
   const walk = (o, inNear) => {
     if (!o.visible) return;
     inNear = inNear || nearG.has(o);

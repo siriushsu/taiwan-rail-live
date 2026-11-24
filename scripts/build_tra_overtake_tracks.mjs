@@ -9,6 +9,10 @@
 //     每一條路線（進站路徑＋出站路徑）；同一種動線不同班次可能派在不同股道（五堵北上有的走正線、有的走第三股）；
 //   ・每個候選記下會擋住它的路線：路線經過候選的停車節點，或壓到候選車身（停車點前後各半列）的邊資源——
 //     與 motion.js sidingsFor 避開同站他車的判準相同（它拿的也是他車在這一站的整段進出路徑）。
+//   ・派車表在這一站這個方向沒有任何一班通過（竹南從海線往北：派車表的車全部停靠）時，改拿在這一站中途停靠的計畫當代表：
+//     候選＝它停的那股，再同樣一股一股換。會在這種方向通過這一站的只有派車表外的車（借別班路徑的加開車），
+//     派車表的車本來就停靠、規劃器不會替它在這裡排待避；沒有這一條，11-08 借 101 路徑、通過竹南的 6630 在崎頂—香山之間被
+//     126 追上卻排不到待避（崎頂、談文、大山這個方向都只有一股），126 頂到 120 秒上限後從它車身穿過。
 // 半列長取班表裡最長編組的一半：表對每一種車都成立；短車也許還有別股可停，這裡不算（寧可少排一次待避）。
 // 站名鍵與 rail-3d/physical/timing.js 的 stationKey 同一套正規化（派車表寫「台」、班表寫「臺」，還有「-環島」）。
 //
@@ -48,7 +52,7 @@ const nodeAt = (ids, k) => (k < ids.length ? pack.paths[ids[k]]?.from : pack.pat
 
 // 站 → { routes: [[進站路徑, 出站路徑]], routeIdx: Map, moves: Map(動線鍵 → Set(路線索引)), reps: Map(方向鍵＋路線 → 代表計畫) }
 const stations = new Map();
-const at = name => stations.get(name) || stations.set(name, { routes: [], routeIdx: new Map(), moves: new Map(), reps: new Map() }).get(name);
+const at = name => stations.get(name) || stations.set(name, { routes: [], routeIdx: new Map(), moves: new Map(), reps: new Map(), stopReps: new Map() }).get(name);
 for (const [key, plan] of Object.entries(dispatch.plans)) {
   if (!key.startsWith('tra_sched:')) continue;
   let sig; try { sig = JSON.parse(plan.stopSignature); } catch { continue; }
@@ -63,6 +67,7 @@ for (const [key, plan] of Object.entries(dispatch.plans)) {
     const mk = (k ? names[k - 1] : '') + '>' + (k < last ? names[k + 1] : '') + '|' + kind;
     (st.moves.get(mk) || st.moves.set(mk, new Set()).get(mk)).add(ri);
     if (kind === 'p' && !st.reps.has(rk)) st.reps.set(rk, { dir: names[k - 1] + '>' + names[k + 1], ids, sig, w: k });
+    if (kind === 's' && k && k < last && !st.stopReps.has(rk)) st.stopReps.set(rk, { dir: names[k - 1] + '>' + names[k + 1], ids, sig, w: k });
   });
 }
 
@@ -85,8 +90,8 @@ function candidatesOf({ ids, sig, w }) {
 
 const table = {}, stats = { stations: 0, dirs: 0, withSpare: 0, alternatives: 0 };
 for (const [name, st] of [...stations].sort((a, b) => a[0].localeCompare(b[0], 'zh-Hant'))) {
-  const occupied = st.routes.map(routeOf), dirs = {};
-  for (const rep of st.reps.values()) {
+  const occupied = st.routes.map(routeOf), dirs = {}, passDirs = new Set([...st.reps.values()].map(r => r.dir));
+  for (const rep of [...st.reps.values(), ...[...st.stopReps.values()].filter(r => !passDirs.has(r.dir))]) {
     const list = dirs[rep.dir] || (dirs[rep.dir] = []);
     for (const c of candidatesOf(rep)) {
       const sig = c.node + '|' + [...c.body].sort().join(',');

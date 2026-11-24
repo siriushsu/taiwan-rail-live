@@ -7,7 +7,7 @@
 //   2. main.js 套幾處嵌進網站要的改動（PATCHES，每一處都必須剛好對到一次，對不到就整支失敗，不會默默跳過）。
 //   3. 去掉註解（esbuild 重印，不壓縮）：landscape-web/ 會跟著網站出貨並進公開快照，原始碼的註解留在工作區。
 // 對工作區只讀：不寫檔、不改 git 狀態。
-import { mkdirSync, writeFileSync, rmSync, existsSync } from 'node:fs';
+import { mkdirSync, writeFileSync, rmSync, existsSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
@@ -40,6 +40,9 @@ const PATCHES = [
   ["const $ = id => document.getElementById(id), status = t => { $('status').textContent = t; };", "const $ = id => H.el(id), status = t => { $('status').textContent = t; H.status(t); };"],
   ["import { createRideUg } from './ride/ride-ug.js';", "import { createRideUg } from '../host-stubs.js';"],
   ["import { createTrainsLayer } from './trains/trains-layer.js';", "import { createTrainsLayer } from '../host-stubs.js';"],
+  ["import { createRideStn } from './ride/ride-stn.js';", "import { createRideStn } from '../host-stubs.js';"],
+  ["import { createRideCab } from './ride/ride-cab.js';", "import { createRideCab } from '../host-stubs.js';"],
+  ["import { planMotion } from './trains/run-motion.mjs';", "import { planMotion } from '../host-stubs.js';"],
   // worker 從自己的網址讀 tw2 開關（shared/tw2.mjs）。網站開機會把網址參數抹掉，所以改帶網站交給 engine 的 H.params（?ls.tw2=… → tw2）裡 tw2 與 x2* 那幾個；路徑改成相對 engine/
   ["new Worker('./tile.worker.js' + location.search, { type: 'module' })", "new Worker(new URL('./tile.worker.js?' + new URLSearchParams([...params].filter(([k]) => k === 'tw2' || k.startsWith('x2'))), import.meta.url), { type: 'module' })"],
   ['camera.far = fsF ? Math.max(120000, fsReach() * 1.3) : 120000; camera.updateProjectionMatrix();', 'camera.far = fsF ? Math.max(120000, fsReach() * 1.3) : 120000; camera.updateProjectionMatrix(); H.camera(camera, origin);'],
@@ -96,10 +99,11 @@ function patchPlaces(src, pairs) {
 const placesMain = [
   ['const stationLit = new Map()', 'const modelLights = createModelLights();\nconst stationLit = new Map()'],
   ['if (NC.win &&', 'modelLights.setTime(h, twDate(), stationLitOn.v);\n  if (NC.win &&'],
-  ['function stationGroup(buf, lod) {', 'function stationGroup(buf, lod, site, parts) { const siteId=site.id;'],
+  // T7 5090b0d 起 stationGroup 多第三個參數 lm（地標改用 stationSolidLm）：網站的 site、parts 接在它後面，交給 modelLights 的實心材質也照 lm 挑
+  ['function stationGroup(buf, lod, lm = false) {', 'function stationGroup(buf, lod, lm, site, parts) { const siteId=site.id;'],
   ['for (const part of lod.drawGroups) {', 'for (const raw of parts) { const part = siteId === "taipei101-landmark-v1" && isWeekly(raw) ? {...raw, nightWeeklyHours:[12,23]} : raw;'],
-  ['() => stationGroup(buf, lod)', '() => modelLights.group(s, lod, parts => stationGroup(buf, lod, s, parts), stationSolid, stationGlass)'],
-  ['() => stationGroup(sb, st.near)', '() => modelLights.group(st, st.near, parts => stationGroup(sb, st.near, st, parts), stationSolid, stationGlass)'],
+  ["() => stationGroup(buf, lod, s.set === 'landmarks')", "() => modelLights.group(s, lod, parts => stationGroup(buf, lod, s.set === 'landmarks', s, parts), s.set === 'landmarks' ? stationSolidLm : stationSolid, stationGlass)"],
+  ['() => stationGroup(sb, st.near, st.lm)', '() => modelLights.group(st, st.near, parts => stationGroup(sb, st.near, st.lm, st, parts), st.lm ? stationSolidLm : stationSolid, stationGlass)'],
   ['g.userData.bytes = pos.byteLength', 'let detailBytes = 0; if (siteId === "presidential-office") { const geometry=presidentialFacade(THREE,site.at[0]%TILE_M,site.at[1]%TILE_M,lod.origin[2],lod.file.endsWith(".near.bin")); addMesh(g,geometry,stationSolid).name="presidential-facade"; detailBytes=geomBytes(geometry); } g.userData.bytes = detailBytes + pos.byteLength'],
   ['mats.has(o.material)', 'mats.has(modelLights.original(o.material))'],
   // 手機的跟車鏡頭會一直移動。即使每格都超時，也要持續上傳，並先顯示列車所在的地形。
@@ -197,6 +201,15 @@ for (const [from, to] of FILES) {
   }
   writeFileSync(dest, buf); bytesOut += buf.length;
 }
+// 上游新 import 一支沒同步的模組（例如 ride/、trains/）時，上面的補丁照樣全對到，網站卻整個引擎載不起來：每條相對 import 都要找得到檔
+const missing = [];
+for (const [, to] of FILES) {
+  if (!/\.(m?js)$/.test(to) || to.startsWith('vendor/')) continue;
+  const file = path.join(OUT, to), src = readFileSync(file, 'utf8');
+  for (const [, spec] of src.matchAll(/(?:\bfrom|\bimport\s*\(?)\s*["'](\.{1,2}\/[^"'?]+)["']/g))
+    if (!existsSync(path.resolve(path.dirname(file), spec))) missing.push(`${to} → ${spec}`);
+}
+if (missing.length) throw Error('engine 有 import 指到沒同步的檔（加進 FILES，或在 PATCHES 換成 host-stubs.js 的替身）：\n' + missing.join('\n'));
 const stamp = { source: 'landscape/web（全台地景工作區）', commit: sha, files: FILES.length, syncedAt: new Date().toISOString() };
 writeFileSync(path.join(OUT, 'SOURCE.json'), JSON.stringify(stamp, null, 2) + '\n');
 console.log(`landscape-web/engine：${FILES.length} 個檔，來源 ${sha.slice(0, 7)}，${(bytesIn / 1024).toFixed(0)} KB → ${(bytesOut / 1024).toFixed(0)} KB`);

@@ -210,7 +210,8 @@ function filesChangedNameOnly(args) {
 const hasBinaryNul = buf => buf.includes(0);
 function looksBinaryAtHead(p, rev = 'HEAD') {
   try {
-    const buf = git(['show', `${rev}:${p}`], { encoding: 'buffer', maxBuffer: 16 * 1024 * 1024 });
+    // 上限跟快照 diff 一樣 512 MiB：讀不完會丟例外、落進下面的 catch 被當成文字檔報紅（20 MB 的開場影片踩過）。
+    const buf = git(['show', `${rev}:${p}`], { encoding: 'buffer', maxBuffer: 512 * 1024 * 1024 });
     return hasBinaryNul(buf);
   } catch (e) { return false; } // 取不到就當文字:寧可為此紅一次,也不要靜默放過一個沒被掃到的檔
 }

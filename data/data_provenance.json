@@ -224,16 +224,16 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "77bac0f01ac65c7b104514a200be6750"
+   "checksum": "7e1b1019d57ae3f531d1105743e5e207"
   },
   "data/tra_pass_obs.json": {
    "sourceDescription": "TDX api/historical/v2 Historical/Rail/TRA/LiveTrainDelay",
    "sourceField": "source",
-   "effectiveDate": "2026-11-19T00:41:28.191Z",
+   "effectiveDate": "2026-11-24T00:35:00.759Z",
    "effectiveDateField": "built_at",
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "08aec2b9477d63acf2f605e2835572a7"
+   "checksum": "7a4ff74a3b67afa2e0d5a629a3b29a33"
   },
   "data/tra_platforms.json": {
    "sourceDescription": "OpenStreetMap contributors — way[railway=platform／public_transport=platform／railway=platform_edge] 與 node[stop_position／railway=stop]，經 Overpass API 取得",
@@ -251,16 +251,16 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "55c2cfb36d82516b62779c04817bb4c6"
+   "checksum": "868f6425b100ea58fb0ef6db29464362"
   },
   "data/tra_schedule_dense.json": {
-   "sourceDescription": "時刻表來源：https://ods.railway.gov.tw/tra-ods-web/ods/download/dataResource/railway_schedule/JSON/list 清單頁，抓取今天(2026-11-19)起連續 14 天中實際發佈得到的 14 天（2026-11-19…2026-12-0",
+   "sourceDescription": "時刻表來源：https://ods.railway.gov.tw/tra-ods-web/ods/download/dataResource/railway_schedule/JSON/list 清單頁，抓取今天(2026-11-24)起連續 14 天中實際發佈得到的 14 天（2026-11-24…2026-12-0",
    "sourceField": "source_notes",
-   "effectiveDate": "2026-11-19…2026-12-02",
+   "effectiveDate": "2026-11-24…2026-12-07",
    "effectiveDateField": "dateRange",
    "geometrySource": "TDX+OSM",
    "coordinateBasis": "WGS84(OSM 段);TDX 段未載明(payload 無 CRS 欄位)——兩者實測同框,build_tdx.mjs 對 K03 的座標修正即以 OSM 座標落在 TDX 軌道幾何上離軌 0m 為據",
-   "checksum": "4233be535ce12654f93aeb7f91902fb1"
+   "checksum": "9251388e11f87e74d65ff55299bd71ac"
   },
   "data/tra_special_trains.json": {
    "sourceDescription": "台鐵特別列車故事檔案。事實查證日期 2026-07-09（兩份網路研究＋台鐵官網/媒體抽驗＋當日時刻表交叉比對）。時效敏感條目（班次數、季節路線、退役進度）標註於 status2026，隔年應重新查證。2026-09-12 補查山嵐號固定車次（6676／6677），其餘條目未重查。",
@@ -328,11 +328,11 @@
   "data/transfer_departures.json": {
    "sourceDescription": "由 data/station_transfers.json（轉乘群）與 data/{tra,thsr,afr}_schedule_dense.json（時刻）推導,scripts/build_transfer_departures.mjs;只留 9 個轉乘站,台鐵取 d.dates[d.date] 的當日索引（tra_schedule_dense 是 14 天跨日去重聯集,直接用 d.trains 會混進其他日的改點變體）",
    "sourceField": null,
-   "effectiveDate": "2026-11-19",
+   "effectiveDate": "2026-11-24",
    "effectiveDateField": "date",
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "ebac4cce846c952c1f7d4062fbd94e0e"
+   "checksum": "18d1b6183f31d898e5b626cf183ec83f"
   },
   "data/trtc.json": {
    "sourceDescription": "信義東延段廣慈/奉天宮站(R01):站點座標取 TDX 官方值(2026-09-10 上架後換掉先行補入的 OSM 值);線形取自 OSM(TDX 的 R 線幾何仍無東延段);沿線里程指 OSM 月台停車點;站間行駛時間仍為估算(TDX 尚未提供 R01 區間),上架後應以官方值取代;",

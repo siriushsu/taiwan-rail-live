@@ -21,6 +21,16 @@ export function createPhysicalMotion(pack,profiles,dispatch,{requireSignature=tr
  }
  // 同站同時段兩班都在待避：先到站的先選股道（同時到站比車次），後到的避開它選好的那股；不看後到的，免得互等。
  const servedFirst=(a,sa,b,sb)=>sa.arrSec<sb.arrSec||(sa.arrSec===sb.arrSec&&String(a.train)<String(b.train));
+ // 綁定方式（record 算過就讀它的，否則現綁一次記著；同一班車物件的綁定不會變）。
+ const basis=new WeakMap();
+ const basisOf=T=>{if(cache.has(T))return cache.get(T)?.bindingBasis??null;if(!basis.has(T))basis.set(T,bind(T)?.basis??null);return basis.get(T);};
+ const borrowed=T=>!!basisOf(T)?.startsWith('route-template');
+ // 時刻表本來就有的待避（index.html attachOvertakePeers 的 _ttYield：官方停站期間別班後到先開或通過）。兩班都綁自己計畫的
+ // 已由 F2b 在派車表裡分好股道，執行期不改；待避車或任一超越車是借別班路徑的加開車（route-template／-chain）才換股——
+ // 借來的路徑是照模板那班的時刻選的，不知道今天這一站停著誰（11-08 埔心 6528 借 130、中壢 6526 借 6020、山佳 6523 借 6011，
+ // 都和停站的區間車同一股；香山 6630 借 101 停站，126／130 從它車身穿過）。條件與預排待避完全相同（overtake-sidings.js）。
+ const ttYield=(T,s)=>!!s?._ttYield&&!s._plannedDwell&&(borrowed(T)||s._ttYield.by.some(borrowed));
+ const yieldsAt=(T,s)=>!!s?._plannedDwell||ttYield(T,s);
  // 同向待避（index.html planSameDirectionOvertakes 在待避站掛 _plannedDwell；attachOvertakePeers 掛 _overtakePeers＝
  // 待避期間同站停靠或通過的所有列車，超越車在內）：待避車換到這些車都不經過的股道，車身前後各半列
  // （取樣點是整列中心）都不壓到它們的進出路徑（overtake-sidings.js）。編組長取不到就用 240 m。
@@ -30,11 +40,11 @@ export function createPhysicalMotion(pack,profiles,dispatch,{requireSignature=tr
    const names=stops.map(s=>stationKey('tra_sched',s.name)),coords=stops.map(s=>Number.isFinite(s.lon)&&Number.isFinite(s.lat)?[s.lon,s.lat]:null),last=stops.length-1,f=formationFor({systemId:'tra_sched',carName:tr.carName,typeName:tr.typeName},'actual');
    const half=(f?f.lengths.reduce((a,b)=>a+b,0):240)/2,moves=[];let ids=plan.pathIds;
    stops.forEach((s,w)=>{
-    if(!s._plannedDwell||!w||w===last)return;
+    if(!yieldsAt(tr,s)||!w||w===last)return;
     const avoidNodes=new Set(),avoidRes=new Set();
-    for(const T of s._overtakePeers||[]){
+    for(const T of (s._plannedDwell?s._overtakePeers:s._ttYield.peers)||[]){
      const ts=T.stops?.find(x=>stationKey('tra_sched',x.name)===names[w]);
-     if(ts?._plannedDwell&&!servedFirst(T,ts,tr,s))continue;
+     if(yieldsAt(T,ts)&&!servedFirst(T,ts,tr,s))continue;
      const route=routeAt(T,s.name);if(!route)continue;
      for(const n of route.nodes)avoidNodes.add(n);for(const x of route.res)avoidRes.add(x);
     }
@@ -49,7 +59,8 @@ export function createPhysicalMotion(pack,profiles,dispatch,{requireSignature=tr
  // stops＝綁定實際用的站序：略過派車表沒有的站之後的那一份（見 plan-binding.js），沒略過就是 tr.stops。
  function record(tr){if(cache.has(tr))return cache.get(tr);const binding=requireSignature?bind(tr):{plan:dispatch.plans[physicalTrainKey(tr)],basis:'unchecked'},bound=binding?.plan;let stops=binding?.stops||tr.stops;
   if(!bound||bound.pathIds.length!==stops.length-1){cache.set(tr,null);return null;}
-  const moved=(tr.sys||tr.system)==='tra_sched'&&stops.some(s=>s._plannedDwell)?sidingsFor(tr,stops,bound):null,plan=moved?{...bound,pathIds:moved.pathIds}:bound;
+  basis.set(tr,binding.basis??null);
+  const moved=(tr.sys||tr.system)==='tra_sched'&&stops.some(s=>s._plannedDwell||s._ttYield)?sidingsFor(tr,stops,bound):null,plan=moved?{...bound,pathIds:moved.pathIds}:bound;
   const afrRules=(tr.sys||tr.system)==='afr_sched'?afrPolicy(tr,plan):null;
   const afrTiming=afrRules?{...createAfrTiming(stops,plan.pathIds.map(id=>geometry.unfold(id).path.length),afrRules.passTimes),hideAt:afrRules.hideAt}:null;
   if(afrTiming)stops=afrTiming.stops;

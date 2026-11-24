@@ -7,6 +7,10 @@ export const VIADUCT_LIFT_M = 6;
 const BORE_R = 3.2, BORE_FLOOR = -1.2, RING = 0.65, ARCH_SEGMENTS = 20;
 const PORTAL_T = 1.2, PORTAL_EMBED = 0.8, PORTAL_DROP_MAX = 45;
 import { PORTAL_DEPTH, PORTAL_WING } from "./tunnel-portals.js";
+export const structAmb = { value: 0 };
+export const structAmbUp = { value: 0 };
+const FILL_M = 12, FILL_DZ = 0.6, FILL_DEPTH = 0.6;
+const WH_TROUGH_W = 3.5, WH_IN_H = 0.9, WH_IN_W = 0.2, WH_OUT_H = 1.5, WH_OUT_W = 0.25, WH_CAP_H = 0.12, WH_CAP_W = 0.34, WH_BOX_PARAPET_H = 0.8, WH_BOX_PARAPET_W = 0.25;
 export function createRailStructures(scene, { track = true } = {}) {
   let geometry = new THREE.BufferGeometry();
   const bedStyles = {
@@ -18,7 +22,9 @@ export function createRailStructures(scene, { track = true } = {}) {
   const material = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }), mesh = new THREE.Mesh(geometry, material);
   material.onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader.replace("#include <common>", "#include <common>\nattribute float railGlow; varying float vRailGlow;").replace("#include <begin_vertex>", "#include <begin_vertex>\nvRailGlow=railGlow;");
-    shader.fragmentShader = shader.fragmentShader.replace("#include <common>", "#include <common>\nvarying float vRailGlow;").replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance+=vec3(1.,.74,.38)*vRailGlow;");
+    shader.uniforms.uStructAmb = structAmb;
+    shader.uniforms.uStructAmbUp = structAmbUp;
+    shader.fragmentShader = shader.fragmentShader.replace("#include <common>", "#include <common>\nvarying float vRailGlow; uniform float uStructAmb; uniform float uStructAmbUp;").replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance+=vec3(1.,.74,.38)*vRailGlow;\n{ vec3 wn=inverseTransformDirection(normal,viewMatrix); totalEmissiveRadiance+=diffuseColor.rgb*(uStructAmb*(1.-abs(wn.y))+uStructAmbUp*max(wn.y,0.)); }");
     shader.uniforms.railGravelAmount = gravelAmount;
     shader.vertexShader = shader.vertexShader.replace("#include <common>", "#include <common>\nattribute vec2 railBedUv; attribute float railBedSurface; varying vec2 vRailBedUv; varying float vRailBedSurface;").replace("#include <begin_vertex>", "#include <begin_vertex>\nvRailBedUv=railBedUv; vRailBedSurface=railBedSurface;");
     shader.fragmentShader = shader.fragmentShader.replace("#include <common>", `#include <common>
@@ -139,6 +145,26 @@ export function createRailStructures(scene, { track = true } = {}) {
       if (!cell.has(k)) cell.set(k, []);
       cell.get(k).push(i);
     });
+    function latAt(p, i, sign, scale) {
+      const s = segments[i], dx = s.b[0] - s.a[0], dy = s.b[1] - s.a[1], len = Math.hypot(dx, dy);
+      if (len < 1e-5) return 0;
+      const tx = dx / len, ty = dy / len, ux = -ty, uy = tx, cx = Math.floor(p[0] / CELL), cy = Math.floor(p[1] / CELL);
+      let best = 0;
+      for (let gx = cx - 2; gx <= cx + 2; gx++) for (let gy = cy - 2; gy <= cy + 2; gy++) for (const j of cell.get(gx + "," + gy) || []) {
+        if (j === i) continue;
+        const o = segments[j];
+        if (Math.abs((o.a[2] + o.b[2]) / 2 - p[2]) > FILL_DZ * scale + 1) continue;
+        const odx = o.b[0] - o.a[0], ody = o.b[1] - o.a[1], ol = Math.hypot(odx, ody);
+        if (ol < 1e-5 || Math.abs((odx * tx + ody * ty) / ol) < 0.9) continue;
+        const f = ((p[0] - o.a[0]) * odx + (p[1] - o.a[1]) * ody) / (ol * ol);
+        if (f < -1 / ol || f > 1 + 1 / ol) continue;
+        const g = Math.max(0, Math.min(1, f));
+        const qx = o.a[0] + odx * f, qy = o.a[1] + ody * f, qz = o.a[2] + (o.b[2] - o.a[2]) * g, lat = ((qx - p[0]) * ux + (qy - p[1]) * uy) * sign;
+        if (lat < 2 * scale || lat > FILL_M * scale || Math.abs(qz - p[2]) > FILL_DZ * scale) continue;
+        if (!best || lat < best) best = lat;
+      }
+      return best;
+    }
     function neighbor(i, sign, scale) {
       const s = segments[i], m = mids[i], dx = s.b[0] - s.a[0], dy = s.b[1] - s.a[1], len = Math.hypot(dx, dy);
       if (len < 1e-5) return false;
@@ -153,12 +179,28 @@ export function createRailStructures(scene, { track = true } = {}) {
       }
       return false;
     }
-    segments.forEach(({ a, b, groundA, groundB, bridge, transition = false }, i) => {
+    const whPanel = new THREE.Color("#6f685d"), whCap = new THREE.Color("#d8d0b8"), whIn = new THREE.Color("#a29e91"), whBoxTop = new THREE.Color("#b9b5a7"), whBoxSide = new THREE.Color("#a19d90");
+    segments.forEach(({ a, b, groundA, groundB, bridge, transition = false, wh = 0 }, i) => {
       const scale = 1;
       const topA = [a[0], a[1], a[2] - DECK_DROP * scale], topB = [b[0], b[1], b[2] - DECK_DROP * scale];
       if (![...a, ...b, groundA, groundB, scale].every(Number.isFinite) || Math.min(topA[2] - groundA, topB[2] - groundB) < 0.05 * scale) return;
       const railLift = Math.max(0, Math.min(a[2] - groundA, b[2] - groundB));
-      if (bridge || !transition && railLift >= VIADUCT_LIFT_M * scale) {
+      if (wh === 2 && bridge) {
+        prism(topA, topB, WH_TROUGH_W, Math.max(groundA - 0.3, topA[2] - GIRDER_DEPTH), Math.max(groundB - 0.3, topB[2] - GIRDER_DEPTH), deck, WH_TROUGH_W, null, { a, b });
+        stats.decks++;
+        if (detail >= 1) {
+          const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy);
+          if (len > 1e-5) {
+            const ux = -dy / len, uy = dx / len;
+            for (const sign of [1, -1]) {
+              const inner = !!(latAt(a, i, sign, 1) || latAt(b, i, sign, 1) || neighbor(i, sign, 1)), H = inner ? WH_IN_H : WH_OUT_H, w = inner ? WH_IN_W : WH_OUT_W, e = (WH_TROUGH_W - w) / 2, P = (p, z) => [p[0] + ux * e * sign, p[1] + uy * e * sign, z];
+              prism(P(a, topA[2] + H), P(b, topB[2] + H), w, topA[2], topB[2], inner ? whIn : whPanel, w, inner ? whIn : whPanel);
+              stats.parapets++;
+              if (!inner) prism(P(a, topA[2] + H + WH_CAP_H), P(b, topB[2] + H + WH_CAP_H), WH_CAP_W, topA[2] + H, topB[2] + H, whCap, WH_CAP_W, whCap);
+            }
+          }
+        }
+      } else if (bridge || !transition && railLift >= VIADUCT_LIFT_M * scale) {
         prism(topA, topB, DECK_W * scale, Math.max(groundA - 0.3 * scale, topA[2] - GIRDER_DEPTH * scale), Math.max(groundB - 0.3 * scale, topB[2] - GIRDER_DEPTH * scale), deck, GIRDER_BOTTOM_W * scale, null, { a, b });
         stats.decks++;
         if (detail >= 1) {
@@ -166,7 +208,25 @@ export function createRailStructures(scene, { track = true } = {}) {
           if (len > 1e-5) {
             const ux = -dy / len, uy = dx / len, e = (DECK_W - PARAPET_W) / 2 * scale;
             for (const sign of [1, -1]) {
+              const La = latAt(a, i, sign, scale), Lb = latAt(b, i, sign, scale);
+              if (La || Lb) {
+                const w0 = DECK_W / 2 * scale - 0.2 * scale, wa = Math.max(w0, (La || Lb) / 2 + 0.02 * scale), wb = Math.max(w0, (Lb || La) / 2 + 0.02 * scale);
+                if (Math.max(wa, wb) > w0 + 0.05 * scale) {
+                  const P = (p, w, z) => [p[0] + ux * w * sign, p[1] + uy * w * sign, z], za = topA[2], zb = topB[2], d = FILL_DEPTH * scale;
+                  const t = sign > 0 ? [P(a, wa, za), P(a, w0, za), P(b, w0, zb), P(b, wb, zb)] : [P(a, w0, za), P(a, wa, za), P(b, wb, zb), P(b, w0, zb)];
+                  quad(...t, deck);
+                  quad(...t.map((q) => [q[0], q[1], q[2] - d]).reverse(), side);
+                  stats.fills = (stats.fills || 0) + 1;
+                }
+                continue;
+              }
               if (neighbor(i, sign, scale)) continue;
+              if (wh === 1) {
+                const pe = (DECK_W - WH_BOX_PARAPET_W) / 2;
+                prism([a[0] + ux * pe * sign, a[1] + uy * pe * sign, topA[2] + WH_BOX_PARAPET_H], [b[0] + ux * pe * sign, b[1] + uy * pe * sign, topB[2] + WH_BOX_PARAPET_H], WH_BOX_PARAPET_W, topA[2], topB[2], whBoxTop, WH_BOX_PARAPET_W, whBoxSide);
+                stats.parapets++;
+                continue;
+              }
               prism([a[0] + ux * e * sign, a[1] + uy * e * sign, topA[2] + PARAPET_H * scale], [b[0] + ux * e * sign, b[1] + uy * e * sign, topB[2] + PARAPET_H * scale], PARAPET_W * scale, topA[2], topB[2], parapet);
               stats.parapets++;
             }
