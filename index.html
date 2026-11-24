@@ -7691,7 +7691,7 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1124d：台鐵加開專車（借別班路徑）在時刻表待避站換股（motion.js ttYield）、股道表補派車表無通過車的方向（竹南）、防追撞非實體段首咬至少兩列半長。
 // v1124e：配樂新增 Lo-fi、提琴、爵士、鋼琴四個曲風歌單（_pass/lofi|violin|jazz|piano，20 首，手動限定、要通行證）。
 // v1124f：網站地景山上的廟、校舍、場館與 OSM 3D 建物改畫進地景場景（吃霧、山霧、日夜光，claude/temple-fog-1124）；操場跑道與草地改不寫深度的場地網格、照疊放層畫（claude/pitch-zfight-fog-1124）。
-const BUILD = 'v1124f';
+const BUILD = 'v1124g';
 // v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 // 有播電腦首頁開場、又是第一次來（RI_HOME_OPENING.fresh）：揭幕後開新地景（開場影片就是新地景錄的）；只這一趟，不寫地景偏好
@@ -12468,7 +12468,9 @@ function overtakeRunBuildable(tr, j, dep) {
 // 每一站每一種動線（前站>後站|s 停靠或起訖／p 通過）派車表用過哪幾條路線、通過車可停哪幾股、每一股會被哪幾條路線擋住。
 // 同一種動線不同班次可能派在不同股道，所以要「待避期間同站每一班不論走它那種動線的哪一條路線，都還剩一股」才算；
 // 以擋住的股道集合做狀態逐班展開（股道數個位數，狀態不超過 2^股數）。同站另有先到的待避車（立體地圖讓它先選）、
-// 表上沒有的站或動線，都無從判斷 ⇒ 不排。
+// 表上沒有的站或動線，都無從判斷 ⇒ 不排。同站已排好、比這班晚到的待避車各要再留一股給它（立體地圖裡這班先選、它選剩下的）：
+// 它排的時候這班還沒有停等，沒有人回頭重驗它。2026-11-29 加開的 5261 跟在 653 後面，兩班都要在東竹等對向的 416，東竹北上只有一股；
+// 單線會車停車第一輪先排了晚到的 5261，第二輪排 653 時略過它，兩班疊在同一個停車節點 102 秒。
 const overtakeStationKey = n => String(n).replace(/臺/g, '台').replace(/\s*[（(].*?[）)]/g, '').replace(/-環島$/, '').trim();
 function overtakeTrackFree(tracks, at, tr, j, lo, hi) {
   const st = tr.stops[j], here = tracks[overtakeStationKey(st.name)];
@@ -12478,12 +12480,12 @@ function overtakeTrackFree(tracks, at, tr, j, lo, hi) {
   };
   const cands = here && here.dirs[nb(tr, j, -1) + '>' + nb(tr, j, 1)];
   if (!cands || cands.length > 30) return false;
-  let reach = [0];
+  let reach = [0], later = 0;
   for (const [o, x, k] of at.get(st.name) || []) {
     if (o === tr || x.depSec < lo || x.arrSec > hi) continue;
     if (x._plannedDwell) {
       if (x.arrSec < st.arrSec || (x.arrSec === st.arrSec && String(o.train) < String(tr.train))) return false;
-      continue;
+      later++; continue;
     }
     const routes = here.moves[nb(o, k, -1) + '>' + nb(o, k, 1) + '|' + (!k || k === o.stops.length - 1 || x.stop !== false ? 's' : 'p')];
     if (!routes) return false;
@@ -12491,7 +12493,8 @@ function overtakeTrackFree(tracks, at, tr, j, lo, hi) {
     for (const r of routes) { const m = cands.reduce((acc, c, i) => c.includes(r) ? acc | 1 << i : acc, 0); for (const s of reach) next.add(s | m); }
     reach = [...next];
   }
-  return !reach.includes((1 << cands.length) - 1);
+  const blocked = m => { let n = 0; for (; m; m &= m - 1) n++; return n; };
+  return reach.every(m => cands.length - blocked(m) > later);
 }
 function planSameDirectionOvertakes(trains, union, sections, tracks, banned = new Set()) {
   const stats = { planned: 0, tooClose: 0, unbuildable: 0, deferred: 0, noTrack: 0, retimed: 0, retracted: 0, worse: 0, meetRetimed: 0, meetStuck: 0, log: [] };
