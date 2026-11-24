@@ -109,10 +109,52 @@ const colors = Object.fromEntries(Object.entries(tones).map(([kind, rgb]) => [
   kind, [linear(rgb >> 16), linear(rgb >> 8 & 255), linear(rgb & 255), 255],
 ]));
 
+// 同一格的場地面常互相疊著：跑道畫成整塊實心橢圓、裡面再一塊草地，球場疊在操場上（全島 300 多處，scripts/audit_landscape_field_overlaps.mjs）。
+// 兩塊面三角形切法不同、各自在頂點取地面高再內插，有起伏的地方高低會交錯，比深度就互相穿插閃爍；墊高幾公分也壓不住（瑞坪國中）。
+// 所以場地面另成一個不寫深度的網格（main.js 的 campus-fields），照這裡分的階由下往上畫：面積大的先畫、疊在上面的小的後畫，白線跟在它所在那一階後面。
+const MAX_LEVEL = 6;
+const inRings = (x, y, rings) => rings.reduce((c, r) => c !== inRing(x, y, r), false);
+const ringArea = r => { let a = 0; for (let i = 0, j = r.length - 1; i < r.length; j = i++) a += (r[j][0] - r[i][0]) * (r[j][1] + r[i][1]); return Math.abs(a / 2); };
+// 每塊面的取樣點：外框頂點、邊的中點、頂點平均（夠判斷包含與部分重疊）
+function probes(rings) {
+  const r = rings[0], out = [...r]; let cx = 0, cy = 0;
+  for (let i = 0; i < r.length; i++) { const a = r[i], b = r[(i + 1) % r.length]; out.push([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]); cx += a[0]; cy += a[1]; }
+  out.push([cx / r.length, cy / r.length]); return out;
+}
+// 只咬到一角、取樣點都沒落進對方的：在兩塊外框的交集裡每 1 m 撒一點
+function gridMeet(a, b) {
+  const x0 = Math.max(a.bb[0], b.bb[0]), y0 = Math.max(a.bb[1], b.bb[1]), x1 = Math.min(a.bb[2], b.bb[2]), y1 = Math.min(a.bb[3], b.bb[3]);
+  for (let x = x0 + .5; x < x1; x++) for (let y = y0 + .5; y < y1; y++) if (inRings(x, y, a.rings) && inRings(x, y, b.rings)) return true;
+  return false;
+}
+export function fieldLevels(surfaces) {
+  const items = surfaces.map(([kind, rings], i) => {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const [x, y] of rings[0]) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+    return { i, kind, rings, bb: [x0, y0, x1, y1], area: ringArea(rings[0]) - rings.slice(1).reduce((s, h) => s + ringArea(h), 0) };
+  });
+  const level = new Array(surfaces.length).fill(0), placed = [];
+  const meet = (a, b) => a.bb[0] < b.bb[2] && b.bb[0] < a.bb[2] && a.bb[1] < b.bb[3] && b.bb[1] < a.bb[3];
+  for (const a of items.filter(s => s.kind !== 'line').sort((u, v) => v.area - u.area || u.i - v.i)) {
+    let lv = 0, pa = null;
+    for (const b of placed) {
+      if (level[b.i] + 1 <= lv || !meet(a, b)) continue;
+      pa ??= probes(a.rings);
+      if (pa.some(([x, y]) => inRings(x, y, b.rings)) || probes(b.rings).some(([x, y]) => inRings(x, y, a.rings)) || gridMeet(a, b)) lv = level[b.i] + 1;
+    }
+    level[a.i] = Math.min(lv, MAX_LEVEL); placed.push(a);
+  }
+  for (const a of items) if (a.kind === 'line') {
+    const p = probes(a.rings).at(-1);
+    for (const b of placed) if (level[b.i] > level[a.i] && inRings(p[0], p[1], b.rings)) level[a.i] = level[b.i];
+  }
+  return level;
+}
 export function fieldMesh(detail, groundAt) {
   if (!detail?.surfaces?.length && !detail?.tunnels?.portals?.length && !detail?.equipment?.length) return null;
-  const pos = [], col = [], nor = [];
-  for (const [kind, rings] of detail.surfaces || []) {
+  const pos = [], col = [], nor = [], surfaces = detail.surfaces || [], levels = fieldLevels(surfaces);
+  const order = surfaces.map((s, n) => n).sort((a, b) => levels[a] * 2 + (surfaces[a][0] === 'line') - (levels[b] * 2 + (surfaces[b][0] === 'line')) || a - b);
+  for (const [kind, rings] of order.map(n => surfaces[n])) {
     const contours = rings.map(r => r.map(([x,y]) => new Vector2(x,y)));
     const faces = ShapeUtils.triangulateShape(contours[0], contours.slice(1));
     const vertices = contours.flat();
@@ -133,8 +175,11 @@ export function fieldMesh(detail, groundAt) {
     }
     for (const [a,b,c] of faces) triangle(vertices[a],vertices[b],vertices[c],0);
   }
+  const flat = {pos:Float32Array.from(pos),col:Uint8Array.from(col),nor:Int8Array.from(nor),n:pos.length/3};
+  // 球門、遊具、隧道口這些立體的照舊另成一個寫深度的網格
+  pos.length = col.length = nor.length = 0;
   appendStructures(detail,groundAt,pos,col,nor);
-  return {pos:Float32Array.from(pos),col:Uint8Array.from(col),nor:Int8Array.from(nor),n:pos.length/3};
+  return {pos:Float32Array.from(pos),col:Uint8Array.from(col),nor:Int8Array.from(nor),n:pos.length/3,flat};
 }
 
 // 各殿、門、廊各用自己的建物外框與地盤高程；天井留空。近景輸出有法線的牆與瓦頂。

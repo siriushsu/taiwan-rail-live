@@ -20,39 +20,37 @@ float exposed(vec3 p) {
 function uniforms(sh) {
   Object.assign(sh.uniforms,{wLook:uWeather,wOrigin:uOrigin,wPortal:uPortal,wBore:uBore});
 }
-function shadeMist(sh) {
-  uniforms(sh);
-  sh.vertexShader='uniform vec4 wLook; uniform vec2 wOrigin; varying float wBank;\n'+sh.vertexShader;
-  sh.vertexShader=sh.vertexShader.replace('#include <project_vertex>',`#include <project_vertex>
-    wBank=0.;
-    if(wLook.y>0.) {
-      // 使用已完成實例變換的頂點，讓樹冠與腳下地面得到相同的霧色。
-      vec3 g=cameraPosition+vec3(dot(viewMatrix[0].xyz,mvPosition.xyz),dot(viewMatrix[1].xyz,mvPosition.xyz),dot(viewMatrix[2].xyz,mvPosition.xyz));
-      vec2 phase=(g.xz+wOrigin)*.00076699;
-      float band=.5+.25*sin(phase.x+2.*phase.y)+.25*cos(2.*phase.x-phase.y);
-      wBank=wLook.y*smoothstep(150.,900.,-mvPosition.z)*band*(1.-smoothstep(60.,260.,abs(g.y-95.-90.*band)));
-    }`);
-  sh.fragmentShader='uniform vec4 wLook; varying float wBank;\n'+sh.fragmentShader;
-  sh.fragmentShader=sh.fragmentShader.replace('#include <tonemapping_fragment>',`gl_FragColor.rgb=mix(gl_FragColor.rgb,vec3(.6,.65,.67)*wLook.w,wBank*.32);
-    #include <tonemapping_fragment>`);
+// 山霧（wBank）接在 three 共用的霧片段上，跟 engine 的 FX2 高度霧同一種接法：凡是開著霧的材質都吃得到，
+// 包括 engine 之後新加的、每格圖磚各自建的（道碴）、clone 出來的（地標、夜燈）材質，以及網站自己加的場地、廟體。
+// 原本逐一點名九種材質，鋼軌、道碴、電車線、電塔、橋、地標、場地、海面都漏掉，在雨霧裡顏色鮮明地浮在霧上。
+// 數值用 plain object 掛進 ShaderLib：three 複製材質 uniforms 時不複製 plain object，每個材質都指到同一份。
+const look = { x: 0, y: 0, z: 0, w: 1 }, lookOrigin = { x: 0, y: 0 };
+function setLook(rain, mist, wet, day) { uWeather.value.set(rain, mist, wet, day); look.x = rain; look.y = mist; look.z = wet; look.w = day; }
+function setLookOrigin(x, y) { uOrigin.value.set(x, y); lookOrigin.x = x; lookOrigin.y = y; }
+for (const s of Object.values(T.ShaderLib)) if (s.uniforms?.fogColor) Object.assign(s.uniforms, { wLook: { value: look }, wOrigin: { value: lookOrigin } });
+T.ShaderChunk.fog_pars_vertex += '\n#ifdef USE_FOG\nuniform vec4 wLook; uniform vec2 wOrigin; varying float wBank;\n#endif';
+T.ShaderChunk.fog_vertex += `
+#ifdef USE_FOG
+wBank=0.;
+if(wLook.y>0.) {
+  // 使用已完成實例變換的頂點，讓樹冠與腳下地面得到相同的霧色。
+  vec3 g=cameraPosition+vec3(dot(viewMatrix[0].xyz,mvPosition.xyz),dot(viewMatrix[1].xyz,mvPosition.xyz),dot(viewMatrix[2].xyz,mvPosition.xyz));
+  vec2 phase=(g.xz+wOrigin)*.00076699;
+  float band=.5+.25*sin(phase.x+2.*phase.y)+.25*cos(2.*phase.x-phase.y);
+  wBank=wLook.y*smoothstep(150.,900.,-mvPosition.z)*band*(1.-smoothstep(60.,260.,abs(g.y-95.-90.*band)));
 }
-export function shareMist(materials) {
-  for(const mat of new Set(materials)){
-    if(!mat)continue;
-    const compile=mat.onBeforeCompile,key=mat.customProgramCacheKey();
-    mat.onBeforeCompile=function(sh,r){compile.call(this,sh,r);shadeMist(sh);};
-    mat.customProgramCacheKey=()=>key+'-rain-mist';
-  }
-}
+#endif`;
+T.ShaderChunk.fog_pars_fragment += '\n#ifdef USE_FOG\nuniform vec4 wLook; varying float wBank;\n#endif';
+T.ShaderChunk.tonemapping_fragment = '#ifdef USE_FOG\ngl_FragColor.rgb=mix(gl_FragColor.rgb,vec3(.6,.65,.67)*wLook.w,wBank*.32);\n#endif\n' + T.ShaderChunk.tonemapping_fragment;
 export function shadeRainGround(sh) {
-  shadeMist(sh);
+  uniforms(sh);
   sh.fragmentShader=sh.fragmentShader.replace('texture2D(tSat, uvS).rgb','texture2D(tSat, uvS, wLook.y*smoothstep(250.,1600.,length(cameraPosition-vW))*1.5).rgb')
     .replace('#include <color_fragment>','#include <color_fragment>\n diffuseColor.rgb*=1.-.20*wLook.x*(1.-wat);');
 }
 export function shadeRainRail(sh) {
   uniforms(sh);
   sh.vertexShader='varying vec3 wPos;\n'+sh.vertexShader.replace('#include <project_vertex>','#include <project_vertex>\n wPos=(modelMatrix*vec4(transformed,1.)).xyz;');
-  sh.fragmentShader='uniform vec4 wLook; varying vec3 wPos;\n'+shelter+sh.fragmentShader;
+  sh.fragmentShader='varying vec3 wPos;\n'+shelter+sh.fragmentShader;
   sh.fragmentShader=sh.fragmentShader.replace('diffuseColor.rgb = rc;',`float wet=wLook.x*exposed(wPos);
     diffuseColor.rgb=rc*(1.-wet*(.28-.19*steel)); rRough*=1.-wet*(.18+.35*steel);`);
 }
@@ -150,7 +148,7 @@ export function createFollowRain(api,read,adaptive,onOverload,refreshSky) {
     if(Math.abs(mist-skyMist)>.2||(mist===fog&&mist!==skyMist)){skyMist=mist;refreshSky?.();}
     range=1-ramp(300,900,view.dist);wetNear=rain*(1-cover)*range;
     const day=1-.96*night;
-    uWeather.value.set(rain,mist,wetNear,day);uOrigin.value.set(origin.e%8192,-origin.n%8192);
+    setLook(rain,mist,wetNear,day);setLookOrigin(origin.e%8192,-origin.n%8192);
     if(elapsed<.5&&wetNear>.01)slow=clamp(slow+(elapsed>.045?dt/2:-dt/5));else if(!wetNear)slow=0;
     const strength=wetNear*(1-.6*slow);
     if(strength>.008&&!mesh){mesh=drops();scene.add(mesh);}
@@ -194,7 +192,7 @@ export function createFollowRain(api,read,adaptive,onOverload,refreshSky) {
     last=0;poll=-Infinity;sample=null;rain=mist=cover=slow=wetNear=pressure=clearTime=0;
     if(skyMist){skyMist=0;refreshSky?.();}
     setDetail(0);
-    uWeather.value.set(0,0,0,1);uBore.value.x=0;if(mesh)mesh.visible=false;
+    setLook(0,0,0,1);uBore.value.x=0;if(mesh)mesh.visible=false;
   }
   return {update,draw,reset,get info(){return {rain,mist,cover,near:wetNear,ratio:api.renderer.getPixelRatio(),streaks:mesh?.visible?mesh.geometry.drawRange.count/2:0};}};
 }

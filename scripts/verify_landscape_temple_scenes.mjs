@@ -12,11 +12,16 @@ for (const mobile of [false,true]) {
     base.search=new URLSearchParams({map:'landscape',landscape:'new',opening:'0',g:'all','ls.auto':'0',place:'dajia',t:'11:00'});
     await page.goto(base.href,{waitUntil:'domcontentloaded'});
     await page.waitForFunction(()=>window.railIslandLandscapeWeb?.api()?.scene?.getObjectByName('temple-halls')?.geometry?.attributes?.position?.count>1000,null,{timeout:60000});
+    // 地景圖磚外圍的廟（near=0）11-24 起改由地景場景的 regional-places 網格畫（吃霧與日夜光），MapLibre 那層藏起來：
+    // 兩種畫法都算數——圖磚裡有這座廟，而且 MapLibre 那層畫出它、或地景場景的廟網格正在畫
+    await page.evaluate(()=>{window.regionalTemple=id=>M.raw.querySourceFeatures('taiwan-places',{sourceLayer:'temple'}).some(f=>f.properties.temple===id&&f.properties.near===0)&&
+      (M.raw.queryRenderedFeatures({layers:['place-temple-regional']}).some(f=>f.properties.temple===id)||
+       (m=>!!(m?.visible&&m.parent.visible))(window.railIslandLandscapeWeb.api().scene.getObjectByName('place-temple-regional')));});
     await page.evaluate(()=>M.raw.jumpTo({center:[120.304681,23.568099],zoom:18.5,pitch:51,bearing:17}));
-    await page.waitForFunction(()=>M.raw.queryRenderedFeatures({layers:['place-temple-regional']}).some(f=>f.properties.temple==='w1274037915'),null,{timeout:45000});
+    await page.waitForFunction(()=>regionalTemple('w1274037915'),null,{timeout:45000});
     await page.evaluate(()=>M.raw.jumpTo({center:[120.4421,22.75673],zoom:16.8,pitch:60,bearing:-67}));
     await page.waitForFunction(()=>M.raw.getLayer('landscape-foguang-buddha')?.implementation.ready &&
-      M.raw.queryRenderedFeatures({layers:['place-temple-regional']}).some(f=>f.properties.temple==='w1134404747'),null,{timeout:45000});
+      regionalTemple('w1134404747'),null,{timeout:45000});
     if(mobile) {
       await page.locator('.maplibregl-ctrl-compass').first().tap();
       await page.waitForFunction(()=>Math.abs(M.raw.getBearing())<1);

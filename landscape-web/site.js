@@ -8,6 +8,7 @@
 //
 // 已知限制：兩張畫布不共用深度，MapLibre 的列車一律蓋在地景上面（建物擋不住列車）。
 import { createFollowRain } from './follow-rain.mjs';
+import { createRegionalPlaces } from './regional-places.mjs';
 import { toTM2, fromTM2 } from './engine/proj/tm2.mjs';
 
 const LAYER_ID = 'landscape-web', OCC_ID = 'landscape-web-occluder', OCC_AFTER = 'live-vehicles-3d';
@@ -39,7 +40,7 @@ function mul(a, b) {
 }
 const row = (m, r) => [m[r], m[4 + r], m[8 + r], m[12 + r]];
 
-export function attach(map, { tilesBase, hour, date, weather, params: extra = {}, onFail, onSlow, onState } = {}) {
+export function attach(map, { tilesBase, hour, date, weather, params: extra = {}, onFail, onSlow, onState, buildings3d = () => false } = {}) {
   const container = map.getContainer();
   const canvas = document.createElement('canvas');
   canvas.className = 'landscape-web-canvas';
@@ -104,7 +105,7 @@ export function attach(map, { tilesBase, hour, date, weather, params: extra = {}
     camera.projectionMatrix.fromArray(P); camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
   }
 
-  let rain;
+  let rain, regional;
   const els = new Map();
   const params = new URLSearchParams({ fixed: '1', adapt: '0', ...extra });
   globalThis.__LANDSCAPE_HOST__ = {
@@ -120,6 +121,8 @@ export function attach(map, { tilesBase, hour, date, weather, params: extra = {}
       rain=createFollowRain(a,weather,adaptive,()=>queueMicrotask(()=>{
         if(active && revealed && extra.auto!=='0')onSlow?.();
       }),()=>{ lastMinute = -1; }); // 雨雲變了：下一格照分鐘換了一樣重跑 setTime，engine 會照當下天空重產環境貼圖
+      // 地景圖磚外的廟、校舍、場館改畫進地景場景（吃得到霧與日夜光），蓋好了就請 engine 重畫一格
+      regional = createRegionalPlaces(map, { api: a, groundLL, onChange: () => { drawnMatrix = null; }, context: () => regionalContext && !regionalLand, buildings3d });
     },
     drawWeather: fn => rain.draw(fn),
   };
@@ -258,6 +261,7 @@ export function attach(map, { tilesBase, hour, date, weather, params: extra = {}
     drawnMatrix = mainMatrix; drawnW = cv.width; drawnH = cv.height;
     const t0 = performance.now(), probing = probe?.state === 'run';
     rain.update(t0, api.night);
+    regional.frame(revealed && !regionalLand);
     api.frame(t0, still && !probing);
     state.frames++;
     const now = performance.now();
@@ -386,7 +390,7 @@ export function attach(map, { tilesBase, hour, date, weather, params: extra = {}
     const wanted = show ? 'visible' : 'none';
     if (map.getLayoutProperty(signLayer, 'visibility') !== wanted) map.setLayoutProperty(signLayer, 'visibility', wanted);
   }
-  let regionalContext = false, regionalLand = false, previousCell = '';
+  let regionalContext = false, regionalLand = false, previousCell = '', ctx3d = false;
   function syncRegion() {
     if (!api?.index?.tiles) return;
     const c = map.getCenter(), key = c.lng + ',' + c.lat + ',' + (map.getZoom() >= 14);
@@ -403,6 +407,7 @@ export function attach(map, { tilesBase, hour, date, weather, params: extra = {}
     if (!l || id === LAYER_ID || id === signLayer) return false;
     if(regionalLand && (l.source==='offline-land' || l.source==='taiwan-worldcover' || l.type==='background' ||
        l.source==='openmaptiles' && ['landcover','landuse'].includes(l.sourceLayer)))return false;
+    if (!regionalLand && regional?.handles(id)) return true;   // 改由地景場景畫（regional-places.mjs）：廟、校舍、場館，開著 3D 建物時連 OSM 建物
     if (regionalContext && l.source === 'openmaptiles' && l.type !== 'symbol' && contextLayers.has(l.sourceLayer)) return false;
     if (HIDE_CUSTOM.has(id) || l.type === 'background') return true;
     return l.type !== 'custom' && BASEMAP_SOURCES.has(l.source);
@@ -415,10 +420,12 @@ export function attach(map, { tilesBase, hour, date, weather, params: extra = {}
   function enforce() {
     if (!active || !revealed) return;
     syncSigns();
-    const wasRegional = regionalContext,wasLand=regionalLand;
+    const wasRegional = regionalContext,wasLand=regionalLand,wasCtx3d=ctx3d;
     syncRegion();
-    if ((!wasRegional && regionalContext)||(!wasLand && regionalLand)) for (const [id,visibility] of hidden) {
-      if (map.getLayer(id) && !shouldHide(id)) { hidden.delete(id); map.setLayoutProperty(id,'visibility',visibility); }
+    ctx3d = !!regional?.handles('building-3d');
+    // OSM 建物改由地景畫的狀態變了（開關 3D 建物、進出細節圖磚範圍）也要放回；building-3d 照使用者現在的 3D 建物開關放，藏著時他可能切過
+    if ((!wasRegional && regionalContext)||(!wasLand && regionalLand)||wasCtx3d!==ctx3d) for (const [id,visibility] of hidden) {
+      if (map.getLayer(id) && !shouldHide(id)) { hidden.delete(id); map.setLayoutProperty(id,'visibility',id==='building-3d'?(buildings3d()?'visible':'none'):visibility); }
     }
     for (const id of map.getLayersOrder()) {
       if (!shouldHide(id)) continue;

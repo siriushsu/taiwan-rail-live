@@ -1,7 +1,7 @@
 import { presidentialFacade } from "../presidential-facade.mjs";
 import { createModelLights } from "../model-lights.mjs";
 import { modelHours } from "../../rail-3d/environment/model-hours.js";
-import { shadeRainGround, shadeRainRail, shadeRainSky, shareMist, weatherBudget } from "../follow-rain.mjs";
+import { shadeRainGround, shadeRainRail, shadeRainSky, weatherBudget } from "../follow-rain.mjs";
 import { patchNightTexture } from "../night-tunnels.mjs";
 import { tunnelDetail } from "../places.mjs";
 import { surfaceRoads, withTunnelTrees } from "../tunnel-roads.mjs";
@@ -675,6 +675,7 @@ float rN(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); re
 const RHL = createRailHl({ params, DATA, index, TILE_M, scene, origin, shared, jv: SV.tile });
 if (RHL?.band) RHL.band.patch(railMat);
 const fieldMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.97, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
+const fieldFlatMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.97, side: THREE.DoubleSide, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
 const roadMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88, metalness: 0, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -6 });
 const simpleMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 });
 const roadFlatMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88, metalness: 0, side: THREE.DoubleSide, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -3 });
@@ -1323,6 +1324,11 @@ async function loadNear(t, rn = 0) {
       const m = addMesh(g, geom(r.temples), fieldMaterial, { cast: true });
       modelLights.bind(m, []);
       m.name = "temple-halls";
+      bytes += geomBytes(m.geometry);
+    }
+    if (r.fields?.flat?.n) {
+      const m = addMesh(g, geom(r.fields.flat), fieldFlatMaterial, { cast: false });
+      m.name = "campus-fields";
       bytes += geomBytes(m.geometry);
     }
     if (r.fields?.n) {
@@ -2735,7 +2741,6 @@ function frame(now, still = false) {
     } else slow = 0;
   }
 }
-shareMist([treeMat, simpleMat, roadMat, roadFlatMat, facadeMat, facadeFarMat, stationSolid, stationGlass, wallMat]);
 H.ready({ weatherBudget: weatherBudget(LIMIT), get night() {
   return night;
 }, frame, view, applyView, schedule, setTime, groundAt, origin, camera, renderer, scene, pending, tiles, fars, index, TILE_M, hsCasters, hsKey, get pixelRatio() {

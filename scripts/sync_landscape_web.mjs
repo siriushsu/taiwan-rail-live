@@ -48,7 +48,7 @@ const PATCHES = [
   ['camera.far = fsF ? Math.max(120000, fsReach() * 1.3) : 120000; camera.updateProjectionMatrix();', 'camera.far = fsF ? Math.max(120000, fsReach() * 1.3) : 120000; camera.updateProjectionMatrix(); H.camera(camera, origin);'],
   ["addEventListener('resize', () => {", 'H.onResize(() => {'],
   ['  requestAnimationFrame(frame);\n}\nrequestAnimationFrame(frame);',
-    '}\nshareMist([treeMat, simpleMat, roadMat, roadFlatMat, facadeMat, facadeFarMat, stationSolid, stationGlass, wallMat]);\nH.ready({ weatherBudget: weatherBudget(LIMIT), get night() { return night; }, frame, view, applyView, schedule, setTime, groundAt, origin, camera, renderer, scene, pending, tiles, fars, index, TILE_M, hsCasters, hsKey, get pixelRatio() { return pixelRatio; } });'],
+    '}\nH.ready({ weatherBudget: weatherBudget(LIMIT), get night() { return night; }, frame, view, applyView, schedule, setTime, groundAt, origin, camera, renderer, scene, pending, tiles, fars, index, TILE_M, hsCasters, hsKey, get pixelRatio() { return pixelRatio; } });'],
 ];
 // 全檔取代：視窗大小改成畫布大小（原型的畫布佔滿視窗；嵌進網站後是地圖容器的大小）
 const REPLACE_ALL = [[/\binnerWidth\b/g, 'H.w()', 6], [/\binnerHeight\b/g, 'H.h()', 7]];
@@ -120,8 +120,8 @@ const placesMain = [
   // 路燈不立在隧道裡：T7 f222a01 起路燈在 worker 的 base 工作算（placesWorker 那邊同一套），這兩條是 lampw=0 照舊在主執行緒算的那條路
   ["const rd = base.lamp ? null : await lampRoads;", "const [rd, tunnels] = base.lamp ? [null, null] : await Promise.all([lampRoads, tunnelDetail(url)]);"],
   ["tileLamps(rd.roads, railP(rails), local, lampOpt)", "tileLamps(surfaceRoads(rd.roads, tunnels), railP(rails), local, lampOpt)"],
-  ['if (r.roads.n && P28.rd)', "for (const hall of r.heritage||[]) { const mesh=addMesh(g,geom(hall),fieldMaterial,{cast:true});modelLights.bind(mesh,modelHours(hall.id));mesh.name='heritage-'+hall.id;bytes+=geomBytes(mesh.geometry); }\n  if (r.temples?.n) { const m = addMesh(g,geom(r.temples),fieldMaterial,{cast:true}); modelLights.bind(m, []); m.name='temple-halls';bytes+=geomBytes(m.geometry); }\n  if (r.fields?.n) { const m = addMesh(g, geom(r.fields), fieldMaterial, { cast: false }); m.name = 'campus-sports'; bytes += geomBytes(m.geometry); }\n  if (r.roads.n && P28.rd)"],
-  ['const roadMat =', 'const fieldMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .97, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });\nconst roadMat ='],
+  ['if (r.roads.n && P28.rd)', "for (const hall of r.heritage||[]) { const mesh=addMesh(g,geom(hall),fieldMaterial,{cast:true});modelLights.bind(mesh,modelHours(hall.id));mesh.name='heritage-'+hall.id;bytes+=geomBytes(mesh.geometry); }\n  if (r.temples?.n) { const m = addMesh(g,geom(r.temples),fieldMaterial,{cast:true}); modelLights.bind(m, []); m.name='temple-halls';bytes+=geomBytes(m.geometry); }\n  if (r.fields?.flat?.n) { const m = addMesh(g, geom(r.fields.flat), fieldFlatMaterial, { cast: false }); m.name = 'campus-fields'; bytes += geomBytes(m.geometry); }\n  if (r.fields?.n) { const m = addMesh(g, geom(r.fields), fieldMaterial, { cast: false }); m.name = 'campus-sports'; bytes += geomBytes(m.geometry); }\n  if (r.roads.n && P28.rd)"],
+  ['const roadMat =', 'const fieldMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .97, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });\n// 場地面（places.mjs fieldMesh 的 flat）：不寫深度，照網格裡的先後畫，疊著的兩塊面不比深度、不閃（跟平面道路 roadFlatMat 同一套）\nconst fieldFlatMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .97, side: THREE.DoubleSide, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });\nconst roadMat ='],
 ];
 const placesWorker = [
   ["import { roadRibbons }", "import { placeDetail, tunnelDetail, applyPlaceBuildings, fieldMesh, templeMesh, reviewedTempleMeshes } from '../places.mjs';\nimport { surfaceRoads } from '../tunnel-roads.mjs';\nimport { roadRibbons }"],
@@ -186,7 +186,7 @@ const patched = new Map([
   ['shared/fx3.mjs',patchLand(show(WEB+'/shared/fx3.mjs').toString('utf8'))],
   ['shared/tw2.mjs', patchTw2(show(WEB + '/shared/tw2.mjs').toString('utf8'))],
   ['buildings.worker.js', patchLandmarksBuildings(patchPlaces(show(WEB + '/buildings.worker.js').toString('utf8'), placesFacades))],
-  ['main.js', "import { presidentialFacade } from '../presidential-facade.mjs';\nimport { createModelLights } from '../model-lights.mjs';\nimport { modelHours } from '../../rail-3d/environment/model-hours.js';\nimport { shadeRainGround, shadeRainRail, shadeRainSky, shareMist, weatherBudget } from '../follow-rain.mjs';\nimport { patchNightTexture } from '../night-tunnels.mjs';\nimport { tunnelDetail } from '../places.mjs';\nimport { surfaceRoads, withTunnelTrees } from '../tunnel-roads.mjs';\n" + patchPlaces(patchMain(show(WEB + '/main.js').toString('utf8')), placesMain)],
+  ['main.js', "import { presidentialFacade } from '../presidential-facade.mjs';\nimport { createModelLights } from '../model-lights.mjs';\nimport { modelHours } from '../../rail-3d/environment/model-hours.js';\nimport { shadeRainGround, shadeRainRail, shadeRainSky, weatherBudget } from '../follow-rain.mjs';\nimport { patchNightTexture } from '../night-tunnels.mjs';\nimport { tunnelDetail } from '../places.mjs';\nimport { surfaceRoads, withTunnelTrees } from '../tunnel-roads.mjs';\n" + patchPlaces(patchMain(show(WEB + '/main.js').toString('utf8')), placesMain)],
   ['tile.worker.js', placeJob(patchLandmarksTile(patchRoads(show(WEB + '/tile.worker.js').toString('utf8'))))],
 ]);
 if (existsSync(OUT)) rmSync(OUT, { recursive: true });
