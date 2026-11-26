@@ -5351,6 +5351,7 @@
 </script>
 <link rel="stylesheet" href="./rail-3d.css">
 <link rel="stylesheet" href="./rail-platform.css">
+<link rel="stylesheet" href="./rail-stories.css">
 <link rel="stylesheet" href="./train-garage.css">
 <link rel="stylesheet" href="./my-train-ui.css">
 <link rel="stylesheet" href="./my-train-depot.css">
@@ -5808,6 +5809,8 @@
       <div class="fc-crowd" id="fcCrowd" hidden></div>
       <div class="xfer-conn" id="fcConn" hidden></div>
       <div class="fc-status" id="fcStatus"></div>
+      <!-- 沿線小故事:捷運跟車卡的「沿途故事」那一列(rail-stories-ui.js 填;同 App 車次卡,捷運沒有逐站時刻所以不寫幾點) -->
+      <button type="button" class="tc-stories fc-stories" id="fcStories" hidden></button>
     </div>
     <!-- 全畫面切換獨立鈕(常駐地圖右上,手機也點得到):進入=四角外展,fs 中=四角內收 -->
     <button id="fsFab" type="button" title="全畫面地圖（Esc 退出）" aria-label="全畫面">
@@ -5874,6 +5877,8 @@
     <div class="board bus-stop-panel" id="busStopPanel" hidden></div>
     <!-- 誤點履歷卡(Plus 頭牌;跟隨台鐵時由準點列/車次卡入口開啟);×/☆ 家族鐵則——close 鈕放 sticky h3 內(v0717p) -->
     <div class="board delayhist-panel" id="delayHistPanel" hidden></div>
+    <!-- 沿線小故事：沿途清單、這站的故事、全文卡（內容由 rail-stories-ui.js 畫；只在中文介面出現） -->
+    <div class="board story-panel" id="storyPanel" hidden></div>
     <!-- 行程分享:選目的站(剩餘停站列表);×/☆ 家族鐵則——close 鈕放 sticky h3 內(v0717p) -->
     <div class="board trip-panel" id="tripPanel" hidden></div>
     <!-- 「路線」面板(2026-11-03 導覽改版):只剩路線瀏覽與路線詳情。入口=查詢快捷列「路線」、搜尋結果的路線列、「軌」鈕。
@@ -6027,6 +6032,8 @@
         <div id="tcEvents"></div>
       </div>
     </div>
+    <!-- 沿線小故事「沿途故事 n 則・下一則…」(rail-stories-ui.js 填;只在中文介面、這班沿途有故事時出現) -->
+    <button type="button" class="tc-stories" id="tcStories" hidden></button>
     <!-- 誤點履歷次要入口(Plus 頭牌;僅台鐵有樣本時由 renderDelayRow 取消 hidden) -->
     <span class="tc-dhlink" id="tcDelayHist" tabindex="0" role="button" hidden>誤點履歷 ›</span>
     <div class="tc-sparkwrap">
@@ -6053,7 +6060,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/11/24</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/11/26</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -6061,6 +6068,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="stories1126"><span class="d">11/26</span><span>新增沿線小故事：在「觀看」→「畫面」打開後，跟車經過有故事的路段，地圖上會出字幕並念出來；列車卡和車站看板也能看整趟與這一站的故事</span></li>
         <li data-cl-of="landscapefog1124"><span class="d">11/24</span><span>電腦版地景地圖：山上的廟、校舍和場館也會被霧和山霧遮住，入夜跟著變暗；學校操場的跑道和草地轉動視角時不再閃爍</span></li>
         <li data-cl-of="musicnov1124"><span class="d">11/24</span><span>「配樂情境」新增 Lo-fi、提琴、爵士、鋼琴 4 個曲風歌單、共 20 首，有通行證就能手動選，不會跟著列車自動切換</span></li>
         <li data-cl-of="yieldtrack1124"><span class="d">11/24</span><span>台鐵有加開專車時，站內讓車的那班改停到另一股，不再和通過的列車疊在同一條軌道；後車剛跟上前一班也會留足車身距離，不再擦到車尾</span></li>
@@ -6068,7 +6076,6 @@
         <li data-cl-of="openingrerec1124"><span class="d">11/24</span><span>電腦首頁的開場畫面照最新的地景地圖重新錄過，每一段都更清楚；新增夕陽下列車開進嘉義高鐵站、雨中的宜蘭線兩段</span></li>
         <li data-cl-of="railtop1124"><span class="d">11/24</span><span>地景地圖上的列車和軌道改貼著地景本身的軌道高度：列車經過宜蘭線頂埔站不再拱起又落下，進出隧道也不會在洞口高出一截</span></li>
         <li data-cl-of="rainlook1124"><span class="d">11/24</span><span>新地景跟車遇到下雨時，雨絲改成往下落，不再被鏡頭帶著往旁邊滑；天色轉陰、影子變淡，遠處的海岸和山淡進雨霧裡，海面也換成陰天的顏色</span></li>
-        <li data-cl-of="decel1124"><span class="d">11/24</span><span>台鐵列車進站煞車改用懸賞錄程實測的減速度，站間位置更準；也修正少數車站前車停著時，後車會疊上去的情形</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -6382,6 +6389,7 @@
         <li><span class="d">7/16</span><span>捷運準確度升級：六家捷運依官方到站看板即時校正，國定假日自動改跑假日班表</span></li>
         <li><span class="d">7/9</span><span>台鐵即時誤點上線——介接交通部 TDX 平臺每分鐘更新；7/11 起開站即真實時刻、捷運改逐班推演</span></li>
         <li class="grp">跟車、搜尋與車站看板</li>
+        <li data-cl="stories1126"><span class="d">11/26</span><span>新增沿線小故事，全台 344 則：在「觀看」→「畫面」打開後，跟車或放空模式的跟車視角經過有故事的路段，地圖上會出字幕並念出來；列車卡「沿途故事」、車站看板「這站的故事」可看全文和出處</span></li>
         <li data-cl="tripask1121"><span class="d">11/21</span><span>App 的 AI 排行程：說了目的地就直接排，不再反問幾點出發；排完可以再補一句，例如「早上八點」</span></li>
         <li data-cl="tymccrowd1113"><span class="d">11/13</span><span>桃園機場捷運的車站看板與跟車卡多了車廂擁擠度：四節車廂各一格、顏色表示鬆緊，資料取自桃園捷運官網的列車動態；對不上是哪一列車時留白</span></li>
         <li data-cl="trainstock1105"><span class="d">11/05</span><span>區間車列車卡新增車型推估：依鐵道維基館運用表標出 EMU500／600／700／800／900，實際以當日調度為準</span></li>
@@ -7138,6 +7146,8 @@
 <script src="./night-map.js"></script>
 <script src="./night-board.js"></script>
 <script src="./ntm-live-model.js"></script>
+<script src="./rail-stories.js"></script>
+<script src="./rail-stories-ui.js"></script>
 <script>
 // 版本戳記:每次改版 push 前手動遞增(字母序),畫面時鐘徽章與 console 都會顯示,
 // 供比對線上跑的是不是最新版(瀏覽器快取 max-age=600 常讓人看到舊版)
@@ -7691,7 +7701,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1124d：台鐵加開專車（借別班路徑）在時刻表待避站換股（motion.js ttYield）、股道表補派車表無通過車的方向（竹南）、防追撞非實體段首咬至少兩列半長。
 // v1124e：配樂新增 Lo-fi、提琴、爵士、鋼琴四個曲風歌單（_pass/lofi|violin|jazz|piano，20 首，手動限定、要通行證）。
 // v1124f：網站地景山上的廟、校舍、場館與 OSM 3D 建物改畫進地景場景（吃霧、山霧、日夜光，claude/temple-fog-1124）；操場跑道與草地改不寫深度的場地網格、照疊放層畫（claude/pitch-zfight-fog-1124）。
-const BUILD = 'v1124g';
+// v1126a：沿線小故事上網站（rail-stories.js 規則移植自 App、rail-stories-ui.js 字幕／試播／配音／沿途清單；只在中文介面）。
+const BUILD = 'v1126a';
 // v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 // 有播電腦首頁開場、又是第一次來（RI_HOME_OPENING.fresh）：揭幕後開新地景（開場影片就是新地景錄的）；只這一趟，不寫地景偏好
@@ -14745,6 +14756,7 @@ function freqCrowdCars() {
 function updateFreqCard(info) {
   const f = state.freqFollow; if (!f) return;
   const ln = info.ln || f.ln; if (!ln) return;
+  window.RailStoriesUI?.noteMetro(ln, info); // 沿線小故事:捷運沒有逐站時刻,照下一站與方向找沿途故事
   document.getElementById('fcDot').style.background = ln.color;
   // 車次欄:對得到官方車號才出現,位置在資訊卡頂端。
   // 🔴 只認官方車號:北捷 roster 的 officialNo(＝TrackInfo.TrainNumber)與 Core 的 publicLabel,
@@ -21933,6 +21945,11 @@ async function musicLoadData() {
   } catch (e) {}
   return window.MUSIC_DATA;
 }
+// 沿線小故事(rail-stories-ui.js)要用時才載:跟車或開車站卡、而且是中文介面。
+// 🔴 網址維持 './data/…' 單引號字面:build_data_manifest.mjs 靠它把這兩個檔掃進資料清單;走 fetchJSON 才吃得到 App 的資料新鮮度。
+function railStoriesFetch() {
+  return Promise.all([fetchJSON('./data/rail_stories.json'), fetchJSON('./data/rail_story_directions.json')]);
+}
 function musicPoolById(id) { return (window.MUSIC_DATA.pools || []).find(p => p.id === id) || null; }
 function musicShippedPools() { return (window.MUSIC_DATA.pools || []).filter(p => p.tracks && p.tracks.length); }
 
@@ -23482,6 +23499,7 @@ function renderTrainCard(tr) {
   renderTrainSeat(tr);
   renderFollowEvents();
   document.getElementById('trainCard').hidden = false;
+  window.RailStoriesUI?.trainCardRow(tr); // 沿線小故事「沿途故事 n 則」那一列(#tcStories)
   setTimeout(() => drawSpark(tr, effTLive(tr)), 0); // 等 layout 有寬度再畫速度曲線
   return it;
 }
@@ -24377,6 +24395,9 @@ function notePanelOpener(id) {
   panelOpener[id] = a && a !== document.body ? a : null;
   try { panelOpenedByKeyboard[id] = !!(a && a !== document.body && a.matches(':focus-visible')); }
   catch (e) { panelOpenedByKeyboard[id] = false; }
+  // 沿線小故事的面板(rail-stories-ui.js)不在各面板 open 函式明列的互斥名單裡:每個面板開啟都會先經過這裡,
+  // 就在這裡收掉它(手機另由 soloPanel 收)。焦點不搬回它的入口——新面板正在接手。
+  if (id !== 'storyPanel') window.RailStoriesUI?.closePanel(true);
 }
 // 鍵盤叫開面板時，把焦點一起帶進新內容。只靠 hidden=false 會讓原入口被觀看設定／查詢 sheet 一起藏掉，
 // 瀏覽器便把焦點丟回 body；滑鼠／觸控叫開則維持原本不主動亮框的行為。
@@ -24407,6 +24428,7 @@ const BOARD_PANEL_CLOSE = {
   searchPanel: () => closeSearchPanel({ user: true }), todayPanel: closeTodayPanel,
   busStopPanel: closeBusStopPanel, delayHistPanel: closeDelayHist, tripPanel: closeTripSharePanel,
   trackPanel: closeTrackPanel, fontPanel: closeFontPanel,
+  storyPanel: () => window.RailStoriesUI?.closePanel(),
 };
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape' || e.defaultPrevented) return;
@@ -34949,7 +34971,7 @@ function jumpToNow() {
 // 手機底部 sheet 家族(看板/最愛/旅程/探索/軌道/今日/誤點履歷 + 「列車」sheet):互斥開啟。
 // nearCard(附近車站)2026-07-25 起併入 sheet 家族:它原本是上錨卡(頂緣 y=152、高 462),
 // 手機上直接把地圖中心埋在卡內 274px——藍點必然看不到。改成底部 sheet 後與看板/列車同一組幾何與三段高。
-const SHEET_PANEL_IDS = ['board', 'favPanel', 'ridePanel', 'explorePanel', 'searchPanel', 'trackPanel', 'fontPanel', 'todayPanel', 'delayHistPanel', 'nearCard', 'busStopPanel', 'tripPanel'];
+const SHEET_PANEL_IDS = ['board', 'favPanel', 'ridePanel', 'explorePanel', 'searchPanel', 'trackPanel', 'fontPanel', 'todayPanel', 'delayHistPanel', 'nearCard', 'busStopPanel', 'tripPanel', 'storyPanel'];
 // 目前開啟中的那張 sheet(至多一張;含「列車」sheet)——供三段高定位
 function activeSheetEl() {
   const tc = document.getElementById('trainCard');
@@ -36148,6 +36170,7 @@ function soloPanel(keep) {
   if (keep !== 'delayhist') closeDelayHist();
   if (keep !== 'train') closeTrainSheet();
   if (keep !== 'trip') closeTripSharePanel();
+  if (keep !== 'story') window.RailStoriesUI?.closePanel(true);
 }
 // 整合卡(設計狀態機 tapStation):點站＝切到「這一站」,跟車不中斷。
 let busTransferBoardStationId = null;
@@ -37408,6 +37431,7 @@ function renderBoardBody() {
     traWaitBoardHtml(st) +
     `<button class="board-star${fav ? ' on' : ''}" id="boardStar" title="${escHtml(favLabel)}" aria-label="${escHtml(favLabel)}">${railIcon('ui-favorite', fav ? 'ri-icon--fill' : '')}</button>` +
     `<button class="close" id="boardClose" aria-label="${escHtml(t('關閉'))}">×</button></h3>` + stnMetaHtml(st) + eventRowsHtml(st) +
+    (window.RailStoriesUI ? window.RailStoriesUI.boardRowHtml(st.name, [st.sys]) : '') + // 沿線小故事「這站的故事」(只在中文介面)
     // 林鐵站不可沿用台鐵誤點文案:群組視圖 liveActive 為真(台鐵 live 在場)但林鐵根本無即時介接,
     // 顯示「已依即時誤點推估」等於謊稱有校正;觀日列車另以列上「推算」標記標示。
     `<div class="sub">${escHtml(t('接下來 3 小時會有誰來'))} · ${escHtml(t(st.sys === 'afr_sched' ? '依林鐵官方時刻表（無即時資訊）' : liveFresh() ? '已套用台鐵即時誤點' : liveActive() ? '已依即時誤點推估' : '依時刻表（無誤點資訊）'))}${
@@ -38335,6 +38359,7 @@ function renderFreqBoard(el, st, lines, isDeco, opts) {
     metroBoardInfoHtml(st, accuracy,
       `${escHtml(t('接下來的班車'))} · ${escHtml(t(hasLive ? (allFresh ? '已依官方即時資訊校正' : '依稍早官方資料推估') : '依官方當日時刻表'))} · ${escHtml(t('點班次跟隨'))}${hasEstimated ? escHtml(t('（部分路線為班距推算）')) : ''}`,
       eventRowsHtml(st) + staleNote) +
+    (window.RailStoriesUI ? window.RailStoriesUI.boardRowHtml(st.name, [...new Set(lines.map(freqSysIdOf).filter(Boolean))]) : '') + // 沿線小故事「這站的故事」
     (body || `<div class="empty">${escHtml(t('此時段無停靠班次'))}</div>`) + metroBoardMapFooterHtml(st);
   el.hidden = false;
   updateSheetOpenClass();
@@ -40668,6 +40693,13 @@ const HELP_GROUPS = [
       steps: ['「更多」→ 配樂情境', '選「跟著列車」就交給它自動換',
         '想固定聽某一種就直接點家族或情境，會一直停在那裡', '要換回自動，再點一次「跟著列車」'],
       tip: '換情境只發生在一首播完之後，不會把正在聽的曲子切掉；短暫經過一個地區也不會馬上換。通行證到期會自動退回免費的隨機播放，你選過的情境會留著。' },
+    // 沿線小故事只有中文介面有（rail-stories-ui.js 在非中文時藏起開關、不播）；zhOnly 讓 helpSecOk 在別的語言整段不列。
+    { key: 'stories', ic: '故', nm: '沿線小故事', zhOnly: true,
+      one: '跟著一班車時，車開進有故事的路段，地圖上會出一張字幕卡，講這一段沿線的地方小事。',
+      steps: ['手機按地圖右上的「觀看」、桌面用地圖右側的直欄，點「畫面」→ 打開「沿線小故事」：之後跟車、或放空模式的「跟車」視角，車開進有故事的路段就出字幕、念出來',
+        '列車卡和捷運跟車卡的「沿途故事」列出這班車整趟會經過的故事，標出正在播的和下一則；車站看板的「這站的故事」打開這一站的故事',
+        '跟車時點字幕，或點清單裡任一則，打開全文和出處；按 × 收起正在播的這一則'],
+      tip: '還沒打開時，第一次跟車會先試播一則（只出字），下面可以直接選「打開」。瀏覽器要先點過畫面才能出聲；念的時候背景音樂會轉小聲（iPhone、iPad 上先暫停），念完再回來。同一則故事開著頁面時只播一次。' },
     { key: 'garage', ic: '庫', nm: '我的車庫',
       one: '把旅程護照裡的收集章，變成可以旋轉欣賞的小車。',
       steps: ['「更多」或「旅程護照」→「我的車庫」', '選一款車，拖曳移動，右鍵拖曳或雙指扭轉換個角度，查看外觀與來源', '累積完乘、里程、車站與支線章，解鎖 62 款紀念模型'],
@@ -40806,6 +40838,7 @@ function helpElUsable(id) {
   return !host.hidden && el.style.display !== 'none';
 }
 function helpSecOk(s) {
+  if (s.zhOnly && I18N_LANG !== 'zh-TW') return false;
   if (s.avail && !s.avail()) return false;
   if (s.needs && !helpElUsable(s.needs)) return false;
   return true;
@@ -44284,6 +44317,7 @@ document.addEventListener('keyup', e => {
 document.getElementById('ambientBtn').onclick = () => setAmbient(!state.ambient);
 // 音樂初始化防炸:萬一某平台缺元素/API 拋錯,別讓同段後面的 boot 接線整片死掉（38/39 事故的保險）
 try { initMusic(); } catch (e) { console.error('initMusic 失敗', e); }
+try { window.RailStoriesUI?.init(); } catch (e) { console.error('沿線小故事 init 失敗', e); }
 (() => {
   const fc = document.getElementById('flowChart'), lbl = document.getElementById('flowLbl');
   const timeAt = e => Math.max(0, Math.min(86399, e.offsetX / fc.clientWidth * 86400));

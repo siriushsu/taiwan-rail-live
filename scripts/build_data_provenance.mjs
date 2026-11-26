@@ -41,6 +41,8 @@ export const GEOMETRY_SOURCE = {
   'data/ntdlrt.json': 'TDX',
   'data/ntdlrt_times.json': null,
   'data/rail_crossing_levels.json': 'OSM',
+  'data/rail_stories.json': 'STORY',           // 沿線小故事:各則 lat/lon 來源不一(見 BASIS.STORY);網站只用 nearStations 綁站,不拿座標畫位置
+  'data/rail_story_directions.json': null,     // 分方向的字與音檔名,不含座標
   'data/sanying.json': 'OSM',                  // 車站座標仍取自 OSM;路線幾何 2026-09-27 起改用 TDX(NTMC_Shape 的 LB),見 build_tdx.mjs 的 SANYING 段
   'data/sanying_times.json': null,
   'data/station_transfers.json': null,         // 輸出只有站名/距離,不含座標(距離由 data/tdx/*_Station.json 算)
@@ -79,6 +81,7 @@ export const BASIS = {
   'TDX+OSM': 'WGS84(OSM 段);TDX 段未載明(payload 無 CRS 欄位)——兩者實測同框,build_tdx.mjs 對 K03 的座標修正即以 OSM 座標落在 TDX 軌道幾何上離軌 0m 為據',
   'MOI': 'TWD97 經緯度(內政部資料集名稱即載明)',
   'TRA-ODS': 'WGS84(台鐵平交道公開資料的 POS 欄位標示 WGS84,見 scripts/build_crossings.mjs:6)',
+  'STORY': '未載明(各則座標分別查自維基百科條目、OpenStreetMap 或官方網頁,查不到的填 null)',
 };
 
 // 少數檔把來源寫在別的欄位名底下。指定欄位名而不是把內容抄進 HAND,前綴逐字關係才守得住。
@@ -93,6 +96,10 @@ export const HAND = {
     '本站自訂的懸賞門檻與文案定義,無外部資料源;客端即時提示與伺服器端隔日驗證共讀同一份(見檔內 note)',
   'data/offline_land_style.json':
     '離線陸地的 MapLibre style 片段(fill/line 兩層、light/dark/sat 三主題),值抄自 index.html 的 offlineLandStyle();scripts/verify_track_geojson.mjs G9 對 index.html 逐值驗算',
+  'data/rail_stories.json':
+    '沿線小故事 344 則,與 App 同一份(shared/rail-stories/rail_stories.json,2026-11-26 逐 byte 比對相同);每則出處列在該則的 sources 欄(網址與標題),座標見 GEOMETRY_SOURCE 的 STORY',
+  'data/rail_story_directions.json':
+    '沿線小故事的分方向版本(21 則),與 App 同一份(shared/rail-stories/rail_story_directions.json,2026-11-26 逐 byte 比對相同);欄位意義見檔內「說明」,故事出處同 data/rail_stories.json 對應 id 的 sources',
   'data/station_transfers.json':
     '由 data/tdx/*_Station.json 與 *_StationOfLine.json 逐系統彙整(檔內 sourceSystems 列出 12 個系統的實際輸入檔);轉乘判定為站名正規化後 haversine < 450 公尺(檔內 criteria)',
   'data/tra_station_class.json':

@@ -1,0 +1,98 @@
+/* 沿線小故事（網站版）。畫面程式在 rail-stories-ui.js，規則在 rail-stories.js。
+   字幕卡＝放空那種藏青半透明；位置由 rail-stories-ui.js 的 place() 照當下版面量出來（四種：電腦跟車、電腦放空、手機跟車、手機放空）。 */
+
+/* ── 字幕卡 ── */
+.story-cap {
+  position: absolute; z-index: 640; box-sizing: border-box;
+  background: var(--navy-glass, rgba(42, 74, 115, .80));
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  color: #fff; border-radius: 14px; padding: 8px 34px 11px; text-align: center;
+  box-shadow: 0 4px 16px rgba(20, 30, 50, .22);
+  font-family: var(--font, inherit);
+  --sc-fs: calc(19px * var(--ui, 1));
+  transition: opacity .35s ease;
+}
+.story-cap[hidden] { display: none; }
+.story-cap.sc-mobile { --sc-fs: calc(16px * var(--ui, 1)); padding: 7px 30px 9px; border-radius: 12px; }
+/* 放空時不吃點擊（掛著看就好，也不擋地圖）；跟車時點字開全文卡 */
+.story-cap.sc-ambient { pointer-events: none; padding-left: 18px; padding-right: 18px; }
+.story-cap .sc-name { font-size: calc(var(--sc-fs) * .66); opacity: .82; letter-spacing: .06em; font-weight: 600; line-height: 1.4; }
+.story-cap .sc-text { font-size: var(--sc-fs); font-weight: 700; line-height: 1.45; cursor: pointer; }
+.story-cap.sc-ambient .sc-text { cursor: default; }
+.story-cap .sc-x {
+  position: absolute; right: 6px; top: 2px; width: 30px; height: 30px; padding: 0;
+  background: none; border: 0; color: #fff; opacity: .7; cursor: pointer;
+  font: 400 calc(var(--sc-fs) * .95)/1 "PingFang TC", "Noto Sans TC", sans-serif;
+}
+.story-cap .sc-x:hover { opacity: 1; }
+.story-cap.sc-ambient .sc-x { display: none; }
+/* 試播的邀請列 */
+.story-cap .sc-ask {
+  display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px 10px;
+  margin-top: 9px; padding-top: 9px; border-top: 1px solid rgba(255, 255, 255, .28);
+  font-size: calc(var(--sc-fs) * .78); font-weight: 600;
+}
+.story-cap .sc-ask[hidden] { display: none; }
+.story-cap .sc-ask button {
+  font: inherit; font-weight: 700; border-radius: 999px; padding: 3px 14px; cursor: pointer; min-height: 30px;
+  border: 1px solid rgba(255, 255, 255, .6); background: none; color: #fff;
+}
+.story-cap .sc-ask button.yes { background: #fff; color: var(--navy, #2A4A73); border-color: #fff; }
+.story-cap :focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+/* ── 車次卡、車站卡的一列 ── */
+.tc-stories[hidden], .story-brow[hidden] { display: none; }
+.tc-stories, .story-brow {
+  display: flex; align-items: baseline; gap: 8px; width: 100%; box-sizing: border-box; text-align: left;
+  font: inherit; color: var(--ink); background: none; cursor: pointer;
+  border: 0; border-top: 1px dashed var(--line-dash, #D8CBA9); border-bottom: 1px dashed var(--line-dash, #D8CBA9);
+}
+.tc-stories { padding: 8px 2px; margin: 8px 0 4px; font-size: calc(14px * var(--ui, 1)); }
+.story-brow { padding: 7px 0; margin: 2px 0 8px; font-size: calc(13px * var(--ui, 1)); }
+.fc-stories { padding: 6px 0 2px; margin: 6px 0 0; border-bottom: 0; font-size: calc(13px * var(--ui, 1)); }
+.tc-stories .rl, .story-brow .rl { color: var(--muted); font-size: .9em; flex: none; }
+.tc-stories b, .story-brow b { color: var(--navy); flex: none; }
+.tc-stories .rs, .story-brow .rs { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tc-stories .chev, .story-brow .chev { color: var(--navy); font-weight: 700; flex: none; }
+.tc-stories:hover .rs, .story-brow:hover .rs { text-decoration: underline; }
+
+/* ── 沿途清單、這站的故事、全文卡（.board 家族的殼） ── */
+.story-panel .sp-seg { display: flex; gap: 6px; margin: 2px 0 6px; }
+.story-panel .sp-seg button {
+  font: inherit; font-size: calc(12px * var(--ui, 1)); cursor: pointer;
+  border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; background: none; color: var(--muted);
+}
+.story-panel .sp-seg button.on { background: var(--navy); color: var(--on-navy, #fff); border-color: var(--navy); }
+.story-panel .sp-li {
+  display: grid; grid-template-columns: 52px 1fr auto; gap: 6px; align-items: baseline; width: 100%;
+  padding: 7px 0; border: 0; border-top: 1px dashed var(--line-dash, #D8CBA9); background: none;
+  font: inherit; font-size: calc(13.5px * var(--ui, 1)); color: var(--ink); text-align: left; cursor: pointer;
+}
+.story-panel .sp-li.nost { grid-template-columns: 1fr auto; }
+.story-panel .sp-li i { font-style: normal; font-size: .85em; color: var(--muted); }
+.story-panel .sp-li span small { display: block; color: var(--muted); font-size: .85em; }
+.story-panel .sp-li em { font-style: normal; color: var(--navy); font-size: .93em; white-space: nowrap; }
+.story-panel .sp-li.past { opacity: .55; }
+.story-panel .sp-li.now { background: rgba(210, 161, 42, .16); margin: 0 -14px; padding: 7px 14px; width: calc(100% + 28px); }
+.story-panel .sp-li.now i { color: var(--red); font-weight: 700; }
+.story-panel .sp-li:hover span { text-decoration: underline; }
+.story-panel .sp-empty { color: var(--muted); font-size: calc(13px * var(--ui, 1)); padding: 10px 0; }
+.story-panel .sp-card { font-size: calc(14px * var(--ui, 1)); line-height: 1.7; color: var(--ink); }
+.story-panel .sp-name { font-size: calc(21px * var(--ui, 1)); font-weight: 800; color: var(--ink-strong, var(--strong)); line-height: 1.35; margin-top: 2px; }
+.story-panel .sp-tags { margin: 4px 0; }
+.story-panel .sp-tag { display: inline-block; font-size: calc(11.5px * var(--ui, 1)); border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; margin: 0 4px 2px 0; color: var(--muted); }
+.story-panel .sp-tag.ok { border-color: var(--ok, #1B8F4D); color: var(--ok, #1B8F4D); }
+.story-panel .sp-place { color: var(--navy); font-weight: 700; font-size: calc(13px * var(--ui, 1)); }
+.story-panel .sp-intro { color: var(--muted); margin: 6px 0; }
+.story-panel .sp-text { margin: 6px 0; white-space: pre-line; }
+.story-panel .sp-src { font-size: calc(12px * var(--ui, 1)); margin: 6px 0 0; line-height: 1.6; }
+.story-panel .sp-src a { color: var(--navy); }
+.story-panel .sp-foot {
+  display: block; width: 100%; margin-top: 10px; padding: 9px 0 2px; text-align: left; cursor: pointer;
+  border: 0; border-top: 1px dashed var(--line-dash, #D8CBA9); background: none;
+  font: inherit; font-weight: 700; color: var(--navy); font-size: calc(13.5px * var(--ui, 1));
+}
+
+/* ── 觀看設定「畫面」那一列 ── */
+#storyRow .sr-copy { display: flex; flex-direction: column; gap: 3px; min-width: 0; text-align: left; }
+#storyRow .sr-copy small { font-size: calc(11.5px * var(--uis, 1)); line-height: 1.5; color: var(--muted); font-weight: 400; }

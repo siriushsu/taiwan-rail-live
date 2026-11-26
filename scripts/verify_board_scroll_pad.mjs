@@ -1934,7 +1934,33 @@ for (const [eng, bt] of [['chromium', chromium], ['webkit', webkit]]) {
     const isTc = await open2(page, 'tc');
     ok(P('360 列車 sheet 打得開'), isTc);
     if (isTc) {
-      await cardS(page, P, '360', 'tc');
+      // v1126a 起列車卡多了沿線小故事「沿途故事」那一列(#tcStories;中文介面、這班沿途有故事才有),S 的前提不成立,改成真的走:
+      // 展開時刻表(那一列下面才長到捲得走)、捲到底,焦點放卡頭最後一顆往前 Tab 一下進到那一列,它被捲回來時上緣不能壓在 sticky 卡頭下。
+      // 沒有那一列(這班沒故事)就照舊量 S。對照:把那一列硬捲到卡頭底下(scroll-margin 負值)⇒ 要量得到紅。
+      const tcRow = await page.evaluate(() => { const r = document.getElementById('tcStories'); return !!(r && !r.hidden && r.getClientRects().length); });
+      if (tcRow) {
+        const tabIn = async () => {
+          await page.evaluate(async () => {
+            setStopsOpen(true); await new Promise(r => setTimeout(r, 300));
+            const c = document.getElementById('trainCard'); c.scrollTop = c.scrollHeight;
+            const tb = __bsp.tabbables(c.querySelector('.tc-head')); tb[tb.length - 1].focus();
+          });
+          await settle(page);
+          await page.keyboard.press(eng === 'webkit' ? 'Alt+Tab' : 'Tab');
+          await settle(page);
+          const m = await page.evaluate(() => {
+            const c = document.getElementById('trainCard'), a = document.activeElement, h = c.querySelector('.tc-head').getBoundingClientRect(), r = a.getBoundingClientRect();
+            return { id: a.id, top: Math.round(r.top), head: Math.round(h.bottom), covered: r.top < h.bottom - 1, moved: c.scrollTop < c.scrollHeight - c.clientHeight - 2 };
+          });
+          await page.evaluate(() => setStopsOpen(false));
+          return m;
+        };
+        const fmt = m => `焦點 #${m.id} 上緣 ${m.top}、卡頭下緣 ${m.head}${m.moved ? '' : '(沒捲動)'}`;
+        const w = await tabIn();
+        ok(P('W 360 列車 sheet 展開時刻表捲到底,從卡頭 Tab 進「沿途故事」那一列:被捲回來、上緣不壓在卡頭下'), w.id === 'tcStories' && w.moved && !w.covered, fmt(w));
+        const wm = await withMut(page, '#tcStories { scroll-margin-top: -400px !important; }', tabIn);
+        ok(P('N 突變:那一列捲進來時硬靠到卡頭底下 ⇒ W 量得到紅'), wm.id === 'tcStories' && wm.covered, fmt(wm));
+      } else await cardS(page, P, '360', 'tc');
       await cardJ(page, P, '360', 'tc', ':scope > .tc-head button');
       await page.evaluate(() => setSheetPx(document.getElementById('trainCard'), innerHeight * 0.30)); // 高度偏好還給 30%
     }

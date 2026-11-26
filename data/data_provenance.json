@@ -118,6 +118,24 @@
    "coordinateBasis": "WGS84(OpenStreetMap 定義即 WGS84)",
    "checksum": "8a9e811f550c6febfdda21b81cfa9633"
   },
+  "data/rail_stories.json": {
+   "sourceDescription": "沿線小故事 344 則,與 App 同一份(shared/rail-stories/rail_stories.json,2026-11-26 逐 byte 比對相同);每則出處列在該則的 sources 欄(網址與標題),座標見 GEOMETRY_SOURCE 的 STORY",
+   "sourceField": null,
+   "effectiveDate": null,
+   "effectiveDateField": null,
+   "geometrySource": "STORY",
+   "coordinateBasis": "未載明(各則座標分別查自維基百科條目、OpenStreetMap 或官方網頁,查不到的填 null)",
+   "checksum": "394552c2b9446110de5d8f0d53daa272"
+  },
+  "data/rail_story_directions.json": {
+   "sourceDescription": "沿線小故事的分方向版本(21 則),與 App 同一份(shared/rail-stories/rail_story_directions.json,2026-11-26 逐 byte 比對相同);欄位意義見檔內「說明」,故事出處同 data/rail_stories.json 對應 id 的 sources",
+   "sourceField": null,
+   "effectiveDate": null,
+   "effectiveDateField": null,
+   "geometrySource": null,
+   "coordinateBasis": null,
+   "checksum": "7766ce83d0820ae84ee581a66a250976"
+  },
   "data/sanying.json": {
    "sourceDescription": "路線幾何:交通部 TDX 運輸資料流通服務(新北捷運三鶯線,2026-09-27 抓取);車站座標:OpenStreetMap 貢獻者(ODbL,2026-07 擷取);站序站名:新北捷運公司官網;站間行駛時間:交通部 TDX 運輸資料流通服務(新北捷運三鶯線,2026-09-12 抓取);",
    "sourceField": "source_notes",

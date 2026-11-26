@@ -155,6 +155,7 @@ for (const file of [
   // !window.BusTransferUI 只是靜默 return ⇒ build 全綠、App 照開，公車卡在 App 裡整個不存在（1.5.5／1.5.6
   // 上架後才發現）。verify-release 現在另有「首頁引用的本機腳本／樣式都要在 bundle 裡」守門，再漏會當場紅。
   'bus-transfer-ui.js', 'train-garage.js', 'train-garage.css', 'train-garage-catalog.js', 'train-garage-scenes.js', 'train-garage-intros.js', 'rail-discovery.js', 'night-theme.css', 'night-map.js', 'night-board.js', 'ntm-live-model.js', 'rail-3d.js', 'rail-3d.css', 'rail-platform.js', 'rail-platform-ui.js', 'rail-platform.css',
+  'rail-stories.js', 'rail-stories-ui.js', 'rail-stories.css',
   'my-train-plan.js', 'my-train-ui.js', 'my-train-ui.css',
   'favicon-16.png', 'favicon-32.png', 'favicon-48.png', 'favicon-192.png', 'favicon-512.png',
   'apple-touch-180.png', 'icon-maskable-512.png', 'og-1200x630.png'
