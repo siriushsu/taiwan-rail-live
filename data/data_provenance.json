@@ -242,7 +242,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "7e1b1019d57ae3f531d1105743e5e207"
+   "checksum": "305ed8b3e835b3d37d416fab8a17901b"
   },
   "data/tra_pass_obs.json": {
    "sourceDescription": "TDX api/historical/v2 Historical/Rail/TRA/LiveTrainDelay",
@@ -269,7 +269,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "868f6425b100ea58fb0ef6db29464362"
+   "checksum": "c57dde5d64b7f7cc99ab1a4550dd1881"
   },
   "data/tra_schedule_dense.json": {
    "sourceDescription": "時刻表來源：https://ods.railway.gov.tw/tra-ods-web/ods/download/dataResource/railway_schedule/JSON/list 清單頁，抓取今天(2026-11-24)起連續 14 天中實際發佈得到的 14 天（2026-11-24…2026-12-0",
@@ -314,7 +314,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "015d679b4882c0545efe75c3ed04487f"
+   "checksum": "d4ded6d0174501dd7ffe9eb9c5e722d7"
   },
   "data/track_lines.geojson": {
    "sourceDescription": "由 data/{tra,thsr_track,afr,trtc,tymc,ntdlrt,ntalrt,sanying,krtc,tmrt}.json 的 lines[].shape 與 lines[].stations 轉成 GeoJSON([lon,lat],小數 6 位),scripts/build_track_g",

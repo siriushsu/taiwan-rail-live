@@ -522,5 +522,7 @@ export function makeOvertakeSolver(S, J, { pairs, isProtected, meets }) {
     settleRelays();   // 接力借路徑的車次：重新綁定與模型不同的落成自己的計畫（路徑不變，所以上面算好的狀態仍然成立）
     ver++;
   }
-  return { violations, violationsByType, violating, state: c => state.get(c.id), expand, evaluate, bestFix, explain, apply, describe };
+  // blockedBy、version 給「通過列車走正線」的修復器（repair_tra_pass_main.mjs）用：它自己挑要搬哪一班、搬到哪個節點，
+  // 可行性、保護與接受條件（evaluate）跟這裡同一份，套用時組一個 { ver: version(), all, direct } 交給 apply。
+  return { violations, violationsByType, violating, state: c => state.get(c.id), expand, evaluate, bestFix, explain, apply, describe, blockedBy, version: () => ver };
 }

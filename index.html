@@ -6068,6 +6068,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="passmain1126"><span class="d">11/26</span><span>台鐵通過不停的列車經過車站改走正線，不再繞進側線；永康、武塔、后里、東竹、萬榮、台中港等站都改了</span></li>
         <li data-cl-of="stories1126"><span class="d">11/26</span><span>新增沿線小故事：在「觀看」→「畫面」打開後，跟車經過有故事的路段，地圖上會出字幕並念出來；列車卡和車站看板也能看整趟與這一站的故事</span></li>
         <li data-cl-of="landscapefog1124"><span class="d">11/24</span><span>電腦版地景地圖：山上的廟、校舍和場館也會被霧和山霧遮住，入夜跟著變暗；學校操場的跑道和草地轉動視角時不再閃爍</span></li>
         <li data-cl-of="musicnov1124"><span class="d">11/24</span><span>「配樂情境」新增 Lo-fi、提琴、爵士、鋼琴 4 個曲風歌單、共 20 首，有通行證就能手動選，不會跟著列車自動切換</span></li>
@@ -6075,7 +6076,6 @@
         <li data-cl-of="landscape1124"><span class="d">11/24</span><span>電腦版地景地圖：外澳台 2 線不再疊成八線道，改成雙向各兩線道；河床改成灰褐色砂石，山坡林地的樹更密，地面也不再像鏡面一樣反光</span></li>
         <li data-cl-of="openingrerec1124"><span class="d">11/24</span><span>電腦首頁的開場畫面照最新的地景地圖重新錄過，每一段都更清楚；新增夕陽下列車開進嘉義高鐵站、雨中的宜蘭線兩段</span></li>
         <li data-cl-of="railtop1124"><span class="d">11/24</span><span>地景地圖上的列車和軌道改貼著地景本身的軌道高度：列車經過宜蘭線頂埔站不再拱起又落下，進出隧道也不會在洞口高出一截</span></li>
-        <li data-cl-of="rainlook1124"><span class="d">11/24</span><span>新地景跟車遇到下雨時，雨絲改成往下落，不再被鏡頭帶著往旁邊滑；天色轉陰、影子變淡，遠處的海岸和山淡進雨霧裡，海面也換成陰天的顏色</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -6109,6 +6109,7 @@
         <li data-cl="weatherapp1023"><span class="d">10/23</span><span>修正 App 颱風資訊整份重複顯示，改為各系統公告；補上新北環狀線、三鶯線 10/23 約 15 分鐘班距，淡海與安坑仍待確認</span></li>
         <li data-cl="weather1022"><span class="d">10/22</span><span>新增颱風期間全台鐵道營運提醒與官方來源，明確標示停駛、調整班距及待確認資訊；地圖有車不代表實際開行；開啟颱風公告時跟車卡暫時隱藏</span></li>
         <li class="grp">路網與車站</li>
+        <li data-cl="passmain1126"><span class="d">11/26</span><span>台鐵通過不停的列車經過車站改走正線，不再繞進側線；永康、武塔、后里、東竹、萬榮、台中港、林邊等站都改了</span></li>
         <li data-cl="yieldtrack1124"><span class="d">11/24</span><span>台鐵有加開專車時，站內讓車的那班改停到另一股，不再和通過的列車疊在同一條軌道；後車剛跟上前一班也會留足車身距離，不再擦到車尾</span></li>
         <li data-cl="rainlook1124"><span class="d">11/24</span><span>新地景跟車遇到下雨時，雨絲改成往下落，不再被鏡頭帶著往旁邊滑；天色轉陰、影子變淡，遠處的海岸和山淡進雨霧裡，海面也換成陰天的顏色</span></li>
         <li data-cl="railtop1124"><span class="d">11/24</span><span>地景地圖上的列車和軌道改貼著地景本身的軌道高度：列車經過宜蘭線頂埔站不再拱起又落下，進出隧道也不會在洞口高出一截</span></li>
@@ -7702,7 +7703,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1124e：配樂新增 Lo-fi、提琴、爵士、鋼琴四個曲風歌單（_pass/lofi|violin|jazz|piano，20 首，手動限定、要通行證）。
 // v1124f：網站地景山上的廟、校舍、場館與 OSM 3D 建物改畫進地景場景（吃霧、山霧、日夜光，claude/temple-fog-1124）；操場跑道與草地改不寫深度的場地網格、照疊放層畫（claude/pitch-zfight-fog-1124）。
 // v1126a：沿線小故事上網站（rail-stories.js 規則移植自 App、rail-stories-ui.js 字幕／試播／配音／沿途清單；只在中文介面）。
-const BUILD = 'v1126a';
+// v1126b：台鐵通過不停的列車改走正線（pass-main 兩輪：F2c 修復器、放行新路徑、重產派車表與路網）。
+const BUILD = 'v1126b';
 // v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 // 有播電腦首頁開場、又是第一次來（RI_HOME_OPENING.fresh）：揭幕後開新地景（開場影片就是新地景錄的）；只這一趟，不寫地景偏好
