@@ -10,6 +10,7 @@ import {
   OUTPUT,
   MAX_TRANSFER_DISTANCE_M,
   DUPLICATE_ROUTE_SOURCES,
+  EXCLUDED_TRANSFER_PAIRS,
   buildTransferData,
   haversineMeters,
   loadSourceData,
@@ -104,11 +105,25 @@ check(`涵蓋率具名斷言：12 系統／全網 ${564 + dLine} 站／${581 + d
   assert.equal(product.stats.routeMemberships, 581 + dLine);
   assert.equal(Object.keys(product.stations).length, 564 + dLine);
 });
-check('轉乘涵蓋具名斷言：58 轉乘站／涵蓋 109 站記錄／126 路線會員', () => {
-  assert.equal(product.stats.transferStations, 58);
-  assert.equal(product.stats.transferStationRecords, 109);
-  assert.equal(product.stats.transferRouteMemberships, 126);
-  assert.equal(product.stats.matchedStationPairs, 63);
+// 2026-11-28 排除中捷 G16 烏日 ↔ 台鐵 3330 烏日（EXCLUDED_TRANSFER_PAIRS）：少 1 群、2 站記錄、2 路線會員、1 組配對。
+check('轉乘涵蓋具名斷言：57 轉乘站／涵蓋 107 站記錄／124 路線會員', () => {
+  assert.equal(product.stats.transferStations, 57);
+  assert.equal(product.stats.transferStationRecords, 107);
+  assert.equal(product.stats.transferRouteMemberships, 124);
+  assert.equal(product.stats.matchedStationPairs, 62);
+});
+
+// 正向對照：每一對排除仍是「名稱相同、距離合格」的候選，否則這條排除已經沒在擋東西，要重新確認。
+check(`具名排除配對：${EXCLUDED_TRANSFER_PAIRS.map(pair => `${pair.a}↔${pair.b}`).join('、')} 仍是合格候選且沒有共站`, () => {
+  const byKey = new Map(source.stations.map(station => [station.key, station]));
+  for (const pair of EXCLUDED_TRANSFER_PAIRS) {
+    const a = byKey.get(pair.a), b = byKey.get(pair.b);
+    assert(a && b, `${pair.a}／${pair.b} 不在來源（上游改號？）`);
+    assert.equal(a.transferName, b.transferName, `${pair.label}：兩站名稱已不同，排除沒在擋東西`);
+    assert(haversineMeters(a, b) < MAX_TRANSFER_DISTANCE_M, `${pair.label}：距離已超過上界，排除沒在擋東西`);
+    const pa = product.stations[pair.a], pb = product.stations[pair.b];
+    assert(!pa.transferId || pa.transferId !== pb.transferId, `${pair.label}：產物仍把兩站配在一起`);
+  }
 });
 
 // ── 重複來源去重：同一條實體線只准有一份 ──────────────────────────────────

@@ -2833,7 +2833,7 @@
       "routes": [
         "TMRT:G"
       ],
-      "transferId": "T-TMRT-G16"
+      "transferId": null
     },
     "TMRT:G17": {
       "system": "TMRT",
@@ -4248,7 +4248,7 @@
       "routes": [
         "TRA:WL"
       ],
-      "transferId": "T-TMRT-G16"
+      "transferId": null
     },
     "TRA:3340": {
       "system": "TRA",
@@ -9435,25 +9435,6 @@
       ]
     },
     {
-      "id": "T-TMRT-G16",
-      "normalizedName": "烏日",
-      "members": [
-        "TMRT:G16",
-        "TRA:3330"
-      ],
-      "routes": [
-        "TMRT:G",
-        "TRA:WL"
-      ],
-      "pairs": [
-        {
-          "a": "TMRT:G16",
-          "b": "TRA:3330",
-          "distanceM": 250.986
-        }
-      ]
-    },
-    {
       "id": "T-TMRT-G4",
       "normalizedName": "松竹",
       "members": [
@@ -9911,9 +9892,9 @@
     "sourceSystems": 12,
     "stationRecords": 564,
     "routeMemberships": 581,
-    "matchedStationPairs": 63,
-    "transferStations": 58,
-    "transferStationRecords": 109,
-    "transferRouteMemberships": 126
+    "matchedStationPairs": 62,
+    "transferStations": 57,
+    "transferStationRecords": 107,
+    "transferRouteMemberships": 124
   }
 }

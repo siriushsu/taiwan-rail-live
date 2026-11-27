@@ -58,6 +58,17 @@ export const DUPLICATE_ROUTE_SOURCES = Object.freeze({
   'NTMC:LB': Object.freeze({ keptRoute: 'SANYING:LB', label: '三鶯線' }),
 });
 
+// 名稱與距離都合格、但營運單位明說不能在這裡轉乘的配對：只擋這一對，不動名稱與距離規則。
+// 兩端都是 `系統:StationID`。verify_station_transfers.mjs 會確認每一對仍是合格候選（擋住的東西還在）。
+//
+// TMRT:G16 ↔ TRA:3330（都叫烏日，相距約 251m）—— 中捷新聞稿〈別下錯站！中捷烏日站不是轉乘站〉：
+// 捷運烏日站不能轉乘高鐵、台鐵，綠線轉雙鐵要到松竹、大慶或高鐵台中站。
+// https://www.tmrt.com.tw/announcement/draft-news/detail?id=11af8698-35ed-46b1-86b5-366059ff61cd
+export const EXCLUDED_TRANSFER_PAIRS = Object.freeze([
+  Object.freeze({ a: 'TMRT:G16', b: 'TRA:3330', label: '中捷烏日站不是轉乘站' }),
+]);
+const pairKey = (a, b) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+
 function readCollection(file, key, { optional = false } = {}) {
   let raw;
   try { raw = JSON.parse(readFileSync(file, 'utf8')); }
@@ -303,8 +314,10 @@ function makeGroups(stations, maxDistanceM) {
     if (a !== b) parent[b] = a;
   };
 
+  const excluded = new Set(EXCLUDED_TRANSFER_PAIRS.map(pair => pairKey(pair.a, pair.b)));
   for (let i = 0; i < stations.length; i++) for (let j = i + 1; j < stations.length; j++) {
     if (stations[i].transferName !== stations[j].transferName) continue;
+    if (excluded.has(pairKey(stations[i].key, stations[j].key))) continue;
     if (haversineMeters(stations[i], stations[j]) < maxDistanceM) union(i, j);
   }
 
@@ -325,6 +338,9 @@ function makeGroups(stations, maxDistanceM) {
         const distanceM = haversineMeters(members[i], members[j]);
         if (members[i].transferName !== members[j].transferName || distanceM >= maxDistanceM) {
           throw new Error(`共站群 ${members[0].transferName} 不是 complete-link：${members[i].key} ↔ ${members[j].key} ${distanceM.toFixed(1)}m`);
+        }
+        if (excluded.has(pairKey(members[i].key, members[j].key))) {
+          throw new Error(`共站群 ${members[0].transferName} 經第三站把排除配對 ${members[i].key} ↔ ${members[j].key} 併在一起`);
         }
         pairs.push({ a: members[i].key, b: members[j].key, distanceM: +distanceM.toFixed(3) });
       }

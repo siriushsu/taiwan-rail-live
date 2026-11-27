@@ -6065,7 +6065,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/11/27</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/11/28</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -6073,6 +6073,7 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="wurig161128"><span class="d">11/28</span><span>臺中捷運烏日站不再標成台鐵烏日站的轉乘站；中捷說明這站不能轉乘雙鐵，綠線轉台鐵請到松竹、大慶或高鐵臺中站，轉高鐵請到高鐵臺中站</span></li>
         <li data-cl-of="bountyweb1127"><span class="d">11/27</span><span>網站重新打開校正懸賞看板：看得到哪些路段還缺資料、自己的島民點數和校正貢獻；錄程照舊用軌島 App</span></li>
         <li data-cl-of="tripshare1127"><span class="d">11/27</span><span>跟車面板多了「行程分享」鈕：選好目的站就產生連結，朋友打開會跟著同一班車看你到哪了；發起分享要有軌島通行證</span></li>
         <li data-cl-of="landscapemobile1127"><span class="d">11/27</span><span>手機網頁選「地景」也改開新的全台地景，不再標 Beta；跑不動或載入失敗時會自動退回舊的地景</span></li>
@@ -6080,7 +6081,6 @@
         <li data-cl-of="passmain1126"><span class="d">11/26</span><span>台鐵通過不停的列車經過車站改走正線，不再繞進側線；永康、武塔、后里、東竹、萬榮、台中港等站都改了</span></li>
         <li data-cl-of="stories1126"><span class="d">11/26</span><span>新增沿線小故事：在「觀看」→「畫面」打開後，跟車經過有故事的路段，地圖上會出字幕並念出來；列車卡和車站看板也能看整趟與這一站的故事</span></li>
         <li data-cl-of="landscapefog1124"><span class="d">11/24</span><span>電腦版地景地圖：山上的廟、校舍和場館也會被霧和山霧遮住，入夜跟著變暗；學校操場的跑道和草地轉動視角時不再閃爍</span></li>
-        <li data-cl-of="musicnov1124"><span class="d">11/24</span><span>「配樂情境」新增 Lo-fi、提琴、爵士、鋼琴 4 個曲風歌單、共 20 首，有通行證就能手動選，不會跟著列車自動切換</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -6114,6 +6114,7 @@
         <li data-cl="weatherapp1023"><span class="d">10/23</span><span>修正 App 颱風資訊整份重複顯示，改為各系統公告；補上新北環狀線、三鶯線 10/23 約 15 分鐘班距，淡海與安坑仍待確認</span></li>
         <li data-cl="weather1022"><span class="d">10/22</span><span>新增颱風期間全台鐵道營運提醒與官方來源，明確標示停駛、調整班距及待確認資訊；地圖有車不代表實際開行；開啟颱風公告時跟車卡暫時隱藏</span></li>
         <li class="grp">路網與車站</li>
+        <li data-cl="wurig161128"><span class="d">11/28</span><span>臺中捷運烏日站不再標成台鐵烏日站的轉乘站；中捷說明這站不能轉乘雙鐵，綠線轉台鐵請到松竹、大慶或高鐵臺中站，轉高鐵請到高鐵臺中站</span></li>
         <li data-cl="tragpsrun1127"><span class="d">11/27</span><span>台鐵站間行駛曲線用到 11/26 的校正懸賞錄程重算，從 95 條增加到 185 條，更多路段的起步、進站快慢照真車來推（謝謝幫忙錄程的島民）</span></li>
         <li data-cl="landscapemobile1127"><span class="d">11/27</span><span>手機網頁選「地景」也改開新的全台地景，不再標 Beta；跑不動或載入失敗時會自動退回舊的地景</span></li>
         <li data-cl="passmain1126"><span class="d">11/26</span><span>台鐵通過不停的列車經過車站改走正線，不再繞進側線；永康、武塔、后里、東竹、萬榮、台中港、林邊等站都改了</span></li>
@@ -7717,7 +7718,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 //         手機列車卡內容讓出釘住的卡頭（syncBoardScrollPad 納入 .tc-head），鍵盤進「沿途故事」那一列不再被卡頭壓住上緣。
 // v1127b：台鐵站間 GPS 曲線用到 11-26 乘車日的可用錄程重算（data/tra_gps_runs.json 95→185 條，build_gps_runs.mjs 原樣重跑；網頁私有分支 claude/gps-run-1127 92aab7866）；tra_run_profiles.json 在 v1127a 上重產 2,481,033 bytes（上限 3,000,000），manifest／provenance 跟著重產。
 // v1127b（續）：同一發打開三個開關（使用者 11-27 選）：網站懸賞看板 BOUNTY_ENABLED 預設開（?bounty=0 當次關）、行程分享發起入口 TRIP_SHARE_ENABLED 預設開（?tripshare=0 當次關）、手機網頁新地景 LANDSCAPE_NEW_DEFAULT（現行 App 殼除外）；收集地圖不動。
-const BUILD = 'v1127b';
+// v1128a：臺中捷運烏日站（G16）不再跟台鐵烏日站配成轉乘站（build_station_transfers.mjs 加排除配對，中捷新聞稿說此站不是轉乘站）。
+const BUILD = 'v1128a';
 // v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 // 有播電腦首頁開場、又是第一次來（RI_HOME_OPENING.fresh）：揭幕後開新地景（開場影片就是新地景錄的）；只這一趟，不寫地景偏好

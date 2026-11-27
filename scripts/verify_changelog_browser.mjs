@@ -183,8 +183,8 @@ const widths = [360, 375, 414, 768];
 // 11/24: v1124f landscape temples in fog and school fields no longer flickering adds 1 (611 -> 612).
 // 11/27: v1127b adds 4 entries (TRA GPS run curves 95 -> 185, web bounty board back, trip share entry, mobile web new landscape).
 // The old expectation (612) had gone stale: this gate is not in ship-web, and the page already listed 630 before v1127b.
-// 634 matches check-copy (verify_changelog_copy, which ship-web runs).
-const expectedHistoryCount = 634;
+// 635 matches check-copy (verify_changelog_copy, which ship-web runs).
+const expectedHistoryCount = 635;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {
