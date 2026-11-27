@@ -181,7 +181,10 @@ const widths = [360, 375, 414, 768];
 // 11/18: v1118d desktop home opening turned on adds 1 (603 -> 604).
 // 11/24: v1124c landscape m83b (f58b8370b, constant not bumped there) and v1124d TRA extra trains switching tracks add 2 (608 -> 610).
 // 11/24: v1124f landscape temples in fog and school fields no longer flickering adds 1 (611 -> 612).
-const expectedHistoryCount = 612;
+// 11/27: v1127b adds 4 entries (TRA GPS run curves 95 -> 185, web bounty board back, trip share entry, mobile web new landscape).
+// The old expectation (612) had gone stale: this gate is not in ship-web, and the page already listed 630 before v1127b.
+// 634 matches check-copy (verify_changelog_copy, which ship-web runs).
+const expectedHistoryCount = 634;
 
 try {
   for (const [engineName, engine] of Object.entries({ chromium, webkit })) {

@@ -335,13 +335,11 @@ const metadataSources = [
 for (const source of new Set(metadataSources)) for (const lang of languages) {
   if (!keySets[lang]?.has(source)) fail(`系統導言／官方連結缺少 ${lang}：${source}`);
 }
-const hiddenHelpKeys = new Set(['bounty', 'bountyrec', 'bountyme']);
 const helpSources = [];
 for (const quick of helpBlocks.HELP_QUICK || []) helpSources.push(...String(quick.tx || '').split(/<\/?b>/).filter(Boolean));
 for (const group of helpBlocks.HELP_GROUPS || []) {
   helpSources.push(group.name);
   for (const section of group.secs || []) {
-    if (hiddenHelpKeys.has(section.key)) continue; // 尚未上線的 GPS 校正實驗功能，不屬公開說明。
     if (section.zhOnly) continue; // 只有中文介面才有的功能（helpSecOk 在其他語言整段不列），不需要英日韓文。
     helpSources.push(section.nm, section.one, ...(section.steps || []), section.tip, ...(section.widgets || []).flatMap(w => [w.name, w.sizes]));
     // 說明卡圖示也是真正顯示的文字；HTML 圖示只取出其中的可見中文字。

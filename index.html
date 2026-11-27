@@ -4597,6 +4597,11 @@
       margin: 0 -14px 8px; padding: 14px 14px 8px;
       background: var(--paper); border-bottom: 1.5px dashed var(--line-dash);
     }
+    /* 卡頭釘住 ⇒ 內容讓位同 .board(為什麼給內容 scroll-margin、不給容器 scroll-padding,見 .board h3 下面那條)。
+       卡頭高度跟著班次變(即時遙測列、轉乘卡 #tcConn),值由 syncBoardScrollPad 量 .tc-head 實高寫進 --board-scroll-pad:
+       Chromium 鍵盤聚焦「沿途故事」那一列時把它捲到正中,卡頭高的班次會壓住它的上緣(2026-11-27 實測 5px)。 */
+    .traincard.tc-sheet > :not(.tc-head),
+    .traincard.tc-sheet > :not(.tc-head) * { scroll-margin-top: var(--board-scroll-pad, 0px); }
     /* sheet 態 tc-head 內第二列:即時遙測(時速·下一站+倒數·誤點/準點),隨 sticky 標題常駐;
        flex:0 0 100% 在 flex-wrap 的 tc-head 內自成一列。[hidden] 是 display:none !important(第 83 行 reset),
        故此處 display 也要 !important 才蓋得過——同為 important 時較高特異性(0,4,0>0,1,0)勝出;
@@ -6060,7 +6065,7 @@
 
   <footer class="site-foot">
     <details class="foot-box">
-      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/11/26</span></summary>
+      <summary><span>更新紀錄</span><span class="foot-sub">最後更新：2026/11/27</span></summary>
       <!-- 第一層是「最近更新」的檢視,不是正本:每一條都用 data-cl-of 指向第二層某條的 data-cl。
            要把一條擠出第一層之前,它的正本必須已經在第二層存在——2026-08-03 就踩過一次:8/1 的
            衛星計費那條只活在第一層(第二層只有一句夾在 7/25 條目裡、日期對不上的附帶說明),
@@ -6068,14 +6073,14 @@
            內容 li 上限 8 條(li.grp 是標題不算)。 -->
       <ul class="foot-list foot-recent">
         <li class="grp">最近更新</li>
+        <li data-cl-of="bountyweb1127"><span class="d">11/27</span><span>網站重新打開校正懸賞看板：看得到哪些路段還缺資料、自己的島民點數和校正貢獻；錄程照舊用軌島 App</span></li>
+        <li data-cl-of="tripshare1127"><span class="d">11/27</span><span>跟車面板多了「行程分享」鈕：選好目的站就產生連結，朋友打開會跟著同一班車看你到哪了；發起分享要有軌島通行證</span></li>
+        <li data-cl-of="landscapemobile1127"><span class="d">11/27</span><span>手機網頁選「地景」也改開新的全台地景，不再標 Beta；跑不動或載入失敗時會自動退回舊的地景</span></li>
+        <li data-cl-of="tragpsrun1127"><span class="d">11/27</span><span>台鐵站間行駛曲線用到 11/26 的校正懸賞錄程重算，從 95 條增加到 185 條，更多路段的起步、進站快慢照真車來推（謝謝幫忙錄程的島民）</span></li>
         <li data-cl-of="passmain1126"><span class="d">11/26</span><span>台鐵通過不停的列車經過車站改走正線，不再繞進側線；永康、武塔、后里、東竹、萬榮、台中港等站都改了</span></li>
         <li data-cl-of="stories1126"><span class="d">11/26</span><span>新增沿線小故事：在「觀看」→「畫面」打開後，跟車經過有故事的路段，地圖上會出字幕並念出來；列車卡和車站看板也能看整趟與這一站的故事</span></li>
         <li data-cl-of="landscapefog1124"><span class="d">11/24</span><span>電腦版地景地圖：山上的廟、校舍和場館也會被霧和山霧遮住，入夜跟著變暗；學校操場的跑道和草地轉動視角時不再閃爍</span></li>
         <li data-cl-of="musicnov1124"><span class="d">11/24</span><span>「配樂情境」新增 Lo-fi、提琴、爵士、鋼琴 4 個曲風歌單、共 20 首，有通行證就能手動選，不會跟著列車自動切換</span></li>
-        <li data-cl-of="yieldtrack1124"><span class="d">11/24</span><span>台鐵有加開專車時，站內讓車的那班改停到另一股，不再和通過的列車疊在同一條軌道；後車剛跟上前一班也會留足車身距離，不再擦到車尾</span></li>
-        <li data-cl-of="landscape1124"><span class="d">11/24</span><span>電腦版地景地圖：外澳台 2 線不再疊成八線道，改成雙向各兩線道；河床改成灰褐色砂石，山坡林地的樹更密，地面也不再像鏡面一樣反光</span></li>
-        <li data-cl-of="openingrerec1124"><span class="d">11/24</span><span>電腦首頁的開場畫面照最新的地景地圖重新錄過，每一段都更清楚；新增夕陽下列車開進嘉義高鐵站、雨中的宜蘭線兩段</span></li>
-        <li data-cl-of="railtop1124"><span class="d">11/24</span><span>地景地圖上的列車和軌道改貼著地景本身的軌道高度：列車經過宜蘭線頂埔站不再拱起又落下，進出隧道也不會在洞口高出一截</span></li>
       </ul>
       <!-- 第二層:完整歷史。刻意不掛 .foot-box 類名——placeFootBoxes() 用
            `.site-foot .foot-box` 搬移面板,巢狀同名會被當成另一個盒子一起搬走。 -->
@@ -6109,6 +6114,8 @@
         <li data-cl="weatherapp1023"><span class="d">10/23</span><span>修正 App 颱風資訊整份重複顯示，改為各系統公告；補上新北環狀線、三鶯線 10/23 約 15 分鐘班距，淡海與安坑仍待確認</span></li>
         <li data-cl="weather1022"><span class="d">10/22</span><span>新增颱風期間全台鐵道營運提醒與官方來源，明確標示停駛、調整班距及待確認資訊；地圖有車不代表實際開行；開啟颱風公告時跟車卡暫時隱藏</span></li>
         <li class="grp">路網與車站</li>
+        <li data-cl="tragpsrun1127"><span class="d">11/27</span><span>台鐵站間行駛曲線用到 11/26 的校正懸賞錄程重算，從 95 條增加到 185 條，更多路段的起步、進站快慢照真車來推（謝謝幫忙錄程的島民）</span></li>
+        <li data-cl="landscapemobile1127"><span class="d">11/27</span><span>手機網頁選「地景」也改開新的全台地景，不再標 Beta；跑不動或載入失敗時會自動退回舊的地景</span></li>
         <li data-cl="passmain1126"><span class="d">11/26</span><span>台鐵通過不停的列車經過車站改走正線，不再繞進側線；永康、武塔、后里、東竹、萬榮、台中港、林邊等站都改了</span></li>
         <li data-cl="yieldtrack1124"><span class="d">11/24</span><span>台鐵有加開專車時，站內讓車的那班改停到另一股，不再和通過的列車疊在同一條軌道；後車剛跟上前一班也會留足車身距離，不再擦到車尾</span></li>
         <li data-cl="rainlook1124"><span class="d">11/24</span><span>新地景跟車遇到下雨時，雨絲改成往下落，不再被鏡頭帶著往旁邊滑；天色轉陰、影子變淡，遠處的海岸和山淡進雨霧裡，海面也換成陰天的顏色</span></li>
@@ -6492,6 +6499,7 @@
         <li><span class="d">7/13</span><span>新增「附近火車」：地圖上落一根釘，查周邊 60 分鐘內會通過的車次</span></li>
         <li><span class="d">7/12</span><span>新增平交道功能：點一下查接下來會通過的列車（7/13 補上貨運線 21 處）</span></li>
         <li class="grp">收藏、護照與成就</li>
+        <li data-cl="bountyweb1127"><span class="d">11/27</span><span>網站重新打開校正懸賞看板：看得到哪些路段還缺資料、自己的島民點數和校正貢獻；錄程照舊用軌島 App</span></li>
         <li data-cl="walletaccount1104"><span class="d">11/05</span><span>車庫的點數現在寫明存在哪個帳號；換了登入方式會提醒你原本的帳號，刪帳號前也會列出會一起刪掉的點數和場景</span></li>
         <li data-cl="plusride1104"><span class="d">11/04</span><span>有軌島通行證的人，App 校正懸賞錄程的島民點數多 50%，加成不算進每天 500 點上限</span></li>
         <li data-cl="bountyfix1102"><span class="d">11/02</span><span>校正懸賞給點更公平：長隧道或手機很久沒定位時只扣沒錄到的那段，不再整條路線 0 點；隔天才上傳的後半段會補發點數；到站忘了停止錄製也不會讓整趟作廢</span></li>
@@ -6651,6 +6659,7 @@
         <li><span class="d">7/10</span><span>夜間與衛星模式視覺升級；「軌」軌道顯示三段切換：自動／淡化／隱藏</span></li>
         <li><span class="d">7/9</span><span>站名移到軌道側邊不再互相壓住；雙欄版面：搜尋／最愛／旅程收集移到右側欄</span></li>
         <li class="grp">分享與個人化</li>
+        <li data-cl="tripshare1127"><span class="d">11/27</span><span>跟車面板多了「行程分享」鈕：選好目的站就產生連結，朋友打開會跟著同一班車看你到哪了；發起分享要有軌島通行證</span></li>
         <li data-cl="garagenewcars1109"><span class="d">11/09</span><span>車庫新增 12 款車：EMU200、DR2800、S400、EMU400、0 系新幹線、總統花車等，各用 150 島民點數兌換</span></li>
         <li data-cl="garageinfo1109"><span class="d">11/09</span><span>車庫場景與車款加上介紹，車款詳情多了「車款檔案」，列車卡 5 個車種各補一則小知識</span></li>
         <li data-cl="garagefix1109"><span class="d">11/09</span><span>車庫場景頁換車改成下面一排車款鈕直接點；有月台的場景列車輪流進站、停站再開走；鐵軌、電線等細線遠看不再忽隱忽現</span></li>
@@ -6717,7 +6726,7 @@
         <li><span class="d">7/17</span><span>安坑輕軌「台北小城」站位修正；144、146 次車種更正為 EMU3000</span></li>
         <li><span class="d">7/11</span><span>山線改走現行路線，不再誤用 1998 年的舊山線線形；成追線經成功站不再繞行</span></li>
         <li class="grp">曾經上線、後來拿掉</li>
-        <li><span class="d"></span><span><b>GPS 校正旅程與收集地圖</b>：7/28 上線、7/29 暫時收起繼續打磨——先把心力放在別的改進上。你在這台裝置上的乘車紀錄、護照印章與站章都不受影響，之後開回來時校正貢獻也還在</span></li>
+        <li><span class="d"></span><span><b>GPS 校正旅程與收集地圖</b>：7/28 上線、7/29 暫時收起繼續打磨。校正錄程後來改在軌島 App 進行，網站的懸賞看板 11/27 重新打開；收集地圖仍收著。你在這台裝置上的乘車紀錄、護照印章與站章都不受影響</span></li>
         <li><span class="d"></span><span><b>站內錄影（Beta）</b>：7/10 上線、7/17 因地圖圖資的版權條款下架——想錄畫面請改用手機或電腦內建的螢幕錄影功能</span></li>
         <li><span class="d"></span><span><b>軌島帳號（跨裝置同步）</b>：已隨通行證重新開放；訂閱並登入可同步收藏與完乘紀錄，既有資料會保留，也能自助刪除帳號。</span></li>
         <li><span class="d"></span><span><b>定位我</b>：定位功能目前停用中，7/18 把手機「更多」選單裡點了沒反應的入口一併拔掉</span></li>
@@ -7704,7 +7713,11 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1124f：網站地景山上的廟、校舍、場館與 OSM 3D 建物改畫進地景場景（吃霧、山霧、日夜光，claude/temple-fog-1124）；操場跑道與草地改不寫深度的場地網格、照疊放層畫（claude/pitch-zfight-fog-1124）。
 // v1126a：沿線小故事上網站（rail-stories.js 規則移植自 App、rail-stories-ui.js 字幕／試播／配音／沿途清單；只在中文介面）。
 // v1126b：台鐵通過不停的列車改走正線（pass-main 兩輪：F2c 修復器、放行新路徑、重產派車表與路網）。
-const BUILD = 'v1126b';
+// v1127a：沿線小故事兩則介紹改字（花壇「茄苳腳」、九曲堂加註當年寫作「罐詰」），data/rail_stories.json 與 App 同一份；
+//         手機列車卡內容讓出釘住的卡頭（syncBoardScrollPad 納入 .tc-head），鍵盤進「沿途故事」那一列不再被卡頭壓住上緣。
+// v1127b：台鐵站間 GPS 曲線用到 11-26 乘車日的可用錄程重算（data/tra_gps_runs.json 95→185 條，build_gps_runs.mjs 原樣重跑；網頁私有分支 claude/gps-run-1127 92aab7866）；tra_run_profiles.json 在 v1127a 上重產 2,481,033 bytes（上限 3,000,000），manifest／provenance 跟著重產。
+// v1127b（續）：同一發打開三個開關（使用者 11-27 選）：網站懸賞看板 BOUNTY_ENABLED 預設開（?bounty=0 當次關）、行程分享發起入口 TRIP_SHARE_ENABLED 預設開（?tripshare=0 當次關）、手機網頁新地景 LANDSCAPE_NEW_DEFAULT（現行 App 殼除外）；收集地圖不動。
+const BUILD = 'v1127b';
 // v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 // 有播電腦首頁開場、又是第一次來（RI_HOME_OPENING.fresh）：揭幕後開新地景（開場影片就是新地景錄的）；只這一趟，不寫地景偏好
@@ -16593,9 +16606,8 @@ const IS_NATIVE_APP = (() => {
 // 這裡不用下面的 DEMO_MODE 是因為它定義在第 5140 行、此處讀不到;語意刻意保持一致。
 const DEMO_AS_APP = (() => { try { return new URLSearchParams(location.search).get('demo') === 'bounty'; } catch (e) { return false; } })();
 const PHYSICAL_COLLECT_ENABLED = IS_NATIVE_APP || DEMO_AS_APP;
-// 2026-07-29 懸賞(GPS 校正旅程)暫時下架:護照的「校正貢獻」整節、懸賞板、錄一趟、說明中心那三節
-// 全部不出現;實作與後端一行都沒動,改成恆 true 即復活。?bounty=1 當次點亮(比照 TRIP_SHARE_ENABLED 的
-// ?tripshare=1),驗收腳本靠它繼續驗實作;?demo=bounty 也算——備援站看設計的既有路徑不能被這個旗標切斷。
+// 2026-07-29 懸賞(GPS 校正旅程)暫時下架,2026-11-27 重新打開(見下方 BOUNTY_ENABLED)。flagOnce 留給還收著的
+// 旗標(收集地圖 ?collectmap=1):?<名稱>=1 當次點亮,驗收腳本靠它繼續驗實作。
 // 「當次」＝這個分頁的這一輪,不是這一次導頁:boot 的 clearFollow() 會 replaceState 把整條 query
 // 抹掉(見 share-link 契約),所以純讀 location.search 的旗標一重新整理就掉——實測 reload 後
 // bounty/collectmap 都變回 false,連「錄製中重新整理接得回來」這種測試都驗不成。記在 sessionStorage,
@@ -16605,9 +16617,18 @@ const flagOnce = (name) => { try {
   if (new URLSearchParams(location.search).get(name) === '1') { sessionStorage.setItem(k, '1'); return true; }
   return sessionStorage.getItem(k) === '1';
 } catch (e) { return false; } };
+// 2026-11-27 網站懸賞重新打開（使用者 11-27 選「網站懸賞看板」跟 v1127b 一起上）：預設開。?bounty=0 當次關（記在這個分頁，
+// 比照 flagOnce；驗收腳本用它繼續驗下架態），?bounty=1 解除；?demo=bounty 一律開。收集地圖（COLLECT_MAP_ENABLED）不跟著開。
+const flagOffOnce = (name) => { try {
+  const k = 'rail-flag-' + name + '-off', q = new URLSearchParams(location.search).get(name);
+  if (q === '0') { sessionStorage.setItem(k, '1'); return true; }
+  if (q === '1') { sessionStorage.removeItem(k); return false; }
+  return sessionStorage.getItem(k) === '1';
+} catch (e) { return false; } };
 const BOUNTY_ENABLED = (() => { try {
-  return flagOnce('bounty') || new URLSearchParams(location.search).get('demo') === 'bounty';
-} catch (e) { return false; } })();
+  if (new URLSearchParams(location.search).get('demo') === 'bounty') return true;
+  return !flagOffOnce('bounty');
+} catch (e) { return true; } })();
 // 現行 App 殼（網頁包成的那一版）在懸賞開著時：這一版錄不了程，要更新到最新版的軌島 App 才行
 // （伺服器只收原生 App 的錄程，上傳沒帶 App 身分一律回 400 app_only）。判定只寫在這一處：看板副標、卡上的按鈕字、
 // 按鈕的點擊、開始錄製的提示（startBountyRecording）都讀它，不各自再寫一份。
@@ -16649,9 +16670,10 @@ const THEATER_IDLE_SEC = (() => {
 })();
 // ?breath=1 → 放空只抽「都會呼吸」幕(測試用,比照 ?theater 除錯先例)。見 hotspotTick 的城市幕抽選。
 const FORCE_BREATH = (() => { try { return new URLSearchParams(location.search).get('breath') === '1'; } catch (e) { return false; } })();
-// 行程分享(暗啟動):v1 建置完成、旗標關閉出貨,訂閱上線才開。只鎖「發起端」入口;
-// 接收端 ?trip= 解碼永遠作用(payload 本來就公開,不鎖)。?tripshare=1 當次開發起端測試(比照 ?breath=1,僅該次頁面生效)。
-const TRIP_SHARE_ENABLED = (() => { try { return new URLSearchParams(location.search).get('tripshare') === '1'; } catch (e) { return false; } })();
+// 行程分享:v1 暗啟動出貨,2026-11-27 打開發起端入口(使用者 11-27 選「行程分享（發起入口）」跟 v1127b 一起上)。
+// 入口對所有人顯示,未訂閱者按下去照舊被 plusGateOpen 攔去訂閱(顯示≠放行,見 tripShareVisible)。
+// ?tripshare=0 當次關(驗收腳本看關閉態用);接收端 ?trip= 解碼永遠作用(payload 本來就公開,不鎖)。
+const TRIP_SHARE_ENABLED = (() => { try { return new URLSearchParams(location.search).get('tripshare') !== '0'; } catch (e) { return true; } })();
 // ── 網站街道底圖來源(亮/暗一般地圖;衛星不受此影響) ─────────────────────────────
 // 'carto' = 現況。⚠️ 合規破口:CARTO 2025-10 起把 hosted 圖磚限定給 enterprise 客戶與非營利 grants
 //           (LICENSE.md 逐字 "not available for free public use"),而我們在賣通行證 ⇒ 落在 commercial。
@@ -24256,7 +24278,7 @@ function recordRide(tr) {
 // 那兩條路都經過 syncBoardHeadVar 尾端那一刀;換字級時 h3 一起變高,boardPadRO 會替它補。
 // sticky 的 top／bottom 是從捲動容器的內容框(扣掉 padding)量起:.board 下內距 12px ⇒ 提示列實際釘在離下緣 12px 處,
 // 底部讓位漏算這段,焦點鈕的下緣就還壓在它底下(實測 3px,連同外圈 13px)。上方同一個算式(面板上內距目前都是 0)。
-const BOARD_HEADS = ':scope > h3, :scope > .dwell-plate, :scope > .uni-tabs, :scope > .xc-head';
+const BOARD_HEADS = ':scope > h3, :scope > .dwell-plate, :scope > .uni-tabs, :scope > .xc-head, :scope > .tc-head'; // .tc-head＝手機列車卡(sheet 態才釘住)
 const BOARD_FEET = ':scope > .uni-slot .uni-more';
 function syncBoardScrollPad(bd) {
   const bcs = getComputedStyle(bd);
@@ -24278,14 +24300,14 @@ const boardPadRO = window.ResizeObserver ? new ResizeObserver(entries => {
   for (const bd of new Set(entries.map(e => e.target.parentElement))) if (bd) syncBoardScrollPad(bd);
 }) : null;
 if (boardPadRO && window.MutationObserver) {
-  const isHead = n => n.nodeType === 1 && n.matches('h3, .dwell-plate, .uni-tabs, .xc-head');
+  const isHead = n => n.nodeType === 1 && n.matches('h3, .dwell-plate, .uni-tabs, .xc-head, .tc-head');
   const mo = new MutationObserver(recs => {
     for (const r of recs) {
       r.removedNodes.forEach(n => { if (isHead(n)) boardPadRO.unobserve(n); });
       r.addedNodes.forEach(n => { if (isHead(n)) boardPadRO.observe(n); });
     }
   });
-  for (const bd of document.querySelectorAll('.board, .xing-card')) {
+  for (const bd of document.querySelectorAll('.board, .xing-card, .traincard')) {
     for (const n of bd.children) if (isHead(n)) boardPadRO.observe(n);
     mo.observe(bd, { childList: true });
   }
@@ -39889,12 +39911,13 @@ function ofmFallToRaster(why) {
 // ==== 地景地圖（新）：全台地景圖磚（landscape-web/） ====
 // 全台地景圖磚：three.js 畫在 MapLibre 畫布底下，MapLibre 這邊藏掉底圖、列車與路線照舊畫在上面（landscape-web/site.js）。
 // 電腦（LANDSCAPE_DESKTOP_MQ，跟首頁開場同一條）選「地景」就是新地景、不標 Beta、跑不動的保底打開（等同 ?ls.auto=1）。
-// 手機與平板（觸控、沒有滑鼠或觸控板）維持舊的地景圖層（OFM 地景樣式＋DEM 山影＋3D 建物）並標 Beta；網址帶 ?landscape=new 才用新地景（同一個分頁記住）。?landscape=old 一律舊的。
-// verify_landscape_web 照 LANDSCAPE_DESKTOP_MQ 驗電腦與手機的預設。
+// 手機與平板的網頁：2026-11-27 起也預設新地景（使用者 11-27 選「手機版網頁改新地景」跟 v1127b 一起上），一樣保底打開、跑不動自動退回舊的。
+// 現行 App 殼（IS_NATIVE_APP，網頁包成的舊 App）在手機上維持舊地景並標 Beta：殼裡的 WebView 沒量過新地景。?landscape=new／old 照舊可指定（同一個分頁記住）。
+// verify_landscape_web 照 LANDSCAPE_DESKTOP_MQ 與 IS_NATIVE_APP 驗電腦、手機網頁的預設。
 // 新地景載入失敗（圖磚倉連不上等）這次自動退回舊的。
 // 圖磚：正式站直連 tiles.railisland.tw（R2 CORS 只放行正式站來源）；本機開發伺服器同源轉手（scripts/dev_server.mjs 的 /__landscape_tiles/）；?landscapeTiles=<網址> 可指定別處。
 const LANDSCAPE_DESKTOP_MQ = '(min-width: 700px) and (any-pointer: fine)';
-const LANDSCAPE_NEW_DEFAULT = !!(window.matchMedia && matchMedia(LANDSCAPE_DESKTOP_MQ).matches);
+const LANDSCAPE_NEW_DEFAULT = !IS_NATIVE_APP || !!(window.matchMedia && matchMedia(LANDSCAPE_DESKTOP_MQ).matches);
 if (LANDSCAPE_NEW_DEFAULT) document.querySelectorAll('#msBasemapSeg .ri-beta').forEach(e => e.remove());
 const LANDSCAPE_Q = new URLSearchParams(location.search);
 // 自動化瀏覽器（navigator.webdriver）不論預設都走舊地景：既有的地景閘門量的是舊圖層（山影、worldcover、3D 建物、隧道口）；新地景由 verify_landscape_web 帶 ?landscape=new 驗。

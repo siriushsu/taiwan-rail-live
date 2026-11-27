@@ -1,6 +1,6 @@
 // 行程分享 v1 驗證 — Playwright 真引擎 + 本機靜態伺服器。
 // 背景(2026-07-18 設計定案,暗啟動):分享「班次＋目的站」不分享 GPS;接收端 ?trip= 解碼→強制 live、
-//   自動跟車、行程橫幅(追蹤中/已到達/行程已結束)。發起端受 TRIP_SHARE_ENABLED 旗標(?tripshare=1 測試開),
+//   自動跟車、行程橫幅(追蹤中/已到達/行程已結束)。發起端受 TRIP_SHARE_ENABLED 旗標(2026-11-27 起預設開,?tripshare=0 當次關),
 //   接收端不受旗標。連結格式 ?trip=<sys>.<車次>.<目的站>.<yyyymmdd>[.<起站>],sys∈tra|thsr。
 // 決定性:用 addInitScript 覆寫 Date(固定台北 08:30,尖峰大量在跑班次)——只固定 Date.now/new Date(),
 //   不動 performance/rAF/timer,故動畫時鐘照常;sharer 與 receiver 同一固定鐘,班次一致可重現。
@@ -81,10 +81,10 @@ function parseHM(txt) { const m = /(\d{1,2}):(\d{2})/.exec(txt || ''); return m 
 // ══════════════ chromium 主體 ══════════════
 const cr = await chromium.launch();
 
-// ── Test A:無 tripshare 參數 → 頁面無發起入口;?trip= 解碼仍作用 ──
+// ── Test A:?tripshare=0(關閉態)→ 頁面無發起入口;?trip= 解碼仍作用 ──
 let sharedUrl = null, pick = null;
 {
-  const { ctx, page, errors } = await boot(cr, '');
+  const { ctx, page, errors } = await boot(cr, '?tripshare=0');
   pick = await findRunningTrain(page);
   if (!pick) { ok('A0 找到在跑的台鐵班次(固定鐘 08:30)', false, '08:30 竟無在途台鐵車'); }
   else {
@@ -92,7 +92,7 @@ let sharedUrl = null, pick = null;
     const f = await followInPage(page, pick.no);
     ok('A1 無旗標時可跟車(既有功能不破壞)', !!f && f.no === pick.no, JSON.stringify(f));
     const entry = await page.evaluate(() => { const b = document.getElementById('fpTripShare'); return { exists: !!b, hidden: b ? b.hidden : null, visible: b ? !!b.offsetParent : null }; });
-    ok('A2 無 tripshare → 發起入口不顯示(暗啟動)', entry.exists && entry.hidden === true && entry.visible === false, JSON.stringify(entry));
+    ok('A2 ?tripshare=0 → 發起入口不顯示(關閉態)', entry.exists && entry.hidden === true && entry.visible === false, JSON.stringify(entry));
     sharedUrl = await page.evaluate((dest) => buildTripUrl(state.followTrain, dest), pick.dest);
     ok('A3 in-page buildTripUrl 產出 railisland.tw 的 ?trip= 公開連結', !!sharedUrl && /^https:\/\/railisland\.tw\/\?trip=tra\./.test(sharedUrl), sharedUrl);
     const viewUrl = await page.evaluate(() => buildShareUrl());
@@ -101,7 +101,16 @@ let sharedUrl = null, pick = null;
   ok('A 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
   await ctx.close();
 }
-// ?trip= 解碼在「無 tripshare」下仍作用(接收端不受旗標)
+// 預設(不帶參數,2026-11-27 起):跟台鐵車 → 發起入口出現(未訂閱照舊被攔去訂閱,見 B1b)
+if (pick) {
+  const { ctx, page, errors } = await boot(cr, '');
+  const f = await followInPage(page, pick.no);
+  const entry = await page.evaluate(() => { const b = document.getElementById('fpTripShare'); return { exists: !!b, hidden: b ? b.hidden : null, visible: b ? !!b.offsetParent : null }; });
+  ok('A5 不帶參數 → 跟台鐵車時發起入口出現(11-27 打開)', !!f && entry.exists && entry.hidden === false && entry.visible === true, JSON.stringify({ f, entry }));
+  ok('A5 無 JS 例外', errors.length === 0, errors.slice(0, 3).join(' | '));
+  await ctx.close();
+}
+// ?trip= 解碼在發起端關閉時仍作用(接收端不受旗標)
 if (sharedUrl) {
   const rpath = sharedQuery(sharedUrl);
   const { ctx, page, errors } = await boot(cr, rpath);
@@ -358,7 +367,7 @@ try {
   ok('F2 未直讀 raw shift(state.live.map / _easedShift.get)', !/state\.live\.map|_easedShift\.get/.test(blk), '未見 raw 偏移直取');
   ok('F3 日期走 todayStr(\'Asia/Taipei\')(v0718d 錨定,禁裝置時區 new Date 直算)', blk.includes("todayStr('Asia/Taipei')"), '含 todayStr(Asia/Taipei)');
   ok('F4 高鐵不顯逐車誤點(thsr 誤點=0)', /tr\.sys === 'tra_sched' \? liveDelaySec\(tr\) : 0/.test(blk), 'thsr delay 恆 0');
-  ok('F5 旗標暗啟動預設關(TRIP_SHARE_ENABLED 由 ?tripshare=1 決定)', /const TRIP_SHARE_ENABLED = \(\(\) => \{ try \{ return new URLSearchParams\(location\.search\)\.get\('tripshare'\) === '1'/.test(html), '旗標定義符合 ?breath 慣例');
+  ok('F5 旗標預設開(TRIP_SHARE_ENABLED 只有 ?tripshare=0 關,2026-11-27)', /const TRIP_SHARE_ENABLED = \(\(\) => \{ try \{ return new URLSearchParams\(location\.search\)\.get\('tripshare'\) !== '0'/.test(html), '旗標定義:不帶參數＝開');
   ok('F6 App／網站分享網址固定使用正式公開站', /const PUBLIC_SHARE_BASE = 'https:\/\/railisland\.tw\/';/.test(html) && blk.includes("return PUBLIC_SHARE_BASE + '?trip='"), '不依賴 capacitor://localhost 或目前頁面 origin');
 }
 

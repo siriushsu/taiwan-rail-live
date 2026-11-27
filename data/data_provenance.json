@@ -125,7 +125,7 @@
    "effectiveDateField": null,
    "geometrySource": "STORY",
    "coordinateBasis": "未載明(各則座標分別查自維基百科條目、OpenStreetMap 或官方網頁,查不到的填 null)",
-   "checksum": "394552c2b9446110de5d8f0d53daa272"
+   "checksum": "56e4d28fbe79e93e78671a5131d3709d"
   },
   "data/rail_story_directions.json": {
    "sourceDescription": "沿線小故事的分方向版本(21 則),與 App 同一份(shared/rail-stories/rail_story_directions.json,2026-11-26 逐 byte 比對相同);欄位意義見檔內「說明」,故事出處同 data/rail_stories.json 對應 id 的 sources",
@@ -233,7 +233,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "b3193367631ea25d24bb92f7ae7a8d75"
+   "checksum": "1f7cba50a42a5a7ba77a613f1559c819"
   },
   "data/tra_overtake_tracks.json": {
    "sourceDescription": "本站自算，無外部上游：由 rail-3d/physical/network.json 與 dispatch.json（派車表各站進出路徑）、rail-3d/physical/overtake-sidings.js（立體地圖待避換股）算出，data/tra.json 供站座標、data/tra_schedule_dens",
@@ -269,7 +269,7 @@
    "effectiveDateField": null,
    "geometrySource": null,
    "coordinateBasis": null,
-   "checksum": "c57dde5d64b7f7cc99ab1a4550dd1881"
+   "checksum": "d0f9047bdd037921ca7d40bb9a590020"
   },
   "data/tra_schedule_dense.json": {
    "sourceDescription": "時刻表來源：https://ods.railway.gov.tw/tra-ods-web/ods/download/dataResource/railway_schedule/JSON/list 清單頁，抓取今天(2026-11-24)起連續 14 天中實際發佈得到的 14 天（2026-11-24…2026-12-0",

@@ -125,12 +125,12 @@ try {
   // ═══ W1／W2：旗標關 → 0 次；旗標開 → 恰好 1 次（同一個環境的正反對照）═══════════════════════════════════════
   await attempt('W1', async () => {
     const s = await newSession();
-    await s.page.goto(BASE + '/');
+    await s.page.goto(BASE + '/?bounty=0');   // 2026-11-27 起網站懸賞預設開，關閉態要帶 ?bounty=0
     await loggedIn(s.page);
     await sleep(1500);
-    ok('W1a [fixture] 登入真的解出 user，而且 BOUNTY_ENABLED 是 false（沒帶 ?bounty=1）',
+    ok('W1a [fixture] 登入真的解出 user，而且 BOUNTY_ENABLED 是 false（帶 ?bounty=0）',
       (await uidOf(s.page)) === UID_A && (await s.page.evaluate(() => BOUNTY_ENABLED)) === false);
-    ok('W1b 旗標關：登入後 /api/bounty-merge 請求 0 次（懸賞下架期間不打這支 Worker）', s.merges.length === 0, JSON.stringify(s.merges));
+    ok('W1b 旗標關：登入後 /api/bounty-merge 請求 0 次（懸賞關著時不打這支 Worker）', s.merges.length === 0, JSON.stringify(s.merges));
     await s.ctx.close();
   });
 

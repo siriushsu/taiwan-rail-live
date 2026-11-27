@@ -1,4 +1,6 @@
-// 驗「2026-07-29 下架的兩個功能，預設真的看不到」——懸賞(GPS 校正旅程)與收集地圖。
+// 驗「2026-07-29 下架的兩個功能，關著時真的看不到」——懸賞(GPS 校正旅程)與收集地圖。
+// 2026-11-27 網站懸賞重新打開（預設開、?bounty=0 當次關）：「關」的那一輪改帶 ?bounty=0；收集地圖仍預設藏著。
+// 另外量一輪不帶參數的（H16）：懸賞板入口看得到、收集地圖入口與那一節說明仍不在。
 // 為什麼要單獨一支：verify_bounty / verify_checkin 驗的是「實作對不對」，它們一律帶 ?bounty=1
 // ／?collectmap=1 把功能點亮；那兩支全綠完全不保證使用者看到的是藏起來的樣子。
 //
@@ -84,7 +86,8 @@ async function probe(qs, label, demoRec = false) {
   return { ...seen, apiHits: apiHits.length, label };
 }
 
-const off = await probe('', '預設');
+const off = await probe('?bounty=0', '關閉');
+const dflt = await probe('', '預設');
 const on = await probe('?bounty=1&collectmap=1', '點亮');
 // 示範流程（備援站看設計用）：錄程是假的、不需要新版 App，所以示範保存的那一筆照舊接回——點亮時「會接回」的對照改看這一個
 const onDemo = await probe('?demo=bounty', '示範', true);
@@ -95,13 +98,13 @@ const helpOn = HELP_KEYS.filter(k => on.help.includes(k));
 
 ok('H0 兩種情境都真的種到了乘車記錄（沒種到的話「找不到鈕」是零資訊）',
   off.seededRide && on.seededRide, `off=${off.seededRide} on=${on.seededRide}`);
-ok('H1 預設看不到懸賞板入口', !off.bountyBtn);
-ok('H2 預設看不到收集地圖入口', !off.collectBtn);
-ok('H3 預設看不到護照的「校正貢獻」整節', !off.correctSec);
-ok('H4 預設說明中心沒有那四節', helpOff.length === 0, `還看得到：${helpOff.join('、') || '無'}`);
-ok('H5 預設開機不打 /api/bounty-me（那一節不渲染，問了也是白花 Worker 呼叫）',
+ok('H1 關閉時看不到懸賞板入口', !off.bountyBtn);
+ok('H2 關閉時看不到收集地圖入口', !off.collectBtn);
+ok('H3 關閉時看不到護照的「校正貢獻」整節', !off.correctSec);
+ok('H4 關閉時說明中心沒有那四節', helpOff.length === 0, `還看得到：${helpOff.join('、') || '無'}`);
+ok('H5 關閉時開機不打 /api/bounty-me（那一節不渲染，問了也是白花 Worker 呼叫）',
   off.apiHits === 0, `${off.apiHits} 次`);
-ok('H6 預設不把人接回錄製畫面（裝置上留著一筆錄到一半的旅程）',
+ok('H6 關閉時不把人接回錄製畫面（裝置上留著一筆錄到一半的旅程）',
   !off.recording && !off.recordBarShown, `state.recording=${off.recording} 常駐列=${off.recordBarShown}`);
 const KEEP_KEYS = ['stncollect', 'riding'];
 const keepOff = KEEP_KEYS.filter(k => off.help.includes(k));
@@ -118,10 +121,13 @@ ok('H12 點亮後真的會接回錄製（示範流程 ?demo=bounty 保存著一�
   onDemo.recording && onDemo.recordBarShown, `state.recording=${onDemo.recording} 常駐列=${onDemo.recordBarShown}`);
 ok('H15 點亮後的現行 App 殼不接回錄製（要更新 App 才錄得了程），而且裝置上保存的那一筆還在（不刪、不改）',
   !on.recording && !on.recordBarShown && on.savedRecording, `state.recording=${on.recording} 常駐列=${on.recordBarShown} 保存的還在=${on.savedRecording}`);
-ok('H13 預設看不到護照的籌碼列（護照已展開：整列不在 DOM，也沒有任何看得到的籌碼列）',
+ok('H13 關閉時看不到護照的籌碼列（護照已展開：整列不在 DOM，也沒有任何看得到的籌碼列）',
   !off.chipsRow && !off.chipsRowShown, `在 DOM=${off.chipsRow} 看得到=${off.chipsRowShown}`);
 ok('H14 點亮後籌碼列看得到（H13 同理，證明不是選擇器打錯的恆綠：護照展開、列在 DOM、有高度、沒被藏掉）',
   on.chipsRow && on.chipsRowShown, `在 DOM=${on.chipsRow} 看得到=${on.chipsRowShown}`);
+ok('H16 不帶參數（11-27 起）：懸賞板入口與「校正貢獻」節看得到、收集地圖入口與那一節說明仍不在',
+  dflt.bountyBtn && dflt.correctSec && !dflt.collectBtn && !dflt.help.includes('collectmap'),
+  `懸賞板=${dflt.bountyBtn} 校正貢獻=${dflt.correctSec} 收集地圖=${dflt.collectBtn} 說明=${dflt.help.includes('collectmap')}`);
 
 await browser.close();
 const bad = R.filter(r => !r.p).length;

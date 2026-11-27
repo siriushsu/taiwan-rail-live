@@ -641,7 +641,7 @@ try {
   // ═══ CH7：懸賞旗標關 ═══════════════════════════════════════════════════════════════════════════════════════════
   if (want('CH7')) await attempt('CH7', async () => {
     const s = await newSession({ seed: { [KEY_CHIPS]: JSON.stringify(CHIPS({ balance: 77 })) } });
-    await s.page.goto(`${BASE}/?lang=zh-TW`);
+    await s.page.goto(`${BASE}/?bounty=0&lang=zh-TW`);
     await loggedIn(s.page);
     await sleep(2000);
     ok('CH7a [fixture] 登入解出 user、懸賞旗標是關的、頁面腳本開始跑之前快取裡真的有那份資料（餘額 77）',
@@ -680,10 +680,29 @@ try {
       JSON.stringify({ g, n: s.chips.length - n0 }));
     await s.ctx.close();
   });
+  // 2026-11-27 起網站懸賞預設開（使用者 11-27 選「網站懸賞看板」）：不帶參數＝開；?bounty=0 當次關、記在這個分頁（重新整理拿掉參數仍關）；?bounty=1 解除。
+  // 上面 CH7 與其他「旗標關」的對照組都改帶 ?bounty=0，這條證明那個參數真的關得掉、而且不帶參數的一般訪客是開的。
+  if (want('CH7')) await attempt('CH7z', async () => {
+    const s = await newSession({ noUser: true });
+    await s.page.goto(`${BASE}/?lang=zh-TW`);
+    await authResolvedNull(s.page);
+    const dflt = await s.page.evaluate(() => BOUNTY_ENABLED);
+    await s.page.goto(`${BASE}/?bounty=0&lang=zh-TW`); await authResolvedNull(s.page);
+    const off = await s.page.evaluate(() => BOUNTY_ENABLED);
+    await s.page.goto(`${BASE}/?lang=zh-TW`); await authResolvedNull(s.page);
+    const sticky = await s.page.evaluate(() => BOUNTY_ENABLED);
+    await s.page.goto(`${BASE}/?bounty=1&lang=zh-TW`); await authResolvedNull(s.page);
+    const back = await s.page.evaluate(() => BOUNTY_ENABLED);
+    await s.page.goto(`${BASE}/?lang=zh-TW`); await authResolvedNull(s.page);
+    const after = await s.page.evaluate(() => BOUNTY_ENABLED);
+    ok('CH7z 不帶參數＝懸賞開（11-27 起）；?bounty=0 關、同分頁拿掉參數仍關；?bounty=1 解除後不帶參數又是開；頁面沒有未捕捉的例外',
+      dflt === true && off === false && sticky === false && back === true && after === true && s.errors.length === 0, JSON.stringify({ dflt, off, sticky, back, after, errors: s.errors }));
+    await s.ctx.close();
+  });
   // 對照：同一個動作、只差沒登入——沒有錢包就不出那一列、也不讀點數（CH7i 的列是登入帶出來的，不是無條件出現）
   if (want('CH7')) await attempt('CH7j', async () => {
     const s = await newSession({ noUser: true });
-    await s.page.goto(`${BASE}/?lang=zh-TW`);
+    await s.page.goto(`${BASE}/?bounty=0&lang=zh-TW`);
     await authResolvedNull(s.page);
     await s.page.evaluate(() => openTrainGarage());
     await s.page.waitForFunction(() => !!document.querySelector('#trainGarage .g-scenes'), null, { timeout: 30000 });
@@ -731,7 +750,7 @@ try {
       // 對照：旗標關（正式站現在的狀態）——400 app_only 不是終態，佇列照舊留著、下次開機照樣重送。
       // 上傳佇列在開機時不看旗標就會重送，旗標關著時把舊佇列清掉，就改掉了還留著舊佇列的裝置的行為。
       const s = await newSession({ seed: { [KEY_QUEUE]: JSON.stringify([qItem(1), qItem(2)]) } }, { submit: 'app_only' });
-      await s.page.goto(`${BASE}/?lang=zh-TW`); await loggedIn(s.page);
+      await s.page.goto(`${BASE}/?bounty=0&lang=zh-TW`); await loggedIn(s.page);
       await until(() => s.submits.length >= 1);
       await sleep(1200);
       const q = JSON.parse((await lsGet(s.page, KEY_QUEUE)) || '[]');
@@ -812,10 +831,10 @@ try {
       ok('CH10e 網頁、旗標開：沒有啟動取樣、沒有進入錄製、提示整句照舊是「錄程要用軌島 App。網頁可以看懸賞板與自己的島民點數」（不是更新那一句）',
         web.flag === true && web.native === false && web.demo === false && web.sampling === 0 && web.recording === false &&
           web.toast === WEB_PROMPT[L] && web.toast !== APP_PROMPT[L], JSON.stringify(web));
-      const off = await probe('', { app: true });
+      const off = await probe('&bounty=0', { app: true });
       ok('CH10f 對照：旗標關（同樣的 App 殼）→ 照舊啟動取樣（bountyStartSampling 1 次、進入錄製）、新舊兩句提示都沒有——只有旗標開著才收斂',
         off.flag === false && off.native === true && off.sampling === 1 && off.recording === true && neither(off.toast), JSON.stringify(off));
-      const offWeb = await probe('', {});
+      const offWeb = await probe('&bounty=0', {});
       ok('CH10g 對照：旗標關、網頁 → 沒有啟動取樣，提示是既有的「GPS 校正旅程需要用 App」、新舊兩句都不是——旗標關時網頁的行為不變',
         offWeb.flag === false && offWeb.native === false && offWeb.sampling === 0 && offWeb.recording === false && offWeb.toast === 'GPS 校正旅程需要用 App' && neither(offWeb.toast), JSON.stringify(offWeb));
       const demo = await probe('&demo=bounty', {});
@@ -1394,7 +1413,7 @@ try {
     await attempt('CH18-off', async () => {
       const s = await newSession({ app: true });
       s.board = BOARD_V2;
-      await s.page.goto(`${BASE}/?lang=zh-TW`);
+      await s.page.goto(`${BASE}/?bounty=0&lang=zh-TW`);
       await loggedIn(s.page);
       await sleep(1000);
       const { st, help } = await look(s);
@@ -2284,7 +2303,7 @@ try {
       const X = T24['zh-TW'];
       for (const [tag, arg, wantSub, wantBtn] of [['app', { app: true }, X.subApp, X.btnTrack], ['web', {}, X.subWeb, X.btnWeb]]) {
         const s = await newSession(arg, {}, { ctx: { locale: 'zh-TW' } });
-        await s.page.goto(`${BASE}/?lang=zh-TW`);
+        await s.page.goto(`${BASE}/?bounty=0&lang=zh-TW`);
         await bootDone(s.page);
         const out = await s.page.evaluate(card => {
           bountyBoardMem = { cards: [card] };
@@ -2757,7 +2776,7 @@ try {
       const locale = lang === 'en' ? 'en-US' : lang === 'ja' ? 'ja-JP' : 'zh-TW';
       const s = await newSession({ app: kind !== 'web' }, {}, { ctx: { locale } });
       s.meBody = me;
-      const qs = kind === 'demo' ? `lang=${lang}&demo=bounty` : kind === 'off' ? `lang=${lang}` : `bounty=1&lang=${lang}`;
+      const qs = kind === 'demo' ? `lang=${lang}&demo=bounty` : kind === 'off' ? `bounty=0&lang=${lang}` : `bounty=1&lang=${lang}`;
       await s.page.goto(`${BASE}/?${qs}`);
       await bootDone(s.page); await sleep(300);
       return s;
@@ -2966,7 +2985,7 @@ try {
       const X = U28['zh-TW'];
       for (const [tag, arg] of [['app', { app: true }], ['web', {}]]) {
         const s = await newSession(arg, {}, { ctx: { locale: 'zh-TW' } });
-        await s.page.goto(`${BASE}/?lang=zh-TW`);
+        await s.page.goto(`${BASE}/?bounty=0&lang=zh-TW`);
         await bootDone(s.page);
         const r = await inject28(s.page, CARD_COVERED);
         ok(`CH28d-${tag} 對照：旗標關（${tag === 'app' ? 'App 殼' : '網頁'}）：判定為假；直接畫板子，收滿的卡那一句仍是原句「${X.web}」`,
