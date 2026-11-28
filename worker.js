@@ -12152,12 +12152,13 @@ async function thsrSchedule(request, env) {
 
 // /api/thsr-schedule?date=YYYY-MM-DD:App 排「別天」的行程(AI 一句話說明天、週六)用。只給那一天:
 // cron 存了今天起 THSR_SCHED_FETCH_DAYS 天,沒有那天就 404 no_day,不退最近日(拿週日的表排週一會排出不存在的車)。
-// 日期限今天到 THSR_SCHED_DAY_AHEAD 天後,快取鍵帶日期。
+// 日期限昨天到 THSR_SCHED_DAY_AHEAD 天後,快取鍵帶日期。昨天是給 App 凌晨冷開機借昨夜跨午夜的班(issue #127:
+// 選前紅眼加開最晚 01:55 收班);blob 留 THSR_SCHED_KEEP_DAYS(8)個日鍵＝今天起 7 天＋昨天,本來就有那一份。
 const THSR_SCHED_DAY_AHEAD = 14;
 async function thsrScheduleOnDay(request, env, date) {
   const today = twToday();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || isoFromDate(new Date(date + 'T00:00:00Z')) !== date
-      || date < today || date > addDays(today, THSR_SCHED_DAY_AHEAD)) {
+      || date < addDays(today, -1) || date > addDays(today, THSR_SCHED_DAY_AHEAD)) {
     return jsonRes({ error: 'bad_date' }, 400, 'no-store');
   }
   const key = date.replace(/-/g, '');

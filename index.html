@@ -7719,7 +7719,8 @@ const RAIL_3D_BOOT_PARAMS = new URLSearchParams(location.search);
 // v1127b：台鐵站間 GPS 曲線用到 11-26 乘車日的可用錄程重算（data/tra_gps_runs.json 95→185 條，build_gps_runs.mjs 原樣重跑；網頁私有分支 claude/gps-run-1127 92aab7866）；tra_run_profiles.json 在 v1127a 上重產 2,481,033 bytes（上限 3,000,000），manifest／provenance 跟著重產。
 // v1127b（續）：同一發打開三個開關（使用者 11-27 選）：網站懸賞看板 BOUNTY_ENABLED 預設開（?bounty=0 當次關）、行程分享發起入口 TRIP_SHARE_ENABLED 預設開（?tripshare=0 當次關）、手機網頁新地景 LANDSCAPE_NEW_DEFAULT（現行 App 殼除外）；收集地圖不動。
 // v1128a：臺中捷運烏日站（G16）不再跟台鐵烏日站配成轉乘站（build_station_transfers.mjs 加排除配對，中捷新聞稿說此站不是轉乘站）。
-const BUILD = 'v1128a';
+// v1128b：只改 worker——/api/thsr-schedule?date= 放行昨天，App 2.1.1 凌晨冷開機借昨夜跨午夜的高鐵班（issue #127，worker.js thsrScheduleOnDay；網頁私有分支 claude/issue127-thsr-prevday bec6623f8）。網頁畫面不變，更新紀錄不加條目。
+const BUILD = 'v1128b';
 // v1104a：島民點數防掉點：錢包旁寫明點數存在哪個帳號、換登入方式提示（本機紀錄 trainmap-account-notes-v1）、刪帳號確認列出點數與已兌換場景數，照 App wallet-account-guard。
 const LANDSCAPE_REQUESTED = new URLSearchParams(location.search).get('map') === 'landscape';
 // 有播電腦首頁開場、又是第一次來（RI_HOME_OPENING.fresh）：揭幕後開新地景（開場影片就是新地景錄的）；只這一趟，不寫地景偏好
